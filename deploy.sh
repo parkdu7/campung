@@ -5,7 +5,8 @@ DOMAIN="campung.my"
 EMAIL="cbkjh0225@gmail.com"
 GITHUB_URL="https://github.com/Jaeboong/Campung_Backend.git"
 BRANCH="server"
-APP_DIR="/home/kjh/Campung_Backend"
+APP_DIR="/home/kjh/Project/Campung_Backend"
+DB_DIR="/home/kjh/Project/DB_Setting/campung"
 SERVICE_NAME="campung-backend"
 
 # 색상 정의
@@ -50,8 +51,6 @@ sudo apt update && sudo apt upgrade -y
 log_step "필요한 패키지 설치 중..."
 sudo apt install -y \
     nginx \
-    docker.io \
-    docker-compose \
     certbot \
     python3-certbot-nginx \
     ufw \
@@ -60,13 +59,35 @@ sudo apt install -y \
     curl \
     htop
 
-# 3. Docker 설정
+# Docker 관련은 별도로 설치 (이미 설치되어 있을 수 있음)
+if ! command -v docker &> /dev/null; then
+    log_info "Docker 설치 중..."
+    sudo apt install -y docker.io docker-compose
+else
+    log_info "Docker는 이미 설치되어 있습니다."
+fi
+
+# 3. Java 환경 설정
+log_step "Java 환경 설정 중..."
+# JAVA_HOME 설정
+JAVA_HOME_PATH=$(find /usr/lib/jvm -name "java-17-openjdk*" -type d | head -1)
+if [ -n "$JAVA_HOME_PATH" ]; then
+    export JAVA_HOME=$JAVA_HOME_PATH
+    export PATH=$JAVA_HOME/bin:$PATH
+    echo "export JAVA_HOME=$JAVA_HOME_PATH" >> ~/.bashrc
+    echo "export PATH=\$JAVA_HOME/bin:\$PATH" >> ~/.bashrc
+    log_info "JAVA_HOME 설정 완료: $JAVA_HOME_PATH"
+else
+    log_error "Java 17이 제대로 설치되지 않았습니다."
+fi
+
+# 4. Docker 설정
 log_step "Docker 설정 중..."
 sudo systemctl start docker
 sudo systemctl enable docker
 sudo usermod -aG docker $USER
 
-# 4. 방화벽 설정
+# 5. 방화벽 설정
 log_step "방화벽 설정 중..."
 sudo ufw allow 22      # SSH
 sudo ufw allow 80      # HTTP
@@ -74,12 +95,12 @@ sudo ufw allow 443     # HTTPS
 sudo ufw allow 8080    # Spring Boot (임시)
 sudo ufw --force enable
 
-# 5. 기존 애플리케이션 정지
+# 6. 기존 애플리케이션 정지
 log_step "기존 애플리케이션 정지 중..."
 sudo pkill -f "java.*jar" || true
-sudo docker-compose down || true
+sudo systemctl stop $SERVICE_NAME || true
 
-# 6. 프로젝트 클론 또는 업데이트
+# 7. 프로젝트 클론 또는 업데이트
 log_step "소스코드 업데이트 중..."
 if [ -d "$APP_DIR" ]; then
     cd $APP_DIR
@@ -91,16 +112,31 @@ else
     cd $APP_DIR
 fi
 
-# 7. Gradle 빌드
+# 8. Gradle 빌드
 log_step "애플리케이션 빌드 중..."
 chmod +x gradlew
 ./gradlew clean build -x test
 
-# 8. Docker Compose 실행 (DB, Redis)
-log_step "데이터베이스 및 Redis 시작 중..."
-docker-compose up -d
+# 9. Docker 컨테이너 상태 확인
+log_step "데이터베이스 및 Redis 상태 확인 중..."
 
-# 9. Nginx 설정
+# MariaDB 컨테이너 확인 (정확한 패턴으로 수정)
+if docker ps --format "table {{.Names}}" | grep -q "^Campung$"; then
+    log_info "✅ MariaDB 컨테이너 실행 중"
+else
+    log_warn "⚠️  MariaDB 컨테이너가 실행되지 않았습니다. 수동으로 시작해주세요:"
+    log_warn "   cd $DB_DIR && docker-compose up -d"
+fi
+
+# Redis 컨테이너 확인 (정확한 패턴으로 수정)
+if docker ps --format "table {{.Names}}" | grep -q "^campung-redis$"; then
+    log_info "✅ Redis 컨테이너 실행 중"
+else
+    log_warn "⚠️  Redis 컨테이너가 실행되지 않았습니다. 수동으로 시작해주세요:"
+    log_warn "   cd $DB_DIR && docker-compose up -d"
+fi
+
+# 10. Nginx 설정
 log_step "Nginx 설정 중..."
 sudo tee /etc/nginx/sites-available/$DOMAIN > /dev/null <<EOF
 server {
@@ -145,7 +181,7 @@ sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t || log_error "Nginx 설정 오류"
 sudo systemctl restart nginx
 
-# 10. Spring Boot 애플리케이션 실행
+# 11. Spring Boot 애플리케이션 실행
 log_step "Spring Boot 애플리케이션 시작 중..."
 # systemd 서비스 파일 생성
 sudo tee /etc/systemd/system/$SERVICE_NAME.service > /dev/null <<EOF
@@ -176,23 +212,41 @@ sudo systemctl daemon-reload
 sudo systemctl enable $SERVICE_NAME
 sudo systemctl start $SERVICE_NAME
 
-# 11. 애플리케이션 시작 대기
+# 12. 애플리케이션 시작 대기
 log_step "애플리케이션 시작 대기 중..."
 sleep 30
 
-# 12. SSL 인증서 발급
+# 13. SSL 인증서 발급
 log_step "SSL 인증서 발급 중..."
-sudo certbot --nginx -d $DOMAIN --email $EMAIL --agree-tos --non-interactive --redirect
 
-# 13. 서비스 상태 확인
+# DNS 설정 확인
+log_info "DNS 설정 확인 중..."
+DOMAIN_IP=$(dig +short $DOMAIN || echo "조회실패")
+if [ "$DOMAIN_IP" = "119.56.208.5" ]; then
+    log_info "✅ DNS 설정 정상: $DOMAIN → $DOMAIN_IP"
+    sudo certbot --nginx -d $DOMAIN --email $EMAIL --agree-tos --non-interactive --redirect
+else
+    log_warn "⚠️  DNS 설정 문제 발견!"
+    log_warn "   현재 $DOMAIN → $DOMAIN_IP"
+    log_warn "   필요한 설정: $DOMAIN → 119.56.208.5"
+    log_warn "   도메인 관리 페이지에서 A 레코드를 119.56.208.5로 설정한 후 재시도하세요."
+    log_warn "   DNS 전파까지 최대 24시간 소요될 수 있습니다."
+    log_warn "   SSL 인증서는 DNS 설정 완료 후 수동으로 발급하세요:"
+    log_warn "   sudo certbot --nginx -d $DOMAIN --email $EMAIL --agree-tos --non-interactive --redirect"
+fi
+
+# 14. 서비스 상태 확인
 log_step "서비스 상태 확인 중..."
 
 # Docker 서비스 확인
-if docker ps | grep -q "campung-redis\|Campung"; then
-    log_info "✅ Docker 컨테이너 정상 실행"
-else
-    log_warn "⚠️  Docker 컨테이너 상태 확인 필요"
-fi
+MARIADB_STATUS=$(docker ps --filter "name=Campung" --format "table {{.Names}}\t{{.Status}}" | grep -v NAMES || echo "없음")
+REDIS_STATUS=$(docker ps --filter "name=campung-redis" --format "table {{.Names}}\t{{.Status}}" | grep -v NAMES || echo "없음")
+PHPMYADMIN_STATUS=$(docker ps --filter "name=Campung-phpmyadmin" --format "table {{.Names}}\t{{.Status}}" | grep -v NAMES || echo "없음")
+
+log_info "Docker 컨테이너 상태:"
+log_info "  - MariaDB: $MARIADB_STATUS"
+log_info "  - Redis: $REDIS_STATUS"  
+log_info "  - phpMyAdmin: $PHPMYADMIN_STATUS"
 
 # Spring Boot 확인
 if systemctl is-active --quiet $SERVICE_NAME; then
@@ -217,7 +271,7 @@ else
     log_warn "⚠️  HTTPS 접속 확인 필요"
 fi
 
-# 14. 배포 완료
+# 15. 배포 완료
 log_step "🎉 배포 완료!"
 echo "================================"
 log_info "접속 주소: https://$DOMAIN"
@@ -234,10 +288,10 @@ log_info "서비스 관리 명령어:"
 log_info "  - 서비스 상태: sudo systemctl status $SERVICE_NAME"
 log_info "  - 서비스 재시작: sudo systemctl restart $SERVICE_NAME"
 log_info "  - 로그 확인: sudo journalctl -u $SERVICE_NAME -f"
-log_info "  - Docker 로그: docker-compose logs -f"
+log_info "  - DB 컨테이너 관리: cd $DB_DIR && docker-compose logs -f"
 echo "================================"
 
-# 15. 자동 갱신 설정 (SSL)
+# 16. 자동 갱신 설정 (SSL)
 log_step "SSL 인증서 자동 갱신 설정 중..."
 (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet && systemctl reload nginx") | crontab -
 
