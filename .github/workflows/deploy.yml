@@ -1,8 +1,8 @@
-name: Deploy to Server
+name: CI CD Process
 
 on:
   push:
-    branches: [ server ]
+    branches: [ server, main ]  # main 브랜치도 추가
   workflow_dispatch:
 
 jobs:
