@@ -1,0 +1,36 @@
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: Campung
+    environment:
+      MYSQL_ROOT_PASSWORD: Campung1234
+      MYSQL_DATABASE: Campung
+      MYSQL_USER: Campung
+      MYSQL_PASSWORD: Campung1234
+    ports:
+      - "3312:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: Campung-phpmyadmin
+    environment:
+      PMA_HOST: mariadb   # 기본적으로 mariadb에 연결
+      PMA_USER: Campung
+      PMA_PASSWORD: Campung1234
+      MYSQL_ROOT_PASSWORD: Campung1234 # MariaDB root 비밀번호
+    ports:
+      - "9012:80"  # phpMyAdmin에 접속하는 포트 (브라우저에서 http://localhost:9012 사용)
+    depends_on:
+      - mariadb
+  redis:
+    image: redis:alpine
+    container_name: campung-redis
+    ports:
+      - "6379:6379"  # Redis 포트 매핑 추가!
+    volumes:
+      - redis_data:/data
+    command: [ "redis-server", "--requirepass", "sequence" ]
+volumes:
+  mariadb_data:
+  redis_data:
