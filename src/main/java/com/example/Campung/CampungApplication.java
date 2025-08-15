@@ -67,7 +67,7 @@ public class CampungApplication {
 			result.append("❌ Redis 연결 실패: Redis 서버가 실행되지 않았습니다.<br>");
 		}
 		
-		result.append("<br>🎉 연결 테스트 완료!");
+		result.append("<br>🎉 연결 테스트 완료!!");
 		
 		return result.toString();
 	}
