@@ -1,0 +1,35 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ server ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 119.56.208.5
+        username: kjh
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /home/kjh/Campung_Backend
+          git fetch origin
+          git checkout server
+          git pull origin server
+          ./gradlew clean build -x test
+          sudo systemctl restart campung-backend
+          sleep 10
+          
+          # 배포 상태 확인
+          if systemctl is-active --quiet campung-backend; then
+            echo "✅ 배포 성공: 서비스가 정상적으로 실행 중입니다."
+          else
+            echo "❌ 배포 실패: 서비스 상태를 확인해주세요."
+            sudo systemctl status campung-backend
+            exit 1
+          fi
