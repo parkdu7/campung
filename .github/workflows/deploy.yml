@@ -16,7 +16,7 @@ jobs:
         host: 119.56.208.5
         username: kjh
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: 22
+        port: 22222
         script_stop: true
         script: |
           cd /home/kjh/Project/Campung_Backend

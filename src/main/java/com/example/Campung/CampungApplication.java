@@ -26,7 +26,7 @@ public class CampungApplication {
 
 	@GetMapping("/")
 	public String hello() {
-		return "Hello World! 캠펑 프로젝트 시작!";
+		return "Hello World! 캠펑 프로젝트 시작!!!";
 	}
 
 	@GetMapping("/test-db")
