@@ -26,7 +26,7 @@ public class CampungApplication {
 
 	@GetMapping("/")
 	public String hello() {
-		return "Hello World! 캠핑 프로젝트 시작!";
+		return "Hello World! 캠펑 프로젝트 시작!";
 	}
 
 	@GetMapping("/test-db")
@@ -67,7 +67,7 @@ public class CampungApplication {
 			result.append("❌ Redis 연결 실패: Redis 서버가 실행되지 않았습니다.<br>");
 		}
 		
-		result.append("<br>🎉 연결 테스트 완료!");
+		result.append("<br>🎉 연결 테스트 완료!!");
 		
 		return result.toString();
 	}

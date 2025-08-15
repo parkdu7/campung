@@ -1,0 +1,48 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ server ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 119.56.208.5
+        username: kjh
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /home/kjh/Project/Campung_Backend
+          git fetch origin
+          git checkout server
+          git pull origin server
+          ./gradlew clean build -x test
+          sudo systemctl restart campung-backend
+          sleep 15
+          
+          # Docker 컨테이너 상태 확인
+          if ! docker ps | grep -q "Campung.*mariadb\|campung-redis.*redis"; then
+            echo "⚠️ Docker 컨테이너 상태 확인 필요"
+            echo "MariaDB, Redis 컨테이너가 실행 중인지 확인하세요:"
+            echo "cd /home/kjh/Project/DB_Setting/campung && docker-compose ps"
+          fi
+          
+          # 배포 상태 확인
+          if systemctl is-active --quiet campung-backend; then
+            echo "✅ 배포 성공: 서비스가 정상적으로 실행 중입니다."
+            # 간단한 헬스체크
+            if curl -f http://localhost:8080/ > /dev/null 2>&1; then
+              echo "✅ 애플리케이션 응답 정상"
+            else
+              echo "⚠️ 애플리케이션 응답 확인 필요"
+            fi
+          else
+            echo "❌ 배포 실패: 서비스 상태를 확인해주세요."
+            sudo systemctl status campung-backend
+            exit 1
+          fi
