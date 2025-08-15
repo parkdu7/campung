@@ -11,11 +11,13 @@ jobs:
     
     steps:
     - name: Deploy to server
-      uses: appleboy/ssh-action@v1.0.3
+      uses: appleboy/ssh-action@v0.1.10
       with:
         host: 119.56.208.5
         username: kjh
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script_stop: true
         script: |
           cd /home/kjh/Project/Campung_Backend
           git fetch origin
