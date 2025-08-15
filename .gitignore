@@ -35,3 +35,46 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Deploy ###
+# 배포 로그 파일들
+*.log
+app.log
+deploy.log
+nginx.log
+
+# 배포 임시 파일들
+.deploy/
+deploy-tmp/
+*.pid
+
+# 환경별 설정 파일 (민감한 정보 포함)
+application-prod.properties
+application-local.properties
+.env
+.env.local
+.env.production
+
+# SSL 인증서 관련
+*.crt
+*.key
+*.pem
+ssl/
+
+# Docker 관련 임시 파일
+docker-compose.override.yml
+.dockerignore
+
+# 배포 백업 파일들
+backup/
+*.backup
+*.bak
+
+# 서버 관련 민감 파일들
+authorized_keys
+id_rsa*
+*.ppk
+
+# 배포 상태 파일들
+.deployment
+deployment-status.json
