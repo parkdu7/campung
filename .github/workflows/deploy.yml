@@ -3,11 +3,49 @@ name: CI CD Process
 on:
   push:
     branches: [ develop, main ]  # develop과 main 브랜치만 배포
+  pull_request:
+    branches: [ develop, main ]  # PR 생성/업데이트 시에도 실행
   workflow_dispatch:
 
 jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' || 
+      (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+      
+    - name: Run tests
+      run: ./gradlew clean test
+      
+    - name: Build application
+      run: ./gradlew build -x test
+      
+    - name: Build status
+      run: |
+        if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+          echo "✅ develop 브랜치 빌드 완료 - 배포 없이 테스트/빌드만 수행됨"
+        else
+          echo "✅ PR 테스트/빌드 완료"
+        fi
+
   deploy:
     runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') || 
+      github.event_name == 'workflow_dispatch'
     
     steps:
     - name: Deploy to server
@@ -22,7 +60,8 @@ jobs:
           cd /home/kjh/Project/Campung_Backend
           
           # 현재 푸시된 브랜치 정보 출력
-          echo "🚀 배포 시작: ${{ github.ref_name }} 브랜치"
+          echo "🚀 운영 서버 배포 시작: ${{ github.ref_name }} 브랜치"
+          echo "📦 배포 타입: ${{ github.event_name }}"
           
           # 현재 브랜치 확인 및 업데이트 (강제 체크아웃 제거!)
           git fetch origin
