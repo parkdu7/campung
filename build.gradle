@@ -30,3 +30,14 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+// .env 파일에서 환경변수 로드
+bootRun {
+	if (file('.env').exists()) {
+		def props = new Properties()
+		file('.env').withInputStream { props.load(it) }
+		props.each { key, value ->
+			environment key, value
+		}
+	}
+}
+
