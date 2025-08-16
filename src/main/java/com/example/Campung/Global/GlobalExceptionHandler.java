@@ -12,8 +12,9 @@ import java.util.Map;
  * 전역 예외 처리를 담당하는 핸들러
  * 단일 책임 원칙(SRP)을 준수하여 예외 처리만 담당
  * 중앙집중식 예외 처리를 통해 일관된 에러 응답 제공
+ * Spring Boot 3.x 호환 - 특정 패키지만 대상으로 제한
  */
-@ControllerAdvice
+@ControllerAdvice(basePackages = "com.example.Campung.Test.controller")
 public class GlobalExceptionHandler {
     
     /**

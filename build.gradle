@@ -22,6 +22,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	
+	// Swagger/OpenAPI 문서화 (Spring Boot 3.x 호환)
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+	
 	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -29,15 +33,5 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
-}
-// .env 파일에서 환경변수 로드
-bootRun {
-	if (file('.env').exists()) {
-		def props = new Properties()
-		file('.env').withInputStream { props.load(it) }
-		props.each { key, value ->
-			environment key, value
-		}
-	}
 }
 
