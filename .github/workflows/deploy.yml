@@ -2,7 +2,7 @@ name: CI CD Process
 
 on:
   push:
-    branches: [ server, main ]  # main 브랜치도 추가
+    branches: [ develop, main ]  # develop과 main 브랜치만 배포
   workflow_dispatch:
 
 jobs:
@@ -20,9 +20,23 @@ jobs:
         script_stop: true
         script: |
           cd /home/kjh/Project/Campung_Backend
+          
+          # 현재 푸시된 브랜치 정보 출력
+          echo "🚀 배포 시작: ${{ github.ref_name }} 브랜치"
+          
+          # 현재 브랜치 확인 및 업데이트 (강제 체크아웃 제거!)
           git fetch origin
-          git checkout server
-          git pull origin server
+          
+          # 현재 브랜치가 푸시된 브랜치와 다르면 체크아웃
+          CURRENT_BRANCH=$(git branch --show-current)
+          TARGET_BRANCH="${{ github.ref_name }}"
+          
+          if [ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]; then
+            echo "브랜치 변경: $CURRENT_BRANCH → $TARGET_BRANCH"
+            git checkout $TARGET_BRANCH
+          fi
+          
+          git pull origin $TARGET_BRANCH
           ./gradlew clean build -x test
           sudo systemctl restart campung-backend
           sleep 15
