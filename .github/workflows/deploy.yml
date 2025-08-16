@@ -76,6 +76,8 @@ jobs:
           fi
           
           git pull origin $TARGET_BRANCH
+
+          
           ./gradlew clean build -x test
           sudo systemctl restart campung-backend
           sleep 15
