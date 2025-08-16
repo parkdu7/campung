@@ -4,7 +4,7 @@
 DOMAIN="campung.my"
 EMAIL="cbkjh0225@gmail.com"
 GITHUB_URL="https://github.com/Jaeboong/Campung_Backend.git"
-BRANCH="server"
+BRANCH="main"
 APP_DIR="/home/kjh/Project/Campung_Backend"
 DB_DIR="/home/kjh/Project/DB_Setting/campung"
 SERVICE_NAME="campung-backend"
@@ -104,9 +104,20 @@ sudo systemctl stop $SERVICE_NAME || true
 log_step "소스코드 업데이트 중..."
 if [ -d "$APP_DIR" ]; then
     cd $APP_DIR
+    # 현재 브랜치 확인
+    CURRENT_BRANCH=$(git branch --show-current)
+    log_info "현재 브랜치: $CURRENT_BRANCH"
+    
+    # 현재 브랜치가 있으면 그대로 사용, 없으면 설정된 브랜치 사용
+    if [ -n "$CURRENT_BRANCH" ]; then
+        DEPLOY_BRANCH=$CURRENT_BRANCH
+    else
+        DEPLOY_BRANCH=$BRANCH
+    fi
+    
+    log_info "배포 브랜치: $DEPLOY_BRANCH"
     git fetch origin
-    git checkout $BRANCH
-    git pull origin $BRANCH
+    git pull origin $DEPLOY_BRANCH
 else
     git clone -b $BRANCH $GITHUB_URL $APP_DIR
     cd $APP_DIR
@@ -120,20 +131,27 @@ chmod +x gradlew
 # 9. Docker 컨테이너 상태 확인
 log_step "데이터베이스 및 Redis 상태 확인 중..."
 
-# MariaDB 컨테이너 확인 (정확한 패턴으로 수정)
-if docker ps --format "table {{.Names}}" | grep -q "^Campung$"; then
+# MariaDB 컨테이너 확인 (개선된 방법)
+if docker ps --filter "name=Campung" --format "{{.Names}}" | grep -q "^Campung$"; then
     log_info "✅ MariaDB 컨테이너 실행 중"
 else
     log_warn "⚠️  MariaDB 컨테이너가 실행되지 않았습니다. 수동으로 시작해주세요:"
     log_warn "   cd $DB_DIR && docker-compose up -d"
 fi
 
-# Redis 컨테이너 확인 (정확한 패턴으로 수정)
-if docker ps --format "table {{.Names}}" | grep -q "^campung-redis$"; then
+# Redis 컨테이너 확인 (개선된 방법)  
+if docker ps --filter "name=campung-redis" --format "{{.Names}}" | grep -q "^campung-redis$"; then
     log_info "✅ Redis 컨테이너 실행 중"
 else
     log_warn "⚠️  Redis 컨테이너가 실행되지 않았습니다. 수동으로 시작해주세요:"
     log_warn "   cd $DB_DIR && docker-compose up -d"
+fi
+
+# phpMyAdmin 컨테이너 확인 (추가)
+if docker ps --filter "name=Campung-phpmyadmin" --format "{{.Names}}" | grep -q "^Campung-phpmyadmin$"; then
+    log_info "✅ phpMyAdmin 컨테이너 실행 중"
+else
+    log_warn "⚠️  phpMyAdmin 컨테이너가 실행되지 않았습니다."
 fi
 
 # 10. Nginx 설정
