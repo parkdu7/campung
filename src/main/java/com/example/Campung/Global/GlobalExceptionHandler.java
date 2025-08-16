@@ -15,7 +15,7 @@ import java.util.Map;
  * Spring Boot 3.x 호환 - 특정 패키지만 대상으로 제한
  * @RestControllerAdvice 사용으로 SpringDoc 호환성 개선
  */
-//@RestControllerAdvice(basePackages = "com.example.Campung.Test.controller")  // SpringDoc 호환성 문제로 임시 비활성화
+@RestControllerAdvice(basePackages = "com.example.Campung.Test.controller")  // SpringDoc 2.8.0에서 호환성 문제 해결
 public class GlobalExceptionHandler {
     
     /**
