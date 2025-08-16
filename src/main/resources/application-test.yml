@@ -19,17 +19,12 @@ spring:
         format_sql: false
         dialect: org.hibernate.dialect.H2Dialect
   
-  # Redis 테스트 설정 (비활성화)
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      timeout: 1000ms  # 빠른 타임아웃
-      
-  # Redis 자동 설정 비활성화 (테스트에서는 불필요)
+  # 자동 설정 제외 (Redis, Web 등 제외)
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration
 
 # 테스트 서버 포트
 server:
