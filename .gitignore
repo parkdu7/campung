@@ -54,6 +54,7 @@ application-local.properties
 .env
 .env.local
 .env.production
+env.properties
 
 # SSL 인증서 관련
 *.crt
