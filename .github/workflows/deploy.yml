@@ -25,13 +25,13 @@ jobs:
         distribution: 'temurin'
         
     - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      run: chmod +x be/gradlew
       
     - name: Run tests
-      run: ./gradlew clean test
+      run: cd be && ./gradlew clean test
       
     - name: Build application
-      run: ./gradlew build -x test
+      run: cd be && ./gradlew build -x test
       
     - name: Build status
       run: |
