@@ -86,7 +86,21 @@ jobs:
           
           ./gradlew clean build -x test
           sudo systemctl restart campung-backend
-          sleep 15
+          
+          # 애플리케이션 시작 대기 (더 긴 시간)
+          echo "애플리케이션 시작 대기 중..."
+          sleep 30
+          
+          # 추가적인 헬스체크 (최대 60초까지 대기)
+          for i in {1..12}; do
+            if curl -f http://localhost:8080/ > /dev/null 2>&1; then
+              echo "✅ 애플리케이션 응답 확인 완료 ($((i*5))초 후)"
+              break
+            else
+              echo "대기 중... ($((i*5))초)"
+              sleep 5
+            fi
+          done
           
           # Docker 컨테이너 상태 확인
           MARIADB_RUNNING=$(docker ps --filter "name=Campung" --format "{{.Names}}" | grep -c "^Campung$" || echo "0")
