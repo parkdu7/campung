@@ -77,6 +77,9 @@ jobs:
           
           git pull origin $TARGET_BRANCH
         
+          # be 디렉토리로 이동
+          cd be
+          
           # gradlew 실행 권한 부여 (서버에서 필요)
           chmod +x gradlew
 
