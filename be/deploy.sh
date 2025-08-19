@@ -3,7 +3,7 @@
 # 설정 변수
 DOMAIN="campung.my"
 EMAIL="cbkjh0225@gmail.com"
-GITHUB_URL="https://github.com/Jaeboong/Campung_Backend.git"
+GITHUB_URL="https://github.com/parkdu7/campung.git"
 BRANCH="main"
 APP_DIR="/home/kjh/Project/Campung_Backend"
 DB_DIR="/home/kjh/Project/DB_Setting/campung"
@@ -123,6 +123,9 @@ else
     cd $APP_DIR
 fi
 
+# be 디렉토리로 이동
+cd $APP_DIR/be
+
 # 8. Gradle 빌드
 log_step "애플리케이션 빌드 중..."
 chmod +x gradlew
@@ -210,8 +213,8 @@ After=network.target
 [Service]
 Type=simple
 User=kjh
-WorkingDirectory=$APP_DIR
-ExecStart=/usr/bin/java -jar $APP_DIR/build/libs/Campung-0.0.1-SNAPSHOT.jar
+WorkingDirectory=$APP_DIR/be
+ExecStart=/usr/bin/java -jar $APP_DIR/be/build/libs/Campung-0.0.1-SNAPSHOT.jar
 Restart=always
 RestartSec=10
 
