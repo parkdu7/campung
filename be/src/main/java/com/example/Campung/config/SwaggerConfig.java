@@ -2,6 +2,7 @@ package com.example.Campung.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 public class SwaggerConfig {
     
     /**
-     * OpenAPI 3.0 스펙 설정 (기본 설정)
+     * OpenAPI 3.0 스펙 설정 (HTTPS 서버 URL 명시)
      * @return OpenAPI 설정 객체
      */
     @Bean
@@ -22,6 +23,9 @@ public class SwaggerConfig {
                 .info(new Info()
                         .title("🎪 Campung API")
                         .description("MariaDB, Redis, PHPMyAdmin 통합 테스트 및 관리 API")
-                        .version("1.0.0"));
+                        .version("1.0.0"))
+                .addServersItem(new Server()
+                        .url("https://campung.my")
+                        .description("Production HTTPS Server"));
     }
 }
