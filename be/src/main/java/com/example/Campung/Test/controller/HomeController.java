@@ -27,7 +27,7 @@ public class HomeController {
     @GetMapping("/")
     public ResponseEntity<Map<String, Object>> home() {
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "🎪 캠펑 프로젝트에 오신 것을 환영합니다!!!!!!");
+        response.put("message", "🎪 캠펑 프로젝트에 오신 것을 환영합니다!");
         response.put("version", "1.0.0");
         response.put("description", "MariaDB, Redis, PHPMyAdmin 통합 테스트 API");
         
