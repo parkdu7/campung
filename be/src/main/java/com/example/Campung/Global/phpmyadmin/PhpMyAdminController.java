@@ -22,6 +22,6 @@ public class PhpMyAdminController {
     @ApiResponse(responseCode = "302", description = "리다이렉트")
     @GetMapping("/phpmyadmin")
     public String redirectToPhpMyAdmin() {
-        return "redirect:http://localhost:9012";
+        return "redirect:https://campung.my:9012";
     }
 }
