@@ -32,6 +32,7 @@ public class LocationRequest {
     @Column(columnDefinition = "TEXT")
     private String message;
     
+    @Builder.Default
     @Column(columnDefinition = "VARCHAR(255) DEFAULT 'pending'")
     private String status = "pending";
     

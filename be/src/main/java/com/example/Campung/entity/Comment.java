@@ -41,6 +41,10 @@ public class Comment {
     @Column(name = "content", columnDefinition = "TEXT", nullable = false)
     private String commentContent;
     
+    @Builder.Default
+    @Column(name = "is_anonymous", nullable = false)
+    private Boolean isAnonymous = false;
+    
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;

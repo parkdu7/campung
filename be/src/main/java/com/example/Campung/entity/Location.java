@@ -34,6 +34,7 @@ public class Location {
     @Column(precision = 5, scale = 2)
     private BigDecimal accuracy;
     
+    @Builder.Default
     @Column(name = "is_at_target", columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean isAtTarget = false;
     
