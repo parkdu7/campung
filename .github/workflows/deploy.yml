@@ -24,8 +24,31 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
-    - name: Grant execute permission for gradlew
-      run: chmod +x be/gradlew
+    - name: Setup Gradle Wrapper
+      uses: gradle/actions/wrapper-validation@v3
+      
+    - name: Debug and fix gradlew
+      run: |
+        echo "=== 디렉토리 구조 확인 ==="
+        ls -la
+        echo "=== be 디렉토리 내용 ==="
+        ls -la be/
+        echo "=== gradlew 파일 상세 정보 ==="
+        cd be
+        ls -la gradlew* || echo "gradlew 파일들을 찾을 수 없습니다"
+        echo "=== gradlew 파일 타입 ==="
+        file gradlew || echo "gradlew 파일 타입 확인 실패"
+        echo "=== gradlew 첫 줄 확인 ==="
+        head -1 gradlew || echo "gradlew 첫 줄 읽기 실패"
+        echo "=== 라인 엔딩 수정 ==="
+        sed -i 's/\r$//' gradlew
+        echo "=== 실행 권한 부여 ==="
+        chmod +x gradlew
+        echo "=== 수정 후 gradlew 상태 ==="
+        ls -la gradlew
+        file gradlew
+        echo "=== gradlew 실행 테스트 ==="
+        ./gradlew --version || echo "gradlew 실행 실패"
       
     - name: Run tests
       run: cd be && ./gradlew clean test
