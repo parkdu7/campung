@@ -46,20 +46,32 @@ public class CorsConfig implements WebMvcConfigurer {
      */
     private List<String> getAllowedOrigins() {
         return Arrays.asList(
-            // 개발 환경 - 일반적인 프론트엔드 개발 서버 포트들
+            // 개발 환경 - localhost 기반
             "http://localhost:3000",   // React 기본 포트
             "http://localhost:3001",   // React 추가 포트
+            "http://localhost:4000",   // 추가 개발 포트
             "http://localhost:5173",   // Vite 기본 포트
             "http://localhost:5174",   // Vite 추가 포트
-            "http://localhost:8080",   // 일반적인 개발 포트
-            "http://localhost:8081",   // 백엔드 개발 포트
-            "http://127.0.0.1:3000",   // 로컬 IP 기반
-            "http://127.0.0.1:5173",   
+            "http://localhost:8080",   // Spring Boot 기본 포트
+            "http://localhost:8081",   // Swagger/백엔드 포트
+            "http://localhost:8082",   // 추가 백엔드 포트
             
-            // 운영 환경
-            "https://campung.my",
-            "https://www.campung.my",
-            "https://api.campung.my"
+            // 개발 환경 - 127.0.0.1 기반 (⭐ 중요: Swagger UI에서 자주 사용)
+            "http://127.0.0.1:3000",   // React 기본 포트
+            "http://127.0.0.1:3001",   // React 추가 포트
+            "http://127.0.0.1:4000",   // 추가 개발 포트
+            "http://127.0.0.1:5173",   // Vite 기본 포트
+            "http://127.0.0.1:5174",   // Vite 추가 포트
+            "http://127.0.0.1:8080",   // ⭐ Spring Boot 기본 포트 (누락됐던 중요 포트!)
+            "http://127.0.0.1:8081",   // ⭐ Swagger/백엔드 포트 (누락됐던 중요 포트!)
+            "http://127.0.0.1:8082",   // 추가 백엔드 포트
+            
+            // 운영 환경 - ⭐ Swagger UI가 뜨는 도메인 (campung.my) 포함!
+            "https://campung.my",       // Swagger UI 접근 도메인
+            "https://www.campung.my",   // www 서브도메인
+            "https://api.campung.my",   // API 서버 도메인
+            "http://campung.my",        // HTTP 리다이렉트용
+            "http://www.campung.my"     // HTTP 리다이렉트용
         );
     }
 
