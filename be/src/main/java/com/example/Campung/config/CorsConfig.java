@@ -67,9 +67,8 @@ public class CorsConfig implements WebMvcConfigurer {
             "http://127.0.0.1:8082",   // 추가 백엔드 포트
             
             // 운영 환경 - ⭐ Swagger UI가 뜨는 도메인 (campung.my) 포함!
-            "https://campung.my",       // Swagger UI 접근 도메인
+            "https://campung.my",       // Swagger UI 및 API 서버 도메인
             "https://www.campung.my",   // www 서브도메인
-            "https://api.campung.my",   // API 서버 도메인
             "http://campung.my",        // HTTP 리다이렉트용
             "http://www.campung.my"     // HTTP 리다이렉트용
         );
