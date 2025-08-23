@@ -31,6 +31,7 @@ public class Friendship {
     @JoinColumn(name = "addressee_id", nullable = false)
     private User addressee;
     
+    @Builder.Default
     @Column(columnDefinition = "VARCHAR(255) DEFAULT 'pending'")
     private String status = "pending";
     

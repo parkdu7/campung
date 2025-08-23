@@ -15,7 +15,7 @@ import java.util.Map;
  * Spring Boot 3.x 호환 - 특정 패키지만 대상으로 제한
  * @RestControllerAdvice 사용으로 SpringDoc 호환성 개선
  */
-@RestControllerAdvice(basePackages = {"com.example.Campung.Test.controller", "com.example.Campung.User.controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
+@RestControllerAdvice(basePackages = {"com.example.Campung.Test.controller", "com.example.Campung.User.controller", "com.example.Campung.Content.controller", "com.example.Campung.Comment.controller", "com.example.Campung.ContentLike.controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
 public class GlobalExceptionHandler {
     
     /**
@@ -78,5 +78,80 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
     
-    // Exception.class 핸들러 제거 - Swagger 내부 예외를 방해하지 않도록
+    /**
+     * 파일 업로드 크기 초과 예외 처리
+     */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxSizeException(org.springframework.web.multipart.MaxUploadSizeExceededException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("error_type", "BAD_REQUEST");
+        response.put("message", "파일 크기가 너무 큽니다.");
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+    
+    /**
+     * 파일을 찾을 수 없는 경우 예외 처리
+     */
+    @ExceptionHandler(java.io.FileNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleFileNotFoundException(java.io.FileNotFoundException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("error_type", "NOT_FOUND");
+        response.put("message", "파일을 찾을 수 없습니다.");
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+    
+    /**
+     * 게시글을 찾을 수 없는 경우 예외 처리
+     */
+    @ExceptionHandler(com.example.Campung.Global.Exception.ContentNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleContentNotFoundException(com.example.Campung.Global.Exception.ContentNotFoundException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("message", e.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+    
+    /**
+     * 권한이 없는 경우 예외 처리
+     */
+    @ExceptionHandler(com.example.Campung.Global.Exception.UnauthorizedException.class)
+    public ResponseEntity<Map<String, Object>> handleUnauthorizedException(com.example.Campung.Global.Exception.UnauthorizedException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("error_type", "BAD_REQUEST");
+        response.put("message", e.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+    
+    /**
+     * 파일 입출력 예외 처리
+     */
+    @ExceptionHandler(java.io.IOException.class)
+    public ResponseEntity<Map<String, Object>> handleIOException(java.io.IOException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("error_type", "INTERNAL_SERVER_ERROR");
+        response.put("message", "파일 처리 중 오류가 발생했습니다.");
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+    
+    /**
+     * 일반적인 예외 처리 (마지막 fallback)
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("error_type", "INTERNAL_SERVER_ERROR");
+        response.put("message", "서버 내부 오류가 발생했습니다.");
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
 }
