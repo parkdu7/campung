@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
@@ -15,13 +16,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.shinhan.campung.presentation.ui.components.*
 import com.shinhan.campung.presentation.ui.theme.CampusBackground
 import com.shinhan.campung.presentation.ui.theme.CampusPrimary
+import com.shinhan.campung.presentation.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onLoggedOut: () -> Unit
+) {
+    val vm: HomeViewModel = hiltViewModel()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -47,6 +54,12 @@ fun HomeScreen() {
                     }
                     IconButton(onClick = { }) {
                         Icon(Icons.Default.Menu, contentDescription = "메뉴")
+                    }
+                    IconButton(
+                        onClick = { vm.logout(onLoggedOut) },         // ✅ 로그아웃
+                        enabled = !vm.loading.value
+                    ) {
+                        Icon(Icons.Filled.ExitToApp, contentDescription = "로그아웃")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

@@ -28,6 +28,10 @@ public class User {
     
     @Column(nullable = false)
     private String nickname;
+
+    // ★ 추가: FCM 토큰
+    @Column(name = "fcm_token")
+    private String fcmToken;
     
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Location> locations;
