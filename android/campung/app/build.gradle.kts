@@ -89,4 +89,15 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.1.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging")
+
+    // Navigation-Compose
+    implementation("androidx.navigation:navigation-compose:2.8.0")
+
+    // DataStore (토큰 저장)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // 코루틴에서 Task.await() 쓰려면 (선택)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 }
