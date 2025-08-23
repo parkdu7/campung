@@ -7,9 +7,9 @@ spring:
   # MariaDB 설정
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3312}/${DB_NAME:Campung}
-    username: ${DB_USERNAME:Campung}
-    password: ${DB_PASSWORD:Campung1234}
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3312}/${DB_NAME:campung}
+    username: ${DB_USERNAME:campung}
+    password: ${DB_PASSWORD:campung1234}
   
   # JPA/Hibernate 설정
   jpa:
@@ -26,7 +26,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:sequence}
+      password: ${REDIS_PASSWORD:campung1234}
 
 # 서버 포트 설정
 server:
