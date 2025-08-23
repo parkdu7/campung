@@ -27,12 +27,15 @@ public class NotificationSetting {
     @Column(name = "push_token")
     private String pushToken;
     
+    @Builder.Default
     @Column(columnDefinition = "BOOLEAN DEFAULT TRUE")
     private Boolean likes = true;
     
+    @Builder.Default
     @Column(columnDefinition = "BOOLEAN DEFAULT TRUE")
     private Boolean comments = true;
     
+    @Builder.Default
     @Column(columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean location = false;
     

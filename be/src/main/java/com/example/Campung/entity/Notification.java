@@ -37,6 +37,7 @@ public class Notification {
     @Column(columnDefinition = "JSON")
     private String data;
     
+    @Builder.Default
     @Column(name = "is_read", columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean isRead = false;
     
