@@ -103,11 +103,48 @@ jobs:
           # be 디렉토리로 이동
           cd be
           
-          # gradlew 실행 권한 부여 (서버에서 필요)
+          # gradlew 파일 문제 해결
+          echo "gradlew 파일 상태 확인 및 수정..."
+          ls -la gradlew
+          file gradlew
+          
+          # 라인 엔딩 강제 수정 (CRLF → LF)
+          sed -i 's/\r$//' gradlew
+          
+          # 실행 권한 부여
           chmod +x gradlew
-
+          
+          # 수정 후 상태 확인
+          ls -la gradlew
+          file gradlew
+          
+          # gradlew 실행 가능성 테스트
+          if ./gradlew --version; then
+            echo "✅ gradlew 정상 실행 가능"
+          else
+            echo "⚠️ gradlew 실행 실패, 문제 해결 시도..."
+            
+            # Java 설치 확인
+            which java
+            java -version
+            
+            # 강제로 실행 가능하도록 만들기
+            chmod 755 gradlew
+            
+            # shebang 라인 확인 및 수정
+            if ! head -1 gradlew | grep -q "^#!/"; then
+              echo "#!/usr/bin/env sh" > gradlew.tmp
+              tail -n +1 gradlew >> gradlew.tmp
+              mv gradlew.tmp gradlew
+              chmod +x gradlew
+            fi
+            
+            # 다시 테스트
+            ./gradlew --version || echo "여전히 실행 불가능"
+          fi
           
           ./gradlew clean build -x test
+          sudo systemctl daemon-reload
           sudo systemctl restart campung-backend
           
           # 애플리케이션 시작 대기 (더 긴 시간)
