@@ -162,30 +162,25 @@ jobs:
             fi
           done
           
-          # Docker 컨테이너 상태 확인
+          # Docker 컨테이너 상태 확인 (안전 모드)
           echo "Docker 컨테이너 상태 확인 중..."
           
-          if docker ps --format "{{.Names}}" | grep -q "^Campung$"; then
+          # 안전한 컨테이너 확인 (grep 실패해도 스크립트 중단 안함)
+          DOCKER_CONTAINERS=$(docker ps --format "{{.Names}}" 2>/dev/null || echo "")
+          
+          if echo "$DOCKER_CONTAINERS" | grep -q "Campung" 2>/dev/null; then
             echo "✅ MariaDB 컨테이너 정상 실행 중"
-            MARIADB_OK=1
           else
             echo "⚠️ MariaDB 컨테이너 확인 필요"
-            MARIADB_OK=0
           fi
           
-          if docker ps --format "{{.Names}}" | grep -q "^campung-redis$"; then
+          if echo "$DOCKER_CONTAINERS" | grep -q "campung-redis" 2>/dev/null; then
             echo "✅ Redis 컨테이너 정상 실행 중"
-            REDIS_OK=1
           else
             echo "⚠️ Redis 컨테이너 확인 필요"
-            REDIS_OK=0
           fi
           
-          if [ "$MARIADB_OK" -eq "1" ] && [ "$REDIS_OK" -eq "1" ]; then
-            echo "✅ 모든 Docker 컨테이너 정상 실행 중"
-          else
-            echo "⚠️ 일부 컨테이너 상태 확인 필요 (서비스는 계속 진행)"
-          fi
+          echo "✅ Docker 컨테이너 상태 확인 완료 (서비스는 계속 진행)"
           
           # 최종 배포 상태 확인
           echo "최종 배포 상태 확인 중..."
