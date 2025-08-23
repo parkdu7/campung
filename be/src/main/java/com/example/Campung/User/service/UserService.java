@@ -16,17 +16,49 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
-    
+
+    // 로그인
+//    public LoginResponse login(LoginRequest request) {
+//        if (request.getUserId() == null || request.getUserId().trim().isEmpty()) {
+//            return new LoginResponse(false, "사용자 ID를 입력해주세요");
+//        }
+//
+//        if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
+//            return new LoginResponse(false, "비밀번호를 입력해주세요");
+//        }
+//
+//        String accessToken = request.getUserId();
+//        return new LoginResponse(true, "로그인에 성공했습니다", accessToken);
+//    }
+
+    // ★ 변경: 로그인 시 DB 조회 → 비번 확인 → FCM 토큰 저장
     public LoginResponse login(LoginRequest request) {
         if (request.getUserId() == null || request.getUserId().trim().isEmpty()) {
             return new LoginResponse(false, "사용자 ID를 입력해주세요");
         }
-        
         if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
             return new LoginResponse(false, "비밀번호를 입력해주세요");
         }
-        
-        String accessToken = request.getUserId();
+
+        Optional<User> opt = userRepository.findByUserId(request.getUserId().trim());
+        if (opt.isEmpty()) {
+            return new LoginResponse(false, "존재하지 않는 사용자입니다");
+        }
+
+        User user = opt.get();
+        String reqHash = sha256Base64(request.getPassword().trim());
+        if (!reqHash.equals(user.getPasswordHash())) {
+            return new LoginResponse(false, "비밀번호가 일치하지 않습니다");
+        }
+
+        // FCM 토큰이 전달되면 업데이트
+        if (request.getFcmToken() != null && !request.getFcmToken().trim().isEmpty()) {
+            user.setFcmToken(request.getFcmToken().trim());
+            userRepository.save(user);
+        }
+
+        // 기존 형식 유지: accessToken은 일단 userId 사용(추후 JWT로 교체 권장)
+        String accessToken = user.getUserId();
         return new LoginResponse(true, "로그인에 성공했습니다", accessToken);
     }
 
@@ -103,7 +135,7 @@ public class UserService {
         return new DeleteUserResponse(true, "회원탈퇴가 완료되었습니다");
     }
 
-
+    // 비밀번호 해시
     private String sha256Base64(String raw) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
