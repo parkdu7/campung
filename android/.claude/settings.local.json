@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(.gradlew clean)",
+      "Bash(gradlew.bat clean:*)",
+      "Bash(./gradlew.bat clean:*)",
+      "Bash(./gradlew.bat build:*)",
+      "Bash(./gradlew.bat:*)",
+      "Bash(./gradlew:*)",
+      "WebSearch",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(java:*)",
+      "Bash(echo $JAVA_HOME)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\mnt\\c\\Users\\Park\\Desktop\\study2025\\shinhan2025\\campung\\android"
+    ]
+  }
+}
