@@ -3,6 +3,8 @@ package com.example.Campung.config;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,6 +31,12 @@ public class SwaggerConfig {
                         .description("Local Development Server"))
                 .addServersItem(new Server()
                         .url("https://campung.my")
-                        .description("Production HTTPS Server"));
+                        .description("Production HTTPS Server"))
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .description("Bearer token using userId as access token (e.g. Bearer user123)")));
     }
 }
