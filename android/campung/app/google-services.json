@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "542656221727",
+    "project_id": "campung-ce055",
+    "storage_bucket": "campung-ce055.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:542656221727:android:b5418c689a45098dcbbb2a",
+        "android_client_info": {
+          "package_name": "com.shinhan.campung"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOr18sE_SRypViYXDER0v_QJB2o0TirWg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
