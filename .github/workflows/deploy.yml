@@ -107,16 +107,26 @@ jobs:
           sudo systemctl daemon-reload
           sudo systemctl restart campung-backend || { echo "❌ 서비스 재시작 실패"; exit 1; }
           
-          echo "애플리케이션 시작 대기 중..."
-          sleep 100
+          echo "애플리케이션 시작 대기 중... (최대 10분)"
+          INITIAL_WAIT=30   # 초기 대기 (DB 붙는 시간 등 고려)
+          CHECK_INTERVAL=10 # 체크 간격(초)
+          MAX_ATTEMPTS=60   # 최대 시도 (60회 × 10초 = 600초 = 10분)
           
-          for i in {1..12}; do
-            if curl -f http://localhost:8080/ > /dev/null 2>&1; then
-              echo "✅ 애플리케이션 응답 확인 완료 ($((i*5))초 후)"
+          sleep $INITIAL_WAIT
+          
+          for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+            if curl -fs http://localhost:8080/ > /dev/null; then
+              echo "✅ 애플리케이션 응답 확인 완료 ($((INITIAL_WAIT + i*CHECK_INTERVAL))초 후)"
               break
             else
-              echo "대기 중... ($((i*5))초)"
-              sleep 5
+              echo "대기 중... ($((INITIAL_WAIT + i*CHECK_INTERVAL))초)"
+              sleep $CHECK_INTERVAL
+            fi
+          
+            if [ $i -eq $MAX_ATTEMPTS ]; then
+              echo "❌ 최종 확인 실패: 애플리케이션이 10분 내에 응답하지 않음"
+              sudo systemctl status campung-backend --no-pager
+              exit 1
             fi
           done
           
@@ -135,15 +145,7 @@ jobs:
             echo "⚠️ Redis 컨테이너 확인 필요"
           fi
           
-          echo "최종 배포 상태 확인 중..."
-          if curl -f http://localhost:8080/ > /dev/null 2>&1; then
-            echo "✅ 최종 확인: 애플리케이션 정상 실행"
-            echo "🎉 배포 성공!"
-          else
-            echo "❌ 최종 확인 실패: 애플리케이션이 응답하지 않음"
-            sudo systemctl status campung-backend --no-pager
-            exit 1
-          fi
+          echo "🎉 배포 성공!"
           
           if systemctl is-active --quiet campung-backend; then
             echo "✅ systemd 서비스 상태: 정상"
