@@ -9,7 +9,11 @@
       "Bash(./gradlew.bat build:*)",
       "Bash(./gradlew.bat:*)",
       "Bash(./gradlew:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(java:*)",
+      "Bash(echo $JAVA_HOME)"
     ],
     "deny": [],
     "ask": [],
