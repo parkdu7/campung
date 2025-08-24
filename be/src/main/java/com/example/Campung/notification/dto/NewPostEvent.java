@@ -1,4 +1,4 @@
-package com.example.Campung.notification.dto;
+package com.example.Campung.Notification.Dto;
 
 public record NewPostEvent(long postId, double lat, double lon, long createdAt) {
 }

@@ -1,7 +1,7 @@
-package com.example.Campung.User.controller;
+package com.example.Campung.User.Controller;
 
-import com.example.Campung.User.dto.LogoutResponse;
-import com.example.Campung.User.service.UserService;
+import com.example.Campung.User.Dto.LogoutResponse;
+import com.example.Campung.User.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
