@@ -1,9 +1,9 @@
-package com.example.Campung.Content.service;
+package com.example.Campung.Content.Service;
 
-import com.example.Campung.Content.dto.ContentSearchRequest;
-import com.example.Campung.Content.dto.ContentSearchResponse;
-import com.example.Campung.Content.repository.ContentRepository;
-import com.example.Campung.entity.Content;
+import com.example.Campung.Content.Dto.ContentSearchRequest;
+import com.example.Campung.Content.Dto.ContentSearchResponse;
+import com.example.Campung.Content.Repository.ContentRepository;
+import com.example.Campung.Entity.Content;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
