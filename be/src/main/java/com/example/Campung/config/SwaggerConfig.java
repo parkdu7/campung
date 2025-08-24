@@ -1,4 +1,4 @@
-package com.example.Campung.config;
+package com.example.Campung.Config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;

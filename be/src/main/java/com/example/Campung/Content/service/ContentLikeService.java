@@ -1,13 +1,13 @@
-package com.example.Campung.Content.service;
+package com.example.Campung.Content.Service;
 
-import com.example.Campung.Content.dto.ContentLikeResponse;
-import com.example.Campung.Content.repository.ContentLikeRepository;
-import com.example.Campung.Content.repository.ContentRepository;
-import com.example.Campung.User.repository.UserRepository;
+import com.example.Campung.Content.Dto.ContentLikeResponse;
+import com.example.Campung.Content.Repository.ContentLikeRepository;
+import com.example.Campung.Content.Repository.ContentRepository;
+import com.example.Campung.User.Repository.UserRepository;
 import com.example.Campung.Global.Exception.ContentNotFoundException;
-import com.example.Campung.entity.Content;
-import com.example.Campung.entity.ContentLike;
-import com.example.Campung.entity.User;
+import com.example.Campung.Entity.Content;
+import com.example.Campung.Entity.ContentLike;
+import com.example.Campung.Entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

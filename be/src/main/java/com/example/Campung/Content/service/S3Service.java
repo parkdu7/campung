@@ -1,4 +1,4 @@
-package com.example.Campung.Content.service;
+package com.example.Campung.Content.Service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

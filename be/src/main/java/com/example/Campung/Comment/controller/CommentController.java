@@ -1,10 +1,10 @@
-package com.example.Campung.Comment.controller;
+package com.example.Campung.Comment.Controller;
 
-import com.example.Campung.Comment.dto.CommentCreateRequest;
-import com.example.Campung.Comment.dto.CommentCreateResponse;
-import com.example.Campung.Comment.dto.CommentListResponse;
-import com.example.Campung.Comment.service.CommentService;
-import com.example.Campung.Comment.service.CommentListService;
+import com.example.Campung.Comment.Dto.CommentCreateRequest;
+import com.example.Campung.Comment.Dto.CommentCreateResponse;
+import com.example.Campung.Comment.Dto.CommentListResponse;
+import com.example.Campung.Comment.Service.CommentService;
+import com.example.Campung.Comment.Service.CommentListService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

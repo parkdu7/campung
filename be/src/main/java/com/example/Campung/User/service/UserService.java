@@ -1,7 +1,7 @@
-package com.example.Campung.User.service;
+package com.example.Campung.User.Service;
 
-import com.example.Campung.User.dto.LoginRequest;
-import com.example.Campung.User.dto.LoginResponse;
+import com.example.Campung.User.Dto.LoginRequest;
+import com.example.Campung.User.Dto.LoginResponse;
 import org.springframework.stereotype.Service;
 
 @Service
