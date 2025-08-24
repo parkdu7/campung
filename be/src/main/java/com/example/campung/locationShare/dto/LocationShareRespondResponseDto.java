@@ -1,4 +1,4 @@
-package com.example.Campung.LocationShare.dto;
+package com.example.campung.locationShare.dto;
 
 import lombok.*;
 

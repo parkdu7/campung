@@ -1,11 +1,11 @@
-package com.example.Campung.LocationShare.service;
+package com.example.campung.locationShare.service;
 
-import com.example.Campung.LocationShare.dto.*;
-import com.example.Campung.LocationShare.repository.LocationRequestRepository;
-import com.example.Campung.LocationShare.repository.LocationShareRepository;
-import com.example.Campung.User.repository.UserRepository;
-import com.example.Campung.entity.*;
-import com.example.Campung.notification.repository.NotificationRepository;
+import com.example.campung.locationShare.dto.*;
+import com.example.campung.locationShare.repository.LocationRequestRepository;
+import com.example.campung.locationShare.repository.LocationShareRepository;
+import com.example.campung.user.repository.UserRepository;
+import com.example.campung.entity.*;
+import com.example.campung.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

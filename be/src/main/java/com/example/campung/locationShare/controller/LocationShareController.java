@@ -1,7 +1,7 @@
-package com.example.Campung.LocationShare.controller;
+package com.example.campung.locationShare.controller;
 
-import com.example.Campung.LocationShare.dto.*;
-import com.example.Campung.LocationShare.service.LocationShareService;
+import com.example.campung.locationShare.dto.*;
+import com.example.campung.locationShare.service.LocationShareService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

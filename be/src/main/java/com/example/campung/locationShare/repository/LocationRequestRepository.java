@@ -1,7 +1,7 @@
-package com.example.Campung.LocationShare.repository;
+package com.example.campung.locationShare.repository;
 
-import com.example.Campung.entity.LocationRequest;
-import com.example.Campung.entity.User;
+import com.example.campung.entity.LocationRequest;
+import com.example.campung.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

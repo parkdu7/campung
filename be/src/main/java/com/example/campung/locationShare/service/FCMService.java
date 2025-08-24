@@ -1,4 +1,4 @@
-package com.example.Campung.LocationShare.service;
+package com.example.campung.locationShare.service;
 
 import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;
