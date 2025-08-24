@@ -1,4 +1,4 @@
-package com.example.Campung.Content.Dto;
+package com.example.campung.content.dto;
 
 import java.util.List;
 
@@ -11,6 +11,7 @@ public class ContentDetailRequest {
     private String title;
     private String body;
     private List<MediaFileInfo> mediaFiles;
+    private boolean isHotContent;
     
     public static class AuthorInfo {
         private String nickname;
@@ -107,4 +108,6 @@ public class ContentDetailRequest {
     public void setBody(String body) { this.body = body; }
     public List<MediaFileInfo> getMediaFiles() { return mediaFiles; }
     public void setMediaFiles(List<MediaFileInfo> mediaFiles) { this.mediaFiles = mediaFiles; }
+    public boolean isHotContent() { return isHotContent; }
+    public void setHotContent(boolean hotContent) { isHotContent = hotContent; }
 }

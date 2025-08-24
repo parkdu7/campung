@@ -1,11 +1,11 @@
-package com.example.Campung.Content.Service;
+package com.example.campung.content.service;
 
-import com.example.Campung.Content.Dto.ContentDetailResponse;
-import com.example.Campung.Content.Dto.ContentDetailRequest;
-import com.example.Campung.Content.Repository.ContentRepository;
-import com.example.Campung.Global.Exception.ContentNotFoundException;
-import com.example.Campung.Entity.Content;
-import com.example.Campung.Entity.Attachment;
+import com.example.campung.content.dto.ContentDetailResponse;
+import com.example.campung.content.dto.ContentDetailRequest;
+import com.example.campung.content.repository.ContentRepository;
+import com.example.campung.global.exception.ContentNotFoundException;
+import com.example.campung.entity.Content;
+import com.example.campung.entity.Attachment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +17,9 @@ public class ContentViewService {
     
     @Autowired
     private ContentRepository contentRepository;
+    
+    @Autowired
+    private ContentHotService contentHotService;
     
     public ContentDetailResponse getContentById(Long contentId) {
         System.out.println("=== CONTENT 조회 시작 ===");
@@ -67,6 +70,9 @@ public class ContentViewService {
                     .collect(Collectors.toList());
             detail.setMediaFiles(mediaFiles);
         }
+        
+        // HOT 컨텐츠 여부 설정
+        detail.setHotContent(contentHotService.isHotContent(content.getContentId()));
         
         return detail;
     }

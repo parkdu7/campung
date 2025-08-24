@@ -1,4 +1,4 @@
-package com.example.Campung;
+package com.example.campung;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

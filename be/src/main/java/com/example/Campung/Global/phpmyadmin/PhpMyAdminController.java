@@ -1,4 +1,4 @@
-package com.example.Campung.Global.Phpmyadmin;
+package com.example.campung.global.phpmyadmin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

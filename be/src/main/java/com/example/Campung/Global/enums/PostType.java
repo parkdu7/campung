@@ -1,4 +1,4 @@
-package com.example.Campung.Global.Enum;
+package com.example.campung.global.enums;
 
 public enum PostType {
     NOTICE("공지게시판"),

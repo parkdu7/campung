@@ -1,7 +1,7 @@
-package com.example.Campung.Content.Repository;
+package com.example.campung.content.repository;
 
-import com.example.Campung.Entity.Content;
-import com.example.Campung.Global.Enum.PostType;
+import com.example.campung.entity.Content;
+import com.example.campung.global.enums.PostType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

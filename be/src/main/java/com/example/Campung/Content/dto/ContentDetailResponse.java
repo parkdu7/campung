@@ -1,4 +1,4 @@
-package com.example.Campung.Content.Dto;
+package com.example.campung.content.dto;
 
 public class ContentDetailResponse {
     private boolean success;

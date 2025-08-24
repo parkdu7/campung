@@ -1,6 +1,6 @@
-package com.example.Campung.User.Repository;
+package com.example.campung.user.repository;
 
-import com.example.Campung.Entity.User;
+import com.example.campung.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
