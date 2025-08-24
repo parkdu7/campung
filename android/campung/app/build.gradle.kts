@@ -18,6 +18,8 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["NAVER_MAP_CLIENT_ID"] =
+            project.findProperty("NAVER_MAP_CLIENT_ID") ?: ""
     }
     buildTypes {
         release {
@@ -57,6 +59,7 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.material3)
+    implementation(libs.play.services.maps)
     debugImplementation(libs.compose.tooling)
 
     // Core
@@ -99,5 +102,11 @@ dependencies {
     // 코루틴에서 Task.await() 쓰려면 (선택)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
+    //화면이동
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
+    //네이버지도
+    implementation("com.naver.maps:map-sdk:3.22.1") // 네이버 지도 SDK
+    implementation("com.google.android.gms:play-services-location:21.3.0") // 위치
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4") // Compose-Lifecycle
 }
