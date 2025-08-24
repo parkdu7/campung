@@ -32,6 +32,11 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 
+# Firebase 설정
+firebase:
+  config:
+    path: firebase-service-account.json
+
 # Swagger/OpenAPI 설정 (간소화)
 springdoc:
   api-docs:
