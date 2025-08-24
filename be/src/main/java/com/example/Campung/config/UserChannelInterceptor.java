@@ -1,4 +1,4 @@
-package com.example.Campung.config;
+package com.example.Campung.Config;
 
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;

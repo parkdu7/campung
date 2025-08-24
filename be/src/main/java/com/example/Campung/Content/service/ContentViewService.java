@@ -18,6 +18,9 @@ public class ContentViewService {
     @Autowired
     private ContentRepository contentRepository;
     
+    @Autowired
+    private ContentHotService contentHotService;
+    
     public ContentDetailResponse getContentById(Long contentId) {
         System.out.println("=== CONTENT 조회 시작 ===");
         System.out.println("contentId: " + contentId);
@@ -67,6 +70,9 @@ public class ContentViewService {
                     .collect(Collectors.toList());
             detail.setMediaFiles(mediaFiles);
         }
+        
+        // HOT 컨텐츠 여부 설정
+        detail.setHotContent(contentHotService.isHotContent(content.getContentId()));
         
         return detail;
     }

@@ -26,6 +26,9 @@ public class ContentLikeService {
     @Autowired
     private UserRepository userRepository;
     
+    @Autowired
+    private ContentHotTrackingService contentHotTrackingService;
+    
     @Transactional
     public ContentLikeResponse toggleLike(Long contentId, String accessToken) {
         // 게시글 존재 확인
@@ -54,6 +57,9 @@ public class ContentLikeService {
             contentLikeRepository.delete(existingLike.get());
             isLiked = false;
             message = "좋아요가 취소되었습니다";
+            
+            // Redis에서 좋아요 제거
+            contentHotTrackingService.removeLike(contentId, accessToken);
         } else {
             // 좋아요 추가
             ContentLike newLike = ContentLike.builder()
@@ -63,10 +69,17 @@ public class ContentLikeService {
             contentLikeRepository.save(newLike);
             isLiked = true;
             message = "좋아요가 추가되었습니다";
+            
+            // Redis에서 좋아요 추적
+            contentHotTrackingService.trackLike(contentId, accessToken);
         }
         
         // 총 좋아요 수 조회
         int totalLikes = contentLikeRepository.countByContentId(contentId);
+        
+        // Redis에서 Hot 랭킹 업데이트
+        long currentLikes24h = contentHotTrackingService.getLike24hCount(contentId);
+        contentHotTrackingService.updateHotRanking(contentId, currentLikes24h);
         
         ContentLikeResponse.ContentLikeData data = new ContentLikeResponse.ContentLikeData(isLiked, totalLikes);
         return new ContentLikeResponse(true, message, data);
