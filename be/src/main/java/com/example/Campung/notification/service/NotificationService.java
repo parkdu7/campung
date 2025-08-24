@@ -1,17 +1,16 @@
-package com.example.Campung.notification.service;
+package com.example.Campung.Notification.Service;
 
-import com.example.Campung.entity.Notification;
-import com.example.Campung.entity.NotificationSetting;
-import com.example.Campung.entity.User;
-import com.example.Campung.notification.dto.NotificationListResponse;
-import com.example.Campung.notification.dto.NotificationResponse;
-import com.example.Campung.notification.dto.NotificationSettingsRequest;
-import com.example.Campung.notification.repository.NotificationRepository;
-import com.example.Campung.notification.repository.NotificationSettingRepository;
-import com.example.Campung.User.repository.UserRepository;
+import com.example.Campung.Entity.Notification;
+import com.example.Campung.Entity.NotificationSetting;
+import com.example.Campung.Entity.User;
+import com.example.Campung.Notification.Dto.NotificationListResponse;
+import com.example.Campung.Notification.Dto.NotificationResponse;
+import com.example.Campung.Notification.Dto.NotificationSettingsRequest;
+import com.example.Campung.Notification.Repository.NotificationRepository;
+import com.example.Campung.Notification.Repository.NotificationSettingRepository;
+import com.example.Campung.User.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
