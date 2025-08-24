@@ -61,6 +61,27 @@ public class S3Service {
         return "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
     }
     
+    public String uploadThumbnail(java.io.InputStream thumbnailStream, long contentLength, String originalFileName) throws IOException {
+        if (thumbnailStream == null) {
+            throw new IllegalArgumentException("썸네일 스트림이 비어있습니다");
+        }
+        
+        String fileName = generateThumbnailFileName(originalFileName);
+        String key = "thumbnails/contents/" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")) + "/" + fileName;
+        
+        try (S3Client s3Client = getS3Client()) {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType("image/jpeg")
+                    .build();
+            
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(thumbnailStream, contentLength));
+        }
+        
+        return "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+    }
+    
     private String determineFolder(String contentType) {
         if (contentType == null) {
             return "audios";
@@ -83,5 +104,13 @@ public class S3Service {
             extension = originalFileName.substring(originalFileName.lastIndexOf("."));
         }
         return UUID.randomUUID().toString() + extension;
+    }
+    
+    private String generateThumbnailFileName(String originalFileName) {
+        String nameWithoutExtension = originalFileName;
+        if (originalFileName != null && originalFileName.contains(".")) {
+            nameWithoutExtension = originalFileName.substring(0, originalFileName.lastIndexOf("."));
+        }
+        return UUID.randomUUID().toString() + "_thumb.jpg";
     }
 }

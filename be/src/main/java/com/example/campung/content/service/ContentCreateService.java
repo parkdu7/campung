@@ -24,6 +24,9 @@ public class ContentCreateService {
     private S3Service s3Service;
     
     @Autowired
+    private ThumbnailService thumbnailService;
+    
+    @Autowired
     private ContentRepository contentRepository;
     
     @Autowired
@@ -72,10 +75,30 @@ public class ContentCreateService {
             for (MultipartFile file : request.getFiles()) {
                 if (!file.isEmpty()) {
                     String fileUrl = s3Service.uploadFile(file);
+                    String thumbnailUrl = null;
+                    
+                    // 이미지 파일인 경우 썸네일 생성
+                    if (thumbnailService.canGenerateThumbnail(file)) {
+                        try {
+                            System.out.println("썸네일 생성 시작: " + file.getOriginalFilename());
+                            java.io.InputStream thumbnailStream = thumbnailService.generateImageThumbnailAsStream(file);
+                            byte[] thumbnailBytes = thumbnailService.generateImageThumbnail(file);
+                            thumbnailUrl = s3Service.uploadThumbnail(
+                                new java.io.ByteArrayInputStream(thumbnailBytes), 
+                                thumbnailBytes.length, 
+                                file.getOriginalFilename()
+                            );
+                            System.out.println("썸네일 생성 완료: " + thumbnailUrl);
+                        } catch (Exception e) {
+                            System.out.println("썸네일 생성 실패: " + e.getMessage());
+                            // 썸네일 생성 실패해도 원본 파일 업로드는 계속 진행
+                        }
+                    }
                     
                     Attachment attachment = Attachment.builder()
                             .originalName(file.getOriginalFilename())
                             .url(fileUrl)
+                            .thumbnailUrl(thumbnailUrl)
                             .fileSize((int) file.getSize())
                             .fileType(file.getContentType())
                             .idx(index++)
