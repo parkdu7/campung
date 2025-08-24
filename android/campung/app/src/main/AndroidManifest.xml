@@ -4,6 +4,11 @@
 
     <!-- Android 13+ 알림 권한 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- 위치 권한 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:name="com.shinhan.campung.CampungApplication"
@@ -16,6 +21,10 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Campung">
+        <!-- 네이버 지도 Client ID (Secret은 넣지 말 것) -->
+        <meta-data
+            android:name="com.naver.maps.map.NCP_KEY_ID"
+            android:value="phjh6di3ly" /><!--${NAVER_MAP_CLIENT_ID}-->
         <activity
             android:name=".MainActivity"
             android:exported="true">
