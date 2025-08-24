@@ -1,4 +1,4 @@
-package com.example.Campung.entity;
+package com.example.Campung.Entity;
 
 import com.example.Campung.Global.Enum.PostType;
 import jakarta.persistence.*;
