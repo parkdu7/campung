@@ -35,7 +35,7 @@ object NetworkModule {
     @Provides @Singleton
     fun provideRetrofit(gson: Gson, client: OkHttpClient): Retrofit =
         Retrofit.Builder()
-            .baseUrl("http://192.168.0.10:8080/swagger-ui/index.html/") // TODO: 교체
+            .baseUrl("http://172.30.1.13:8080/swagger-ui/index.html/") // TODO: 교체
             .addConverterFactory(GsonConverterFactory.create(gson))
             .client(client)
             .build()
