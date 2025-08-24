@@ -2,7 +2,6 @@ package com.example.campung.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.util.List;
 

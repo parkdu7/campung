@@ -4,6 +4,7 @@ import com.example.campung.content.dto.ContentListRequest;
 import com.example.campung.content.dto.ContentListResponse;
 import com.example.campung.content.repository.ContentRepository;
 import com.example.campung.entity.Content;
+import com.example.campung.global.enums.PostType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,9 @@ public class ContentListService {
     @Autowired
     private ContentRepository contentRepository;
     
+    @Autowired
+    private ContentHotService contentHotService;
+    
     public ContentListResponse getContentsByDate(ContentListRequest request) {
         System.out.println("=== CONTENT 리스트 조회 시작 ===");
         System.out.println("조회 날짜: " + request.getDate());
@@ -26,22 +30,31 @@ public class ContentListService {
         
         validateDateRequest(request);
         
-        List<Content> contents = contentRepository.findContentsByPostType(request.getPostType());
+        List<Content> contents;
         
-        // Java에서 날짜 필터링
-        LocalDate targetDate = LocalDate.parse(request.getDate());
-        contents = contents.stream()
-            .filter(content -> {
-                LocalDate contentDate = content.getCreatedAt().toLocalDate();
-                return contentDate.equals(targetDate);
-            })
-            .collect(Collectors.toList());
+        // HOT 게시글인 경우 별도 처리
+        if (request.getPostType() == PostType.HOT) {
+            contents = contentHotService.getHotContent();
+        } else {
+            contents = contentRepository.findContentsByPostType(request.getPostType());
+        }
+        
+        // HOT 게시글이 아닌 경우에만 날짜 필터링
+        if (request.getPostType() != PostType.HOT) {
+            LocalDate targetDate = LocalDate.parse(request.getDate());
+            contents = contents.stream()
+                .filter(content -> {
+                    LocalDate contentDate = content.getCreatedAt().toLocalDate();
+                    return contentDate.equals(targetDate);
+                })
+                .collect(Collectors.toList());
+        }
         
         // Java에서 위치 필터링 (간단한 거리 계산)
-        if (request.getLat() != null && request.getLng() != null && request.getRadius() != null) {
+        if (request.getLat() != null && request.getLng() != null) {
             final double userLat = request.getLat();
             final double userLng = request.getLng();
-            final int radius = request.getRadius();
+            final int radius = request.getRadius() != null ? request.getRadius() : 500; // 기본값 500m
             
             contents = contents.stream()
                 .filter(content -> {
@@ -95,9 +108,10 @@ public class ContentListService {
             throw new IllegalArgumentException("날짜 형식이 올바르지 않습니다 (YYYY-MM-DD)");
         }
         
-        if ((request.getLat() != null || request.getLng() != null || request.getRadius() != null)) {
-            if (request.getLat() == null || request.getLng() == null || request.getRadius() == null) {
-                throw new IllegalArgumentException("위치 기반 검색시 위도, 경도, 반경을 모두 입력해주세요");
+        // 위도, 경도가 있으면 위치 기반 검색 활성화
+        if (request.getLat() != null || request.getLng() != null) {
+            if (request.getLat() == null || request.getLng() == null) {
+                throw new IllegalArgumentException("위치 기반 검색시 위도와 경도를 모두 입력해주세요");
             }
         }
     }
@@ -117,6 +131,9 @@ public class ContentListService {
         
         DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
         item.setCreatedAt(content.getCreatedAt().format(formatter) + "Z");
+        
+        // HOT 컨텐츠 여부 설정
+        item.setHotContent(contentHotService.isHotContent(content.getContentId()));
         
         return item;
     }
