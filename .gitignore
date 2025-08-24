@@ -79,3 +79,7 @@ id_rsa*
 # 배포 상태 파일들
 .deployment
 deployment-status.json
+docker-compose.yml
+
+# Claude Code 관련
+.claude/
