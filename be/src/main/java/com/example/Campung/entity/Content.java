@@ -1,5 +1,6 @@
 package com.example.Campung.entity;
 
+import com.example.Campung.Global.Enum.PostType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -33,9 +34,11 @@ public class Content {
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
     
-    @Column(nullable = false)
-    private String category;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "post_type", nullable = false)
+    private PostType postType;
     
+    @Builder.Default
     @Column(columnDefinition = "VARCHAR(255) DEFAULT 'board'")
     private String status = "board";
     
@@ -47,12 +50,15 @@ public class Content {
     
     private String emotion;
     
+    @Builder.Default
     @Column(name = "view_count", columnDefinition = "INTEGER DEFAULT 0")
     private Integer viewCount = 0;
     
+    @Builder.Default
     @Column(name = "like_count", columnDefinition = "INTEGER DEFAULT 0")
     private Integer likeCount = 0;
     
+    @Builder.Default
     @Column(name = "comment_count", columnDefinition = "INTEGER DEFAULT 0")
     private Integer commentCount = 0;
     
@@ -63,7 +69,9 @@ public class Content {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
+
+
+
     @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ContentLike> contentLikes;
     

@@ -42,6 +42,7 @@ public class Report {
     @Column(columnDefinition = "TEXT")
     private String description;
     
+    @Builder.Default
     @Column(columnDefinition = "VARCHAR(255) DEFAULT 'pending'")
     private String status = "pending";
     
