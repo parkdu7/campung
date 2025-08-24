@@ -1,4 +1,4 @@
-package com.example.Campung.Content.dto;
+package com.example.Campung.Content.Dto;
 
 public class ContentDeleteResponse {
     private boolean success;

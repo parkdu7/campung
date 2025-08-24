@@ -1,7 +1,7 @@
-package com.example.Campung.Content.controller;
+package com.example.Campung.Content.Controller;
 
-import com.example.Campung.Content.dto.ContentLikeResponse;
-import com.example.Campung.Content.service.ContentLikeService;
+import com.example.Campung.Content.Dto.ContentLikeResponse;
+import com.example.Campung.Content.Service.ContentLikeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
