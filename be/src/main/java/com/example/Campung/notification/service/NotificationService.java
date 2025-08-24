@@ -1,14 +1,14 @@
-package com.example.Campung.Notification.Service;
+package com.example.campung.notification.service;
 
-import com.example.Campung.Entity.Notification;
-import com.example.Campung.Entity.NotificationSetting;
-import com.example.Campung.Entity.User;
-import com.example.Campung.Notification.Dto.NotificationListResponse;
-import com.example.Campung.Notification.Dto.NotificationResponse;
-import com.example.Campung.Notification.Dto.NotificationSettingsRequest;
-import com.example.Campung.Notification.Repository.NotificationRepository;
-import com.example.Campung.Notification.Repository.NotificationSettingRepository;
-import com.example.Campung.User.Repository.UserRepository;
+import com.example.campung.entity.Notification;
+import com.example.campung.entity.NotificationSetting;
+import com.example.campung.entity.User;
+import com.example.campung.notification.dto.NotificationListResponse;
+import com.example.campung.notification.dto.NotificationResponse;
+import com.example.campung.notification.dto.NotificationSettingsRequest;
+import com.example.campung.notification.repository.NotificationRepository;
+import com.example.campung.notification.repository.NotificationSettingRepository;
+import com.example.campung.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;

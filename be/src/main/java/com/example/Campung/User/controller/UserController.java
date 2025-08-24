@@ -1,8 +1,8 @@
-package com.example.Campung.User.Controller;
+package com.example.campung.user.controller;
 
-import com.example.Campung.User.Dto.DeleteUserRequest;
-import com.example.Campung.User.Dto.DeleteUserResponse;
-import com.example.Campung.User.Service.UserService;
+import com.example.campung.user.dto.DeleteUserRequest;
+import com.example.campung.user.dto.DeleteUserResponse;
+import com.example.campung.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

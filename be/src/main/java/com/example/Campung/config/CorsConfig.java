@@ -1,4 +1,4 @@
-package com.example.Campung.Config;
+package com.example.campung.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

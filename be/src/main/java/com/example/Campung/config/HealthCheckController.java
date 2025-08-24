@@ -1,4 +1,4 @@
-package com.example.Campung.Config;
+package com.example.campung.config;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

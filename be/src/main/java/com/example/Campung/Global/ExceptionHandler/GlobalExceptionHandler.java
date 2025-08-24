@@ -1,4 +1,4 @@
-package com.example.Campung.Global.ExceptionHandler;
+package com.example.campung.global.exceptionHandler;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +15,7 @@ import java.util.Map;
  * Spring Boot 3.x 호환 - 특정 패키지만 대상으로 제한
  * @RestControllerAdvice 사용으로 SpringDoc 호환성 개선
  */
-@RestControllerAdvice(basePackages = {"com.example.Campung.Test.Controller", "com.example.Campung.User.Controller", "com.example.Campung.Content.Controller", "com.example.Campung.Comment.Controller", "com.example.Campung.ContentLike.Controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
+@RestControllerAdvice(basePackages = {"com.example.campung.test.controller", "com.example.campung.user.controller", "com.example.campung.content.controller", "com.example.campung.comment.controller", "com.example.campung.contentlike.controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
 public class GlobalExceptionHandler {
     
     /**
@@ -107,8 +107,8 @@ public class GlobalExceptionHandler {
     /**
      * 게시글을 찾을 수 없는 경우 예외 처리
      */
-    @ExceptionHandler(com.example.Campung.Global.Exception.ContentNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleContentNotFoundException(com.example.Campung.Global.Exception.ContentNotFoundException e) {
+    @ExceptionHandler(com.example.campung.global.exception.ContentNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleContentNotFoundException(com.example.campung.global.exception.ContentNotFoundException e) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
         response.put("message", e.getMessage());
@@ -119,8 +119,8 @@ public class GlobalExceptionHandler {
     /**
      * 권한이 없는 경우 예외 처리
      */
-    @ExceptionHandler(com.example.Campung.Global.Exception.UnauthorizedException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorizedException(com.example.Campung.Global.Exception.UnauthorizedException e) {
+    @ExceptionHandler(com.example.campung.global.exception.UnauthorizedException.class)
+    public ResponseEntity<Map<String, Object>> handleUnauthorizedException(com.example.campung.global.exception.UnauthorizedException e) {
         Map<String, Object> response = new HashMap<>();
         response.put("status", "error");
         response.put("error_type", "BAD_REQUEST");

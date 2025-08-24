@@ -1,11 +1,11 @@
-package com.example.Campung.Content.Service;
+package com.example.campung.content.service;
 
-import com.example.Campung.Content.Dto.ContentDeleteRequest;
-import com.example.Campung.Content.Dto.ContentDeleteResponse;
-import com.example.Campung.Content.Repository.ContentRepository;
-import com.example.Campung.Global.Exception.ContentNotFoundException;
-import com.example.Campung.Global.Exception.UnauthorizedException;
-import com.example.Campung.Entity.Content;
+import com.example.campung.content.dto.ContentDeleteRequest;
+import com.example.campung.content.dto.ContentDeleteResponse;
+import com.example.campung.content.repository.ContentRepository;
+import com.example.campung.global.exception.ContentNotFoundException;
+import com.example.campung.global.exception.UnauthorizedException;
+import com.example.campung.entity.Content;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

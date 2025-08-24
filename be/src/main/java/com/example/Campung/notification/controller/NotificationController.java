@@ -1,8 +1,8 @@
-package com.example.Campung.Notification.Controller;
+package com.example.campung.notification.controller;
 
-import com.example.Campung.Notification.Dto.NotificationListResponse;
-import com.example.Campung.Notification.Dto.NotificationSettingsRequest;
-import com.example.Campung.Notification.Service.NotificationService;
+import com.example.campung.notification.dto.NotificationListResponse;
+import com.example.campung.notification.dto.NotificationSettingsRequest;
+import com.example.campung.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

@@ -1,4 +1,4 @@
-package com.example.Campung.geo.service;
+package com.example.campung.geo.service;
 
 import com.github.davidmoten.geo.GeoHash;
 import org.springframework.stereotype.Service;

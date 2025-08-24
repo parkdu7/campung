@@ -1,6 +1,6 @@
-package com.example.Campung.Content.Repository;
+package com.example.campung.content.repository;
 
-import com.example.Campung.Entity.ContentHot;
+import com.example.campung.entity.ContentHot;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

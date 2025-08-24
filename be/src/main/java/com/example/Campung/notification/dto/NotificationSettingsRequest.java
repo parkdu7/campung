@@ -1,4 +1,4 @@
-package com.example.Campung.Notification.Dto;
+package com.example.campung.notification.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

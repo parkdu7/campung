@@ -1,4 +1,4 @@
-package com.example.Campung.User.Dto;
+package com.example.campung.user.dto;
 
 public class LogoutResponse {
     private boolean success;

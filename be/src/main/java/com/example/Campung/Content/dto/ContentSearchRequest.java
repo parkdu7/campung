@@ -1,6 +1,6 @@
-package com.example.Campung.Content.Dto;
+package com.example.campung.content.dto;
 
-import com.example.Campung.Global.Enum.PostType;
+import com.example.campung.global.enums.PostType;
 
 public class ContentSearchRequest {
     private String q;

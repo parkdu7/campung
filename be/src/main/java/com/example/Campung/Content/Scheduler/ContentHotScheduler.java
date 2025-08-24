@@ -1,6 +1,6 @@
-package com.example.Campung.Content.Scheduler;
+package com.example.campung.content.scheduler;
 
-import com.example.Campung.Content.Service.ContentHotService;
+import com.example.campung.content.service.ContentHotService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
