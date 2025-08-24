@@ -1,6 +1,6 @@
-package com.example.Campung.notification.dto;
+package com.example.Campung.Notification.Dto;
 
-import com.example.Campung.entity.Notification;
+import com.example.Campung.Entity.Notification;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

@@ -1,4 +1,4 @@
-package com.example.Campung.Comment.dto;
+package com.example.Campung.Comment.Dto;
 
 public class CommentCreateResponse {
     private boolean success;

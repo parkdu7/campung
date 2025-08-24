@@ -1,4 +1,4 @@
-package com.example.Campung.Content.dto;
+package com.example.Campung.Content.Dto;
 
 import java.util.List;
 
@@ -78,6 +78,7 @@ public class ContentListResponse {
         private String postType;
         private String title;
         private String createdAt;
+        private boolean isHotContent;
         
         public ContentListItem() {}
         
@@ -119,6 +120,14 @@ public class ContentListResponse {
         
         public void setCreatedAt(String createdAt) {
             this.createdAt = createdAt;
+        }
+        
+        public boolean isHotContent() {
+            return isHotContent;
+        }
+        
+        public void setHotContent(boolean hotContent) {
+            isHotContent = hotContent;
         }
     }
     

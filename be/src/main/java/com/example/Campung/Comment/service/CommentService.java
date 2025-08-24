@@ -1,24 +1,20 @@
-package com.example.Campung.Comment.service;
+package com.example.Campung.Comment.Service;
 
-import com.example.Campung.Comment.dto.CommentCreateRequest;
-import com.example.Campung.Comment.dto.CommentCreateResponse;
-import com.example.Campung.Comment.dto.CommentListResponse;
-import com.example.Campung.Comment.dto.CommentDto;
-import com.example.Campung.Comment.repository.CommentRepository;
-import com.example.Campung.Content.repository.ContentRepository;
-import com.example.Campung.Content.service.S3Service;
+import com.example.Campung.Comment.Dto.CommentCreateRequest;
+import com.example.Campung.Comment.Dto.CommentCreateResponse;
+import com.example.Campung.Comment.Repository.CommentRepository;
+import com.example.Campung.Content.Repository.ContentRepository;
+import com.example.Campung.Content.Service.S3Service;
 import com.example.Campung.Global.Exception.ContentNotFoundException;
-import com.example.Campung.User.repository.UserRepository;
-import com.example.Campung.entity.Comment;
-import com.example.Campung.entity.Content;
-import com.example.Campung.entity.User;
+import com.example.Campung.User.Repository.UserRepository;
+import com.example.Campung.Entity.Comment;
+import com.example.Campung.Entity.Content;
+import com.example.Campung.Entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class CommentService {

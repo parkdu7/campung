@@ -1,13 +1,13 @@
-package com.example.Campung.Content.service;
+package com.example.Campung.Content.Service;
 
-import com.example.Campung.Content.dto.ContentLikeResponse;
-import com.example.Campung.Content.repository.ContentLikeRepository;
-import com.example.Campung.Content.repository.ContentRepository;
-import com.example.Campung.User.repository.UserRepository;
+import com.example.Campung.Content.Dto.ContentLikeResponse;
+import com.example.Campung.Content.Repository.ContentLikeRepository;
+import com.example.Campung.Content.Repository.ContentRepository;
+import com.example.Campung.User.Repository.UserRepository;
 import com.example.Campung.Global.Exception.ContentNotFoundException;
-import com.example.Campung.entity.Content;
-import com.example.Campung.entity.ContentLike;
-import com.example.Campung.entity.User;
+import com.example.Campung.Entity.Content;
+import com.example.Campung.Entity.ContentLike;
+import com.example.Campung.Entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +25,9 @@ public class ContentLikeService {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private ContentHotTrackingService contentHotTrackingService;
     
     @Transactional
     public ContentLikeResponse toggleLike(Long contentId, String accessToken) {
@@ -54,6 +57,9 @@ public class ContentLikeService {
             contentLikeRepository.delete(existingLike.get());
             isLiked = false;
             message = "좋아요가 취소되었습니다";
+            
+            // Redis에서 좋아요 제거
+            contentHotTrackingService.removeLike(contentId, accessToken);
         } else {
             // 좋아요 추가
             ContentLike newLike = ContentLike.builder()
@@ -63,10 +69,17 @@ public class ContentLikeService {
             contentLikeRepository.save(newLike);
             isLiked = true;
             message = "좋아요가 추가되었습니다";
+            
+            // Redis에서 좋아요 추적
+            contentHotTrackingService.trackLike(contentId, accessToken);
         }
         
         // 총 좋아요 수 조회
         int totalLikes = contentLikeRepository.countByContentId(contentId);
+        
+        // Redis에서 Hot 랭킹 업데이트
+        long currentLikes24h = contentHotTrackingService.getLike24hCount(contentId);
+        contentHotTrackingService.updateHotRanking(contentId, currentLikes24h);
         
         ContentLikeResponse.ContentLikeData data = new ContentLikeResponse.ContentLikeData(isLiked, totalLikes);
         return new ContentLikeResponse(true, message, data);

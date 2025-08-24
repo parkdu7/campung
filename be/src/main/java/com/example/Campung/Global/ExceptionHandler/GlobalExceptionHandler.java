@@ -15,7 +15,7 @@ import java.util.Map;
  * Spring Boot 3.x 호환 - 특정 패키지만 대상으로 제한
  * @RestControllerAdvice 사용으로 SpringDoc 호환성 개선
  */
-@RestControllerAdvice(basePackages = {"com.example.Campung.Test.controller", "com.example.Campung.User.controller", "com.example.Campung.Content.controller", "com.example.Campung.Comment.controller", "com.example.Campung.ContentLike.controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
+@RestControllerAdvice(basePackages = {"com.example.Campung.Test.Controller", "com.example.Campung.User.Controller", "com.example.Campung.Content.Controller", "com.example.Campung.Comment.Controller", "com.example.Campung.ContentLike.Controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
 public class GlobalExceptionHandler {
     
     /**
@@ -138,6 +138,48 @@ public class GlobalExceptionHandler {
         response.put("status", "error");
         response.put("error_type", "INTERNAL_SERVER_ERROR");
         response.put("message", "파일 처리 중 오류가 발생했습니다.");
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+    
+    /**
+     * PathVariable 변환 실패 예외 처리 (잘못된 경로 매개변수)
+     */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodArgumentTypeMismatchException(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("error_type", "NOT_FOUND");
+        response.put("message", "요청한 리소스를 찾을 수 없습니다.");
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+    
+    /**
+     * NoHandlerFoundException 처리 (매핑되지 않은 URL)
+     */
+    @ExceptionHandler(org.springframework.web.servlet.NoHandlerFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoHandlerFoundException(org.springframework.web.servlet.NoHandlerFoundException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("error_type", "NOT_FOUND");
+        response.put("message", "요청한 리소스를 찾을 수 없습니다.");
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+    
+    /**
+     * Redis 연결 예외 처리
+     */
+    @ExceptionHandler({
+        org.springframework.data.redis.RedisConnectionFailureException.class,
+        org.springframework.data.redis.RedisSystemException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleRedisException(Exception e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("error_type", "REDIS_ERROR");
+        response.put("message", "Redis 연결 오류가 발생했습니다.");
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }

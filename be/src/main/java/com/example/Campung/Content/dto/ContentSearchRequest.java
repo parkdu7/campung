@@ -1,4 +1,4 @@
-package com.example.Campung.Content.dto;
+package com.example.Campung.Content.Dto;
 
 import com.example.Campung.Global.Enum.PostType;
 

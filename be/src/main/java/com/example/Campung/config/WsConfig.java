@@ -1,4 +1,4 @@
-package com.example.Campung.config;
+package com.example.Campung.Config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
