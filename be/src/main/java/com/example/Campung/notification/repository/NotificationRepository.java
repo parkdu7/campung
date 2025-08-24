@@ -1,6 +1,6 @@
-package com.example.Campung.Notification.Repository;
+package com.example.campung.notification.repository;
 
-import com.example.Campung.Entity.Notification;
+import com.example.campung.entity.Notification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

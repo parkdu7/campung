@@ -1,12 +1,12 @@
-package com.example.Campung.Content.Service;
+package com.example.campung.content.service;
 
-import com.example.Campung.Content.Dto.ContentCreateRequest;
-import com.example.Campung.Content.Dto.ContentCreateResponse;
-import com.example.Campung.Content.Repository.ContentRepository;
-import com.example.Campung.User.Repository.UserRepository;
-import com.example.Campung.Entity.Content;
-import com.example.Campung.Entity.Attachment;
-import com.example.Campung.Entity.User;
+import com.example.campung.content.dto.ContentCreateRequest;
+import com.example.campung.content.dto.ContentCreateResponse;
+import com.example.campung.content.repository.ContentRepository;
+import com.example.campung.user.repository.UserRepository;
+import com.example.campung.entity.Content;
+import com.example.campung.entity.Attachment;
+import com.example.campung.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

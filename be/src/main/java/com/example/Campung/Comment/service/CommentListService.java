@@ -1,12 +1,11 @@
-package com.example.Campung.Comment.Service;
+package com.example.campung.comment.service;
 
-import com.example.Campung.Comment.Dto.CommentListResponse;
-import com.example.Campung.Comment.Repository.CommentRepository;
-import com.example.Campung.Comment.Service.CommentMapper;
-import com.example.Campung.Content.Repository.ContentRepository;
-import com.example.Campung.Global.Exception.ContentNotFoundException;
-import com.example.Campung.Entity.Comment;
-import com.example.Campung.Entity.Content;
+import com.example.campung.comment.dto.CommentListResponse;
+import com.example.campung.comment.repository.CommentRepository;
+import com.example.campung.content.repository.ContentRepository;
+import com.example.campung.global.exception.ContentNotFoundException;
+import com.example.campung.entity.Comment;
+import com.example.campung.entity.Content;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

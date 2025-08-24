@@ -1,6 +1,6 @@
-package com.example.Campung.Entity;
+package com.example.campung.entity;
 
-import com.example.Campung.Global.Enum.PostType;
+import com.example.campung.global.enums.PostType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

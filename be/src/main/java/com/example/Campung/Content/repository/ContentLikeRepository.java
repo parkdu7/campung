@@ -1,6 +1,6 @@
-package com.example.Campung.Content.Repository;
+package com.example.campung.content.repository;
 
-import com.example.Campung.Entity.ContentLike;
+import com.example.campung.entity.ContentLike;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

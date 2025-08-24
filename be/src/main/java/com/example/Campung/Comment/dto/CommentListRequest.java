@@ -1,4 +1,4 @@
-package com.example.Campung.Comment.Dto;
+package com.example.campung.comment.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

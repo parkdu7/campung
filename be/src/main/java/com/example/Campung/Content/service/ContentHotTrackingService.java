@@ -1,8 +1,7 @@
-package com.example.Campung.Content.Service;
+package com.example.campung.content.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;

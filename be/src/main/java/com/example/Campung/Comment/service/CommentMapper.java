@@ -1,8 +1,8 @@
-package com.example.Campung.Comment.Service;
+package com.example.campung.comment.service;
 
-import com.example.Campung.Comment.Dto.CommentDto;
-import com.example.Campung.Comment.Dto.CommentListResponse;
-import com.example.Campung.Entity.Comment;
+import com.example.campung.comment.dto.CommentDto;
+import com.example.campung.comment.dto.CommentListResponse;
+import com.example.campung.entity.Comment;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

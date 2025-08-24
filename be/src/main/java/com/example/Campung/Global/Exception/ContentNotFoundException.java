@@ -1,4 +1,4 @@
-package com.example.Campung.Global.Exception;
+package com.example.campung.global.exception;
 
 public class ContentNotFoundException extends RuntimeException {
     public ContentNotFoundException(String message) {

@@ -1,10 +1,10 @@
-package com.example.Campung.User.Service;
+package com.example.campung.user.service;
 
-import com.example.Campung.User.Dto.LoginRequest;
-import com.example.Campung.User.Dto.LoginResponse;
-import com.example.Campung.User.Dto.*;
-import com.example.Campung.User.Repository.UserRepository;
-import com.example.Campung.Entity.User;
+import com.example.campung.user.dto.LoginRequest;
+import com.example.campung.user.dto.LoginResponse;
+import com.example.campung.user.dto.*;
+import com.example.campung.user.repository.UserRepository;
+import com.example.campung.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

@@ -1,4 +1,4 @@
-package com.example.Campung.Comment.Dto;
+package com.example.campung.comment.dto;
 
 public class CommentCreateRequest {
     private String body;

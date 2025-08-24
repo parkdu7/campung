@@ -1,10 +1,10 @@
-package com.example.Campung.Content.Service;
+package com.example.campung.content.service;
 
-import com.example.Campung.Content.Dto.ContentListRequest;
-import com.example.Campung.Content.Dto.ContentListResponse;
-import com.example.Campung.Content.Repository.ContentRepository;
-import com.example.Campung.Entity.Content;
-import com.example.Campung.Global.Enum.PostType;
+import com.example.campung.content.dto.ContentListRequest;
+import com.example.campung.content.dto.ContentListResponse;
+import com.example.campung.content.repository.ContentRepository;
+import com.example.campung.entity.Content;
+import com.example.campung.global.enums.PostType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

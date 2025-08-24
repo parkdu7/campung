@@ -1,4 +1,4 @@
-package com.example.Campung.Content.Dto;
+package com.example.campung.content.dto;
 
 public class ContentDeleteRequest {
     private String reason; // 삭제 사유 (선택사항)
