@@ -1,4 +1,4 @@
-package com.example.Campung.User.dto;
+package com.example.Campung.User.Dto;
 
 public class SignupResponse {
     private boolean success;

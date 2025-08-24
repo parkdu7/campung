@@ -1,7 +1,7 @@
-package com.example.Campung.notification.service;
+package com.example.Campung.Notification.Service;
 
 import com.example.Campung.geo.service.GeohashService;
-import com.example.Campung.notification.dto.NewPostEvent;
+import com.example.Campung.Notification.Dto.NewPostEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

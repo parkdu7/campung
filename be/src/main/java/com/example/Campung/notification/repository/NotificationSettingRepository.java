@@ -1,6 +1,6 @@
-package com.example.Campung.notification.repository;
+package com.example.Campung.Notification.Repository;
 
-import com.example.Campung.entity.NotificationSetting;
+import com.example.Campung.Entity.NotificationSetting;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
