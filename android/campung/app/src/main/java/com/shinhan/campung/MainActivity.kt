@@ -56,8 +56,8 @@ private fun AppNav(authDataStore: AuthDataStore) {
 
     var start by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        val token = authDataStore.tokenFlow.first()
-        start = if (token.isNullOrBlank()) Route.LOGIN else Route.HOME
+        val userId = authDataStore.userIdFlow.first()
+        start = if (userId.isNullOrBlank()) Route.LOGIN else Route.HOME
     }
     if (start == null) {
         Box(Modifier.fillMaxSize()) { CircularProgressIndicator() }

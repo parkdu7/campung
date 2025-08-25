@@ -11,15 +11,15 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface AuthApi {
-    @POST("/api/login")
+    @POST("login")
     suspend fun login(@Body body: LoginRequest): LoginResponse
 
-    @POST("/api/signup")
+    @POST("signup")
     suspend fun signUp(@Body body: SignUpRequest): SignUpResponse
 
-    @POST("/api/duplicate")
+    @POST("duplicate")
     suspend fun checkDuplicate(@Body body: DuplicateRequest): DuplicateResponse
 
-    @POST("/api/logout")
+    @POST("logout")
     suspend fun logout(): LogoutResponse
 }
