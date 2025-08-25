@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -21,7 +22,7 @@ public class FriendshipService {
     private final FriendshipRepository friendshipRepository;
 
     public FriendshipDto sendFriendRequest(FriendRequestDto requestDto) {
-        // 요청자와 대상 사용자 존재 확인 (Long to String 변환)
+        // 요청자와 대상 사용자 존재 확인
         User requester = userRepository.findByUserId(requestDto.getRequesterId())
                 .orElseThrow(() -> new IllegalArgumentException("요청자를 찾을 수 없습니다."));
 
@@ -61,12 +62,16 @@ public class FriendshipService {
                 .build();
     }
 
-    public FriendshipDto acceptFriendRequest(Long friendshipId, Long userId) {
+    public FriendshipDto acceptFriendRequest(Long friendshipId, String userId) {
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new IllegalArgumentException("친구 요청을 찾을 수 없습니다."));
 
+        // 현재 사용자 조회
+        User currentUser = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
         // 요청 수신자인지 확인
-        if (!friendship.getAddressee().getId().equals(userId)) {
+        if (!friendship.getAddressee().getId().equals(currentUser.getId())) {
             throw new IllegalArgumentException("요청을 수락할 권한이 없습니다.");
         }
 
@@ -88,12 +93,16 @@ public class FriendshipService {
                 .build();
     }
 
-    public void rejectFriendRequest(Long friendshipId, Long userId) {
+    public void rejectFriendRequest(Long friendshipId, String userId) {
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new IllegalArgumentException("친구 요청을 찾을 수 없습니다."));
 
+        // 현재 사용자 조회
+        User currentUser = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
         // 요청 수신자인지 확인
-        if (!friendship.getAddressee().getId().equals(userId)) {
+        if (!friendship.getAddressee().getId().equals(currentUser.getId())) {
             throw new IllegalArgumentException("요청을 거절할 권한이 없습니다.");
         }
 
@@ -106,8 +115,12 @@ public class FriendshipService {
     }
 
     @Transactional(readOnly = true)
-    public List<FriendshipDto> getReceivedFriendRequests(Long userId) {
-        List<Friendship> friendships = friendshipRepository.findByAddresseeIdAndStatus(userId, "pending");
+    public List<FriendshipDto> getReceivedFriendRequests(String userId) {
+        // 사용자 조회
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        List<Friendship> friendships = friendshipRepository.findByAddresseeAndStatus(user, "pending");
 
         return friendships.stream()
                 .map(friendship -> FriendshipDto.builder()
@@ -121,8 +134,12 @@ public class FriendshipService {
     }
 
     @Transactional(readOnly = true)
-    public List<FriendshipDto> getSentFriendRequests(Long userId) {
-        List<Friendship> friendships = friendshipRepository.findByRequesterIdAndStatus(userId, "pending");
+    public List<FriendshipDto> getSentFriendRequests(String userId) {
+        // 사용자 조회
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        List<Friendship> friendships = friendshipRepository.findByRequesterAndStatus(user, "pending");
 
         return friendships.stream()
                 .map(friendship -> FriendshipDto.builder()
@@ -136,12 +153,16 @@ public class FriendshipService {
     }
 
     @Transactional(readOnly = true)
-    public List<FriendshipDto> getFriendsList(Long userId) {
-        List<Friendship> friendships = friendshipRepository.findAcceptedFriendshipsByUserId(userId);
+    public List<FriendshipDto> getFriendsList(String userId) {
+        // 사용자 조회
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        List<Friendship> friendships = friendshipRepository.findAcceptedFriendshipsByUser(user);
 
         return friendships.stream()
                 .map(friendship -> {
-                    User friend = friendship.getRequester().getId().equals(userId)
+                    User friend = friendship.getRequester().getId().equals(user.getId())
                             ? friendship.getAddressee()
                             : friendship.getRequester();
 
@@ -156,13 +177,17 @@ public class FriendshipService {
                 .collect(Collectors.toList());
     }
 
-    public void removeFriend(Long friendshipId, Long userId) {
+    public void removeFriend(Long friendshipId, String userId) {
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new IllegalArgumentException("친구 관계를 찾을 수 없습니다."));
 
+        // 현재 사용자 조회
+        User currentUser = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
         // 친구 관계의 당사자인지 확인
-        if (!friendship.getRequester().getId().equals(userId) &&
-                !friendship.getAddressee().getId().equals(userId)) {
+        if (!friendship.getRequester().getId().equals(currentUser.getId()) &&
+                !friendship.getAddressee().getId().equals(currentUser.getId())) {
             throw new IllegalArgumentException("친구 관계를 해제할 권한이 없습니다.");
         }
 
@@ -175,7 +200,14 @@ public class FriendshipService {
     }
 
     @Transactional(readOnly = true)
-    public boolean areFriends(Long userId1, Long userId2) {
-        return friendshipRepository.findAcceptedFriendshipBetweenUsers(userId1, userId2).isPresent();
+    public boolean areFriends(String userId1, String userId2) {
+        User user1 = userRepository.findByUserId(userId1).orElse(null);
+        User user2 = userRepository.findByUserId(userId2).orElse(null);
+
+        if (user1 == null || user2 == null) {
+            return false;
+        }
+
+        return friendshipRepository.findAcceptedFriendshipBetweenUsers(user1, user2).isPresent();
     }
 }

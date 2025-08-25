@@ -51,9 +51,7 @@ public class FriendshipController {
             @RequestHeader("X-User-Id") String currentUserId,
             @Parameter(description = "친구 관계 ID") @PathVariable Long friendshipId) {
 
-        // String을 Long으로 변환 (User 엔티티의 ID는 Long이므로)
-        Long userId = Long.valueOf(currentUserId);
-        FriendshipDto response = friendshipService.acceptFriendRequest(friendshipId, userId);
+        FriendshipDto response = friendshipService.acceptFriendRequest(friendshipId, currentUserId);
         return ResponseEntity.ok(response);
     }
 
@@ -67,8 +65,7 @@ public class FriendshipController {
             @RequestHeader("X-User-Id") String currentUserId,
             @Parameter(description = "친구 관계 ID") @PathVariable Long friendshipId) {
 
-        Long userId = Long.valueOf(currentUserId);
-        friendshipService.rejectFriendRequest(friendshipId, userId);
+        friendshipService.rejectFriendRequest(friendshipId, currentUserId);
         return ResponseEntity.ok("친구 요청이 거절되었습니다.");
     }
 
@@ -80,8 +77,7 @@ public class FriendshipController {
     public ResponseEntity<List<FriendshipDto>> getReceivedFriendRequests(
             @RequestHeader("X-User-Id") String currentUserId) {
 
-        Long userId = Long.valueOf(currentUserId);
-        List<FriendshipDto> requests = friendshipService.getReceivedFriendRequests(userId);
+        List<FriendshipDto> requests = friendshipService.getReceivedFriendRequests(currentUserId);
         return ResponseEntity.ok(requests);
     }
 
@@ -93,8 +89,7 @@ public class FriendshipController {
     public ResponseEntity<List<FriendshipDto>> getSentFriendRequests(
             @RequestHeader("X-User-Id") String currentUserId) {
 
-        Long userId = Long.valueOf(currentUserId);
-        List<FriendshipDto> requests = friendshipService.getSentFriendRequests(userId);
+        List<FriendshipDto> requests = friendshipService.getSentFriendRequests(currentUserId);
         return ResponseEntity.ok(requests);
     }
 
@@ -106,8 +101,7 @@ public class FriendshipController {
     public ResponseEntity<List<FriendshipDto>> getFriendsList(
             @RequestHeader("X-User-Id") String currentUserId) {
 
-        Long userId = Long.valueOf(currentUserId);
-        List<FriendshipDto> friends = friendshipService.getFriendsList(userId);
+        List<FriendshipDto> friends = friendshipService.getFriendsList(currentUserId);
         return ResponseEntity.ok(friends);
     }
 
@@ -121,8 +115,7 @@ public class FriendshipController {
             @RequestHeader("X-User-Id") String currentUserId,
             @Parameter(description = "친구 관계 ID") @PathVariable Long friendshipId) {
 
-        Long userId = Long.valueOf(currentUserId);
-        friendshipService.removeFriend(friendshipId, userId);
+        friendshipService.removeFriend(friendshipId, currentUserId);
         return ResponseEntity.ok("친구 관계가 해제되었습니다.");
     }
 }
