@@ -84,7 +84,7 @@ public class ContentViewService {
                 attachment.getAttachmentId(),
                 fileType,
                 attachment.getUrl(),
-                null, // thumbnailUrl - 추후 구현
+                attachment.getThumbnailUrl(), // 실제 썸네일 URL 반환
                 attachment.getOriginalName(),
                 attachment.getFileSize(),
                 attachment.getIdx()

@@ -37,6 +37,9 @@ public class Attachment {
     @Column(nullable = false)
     private String url;
     
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
+    
     @Column(nullable = false)
     private Integer idx;
     
