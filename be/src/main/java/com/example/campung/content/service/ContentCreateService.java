@@ -7,6 +7,7 @@ import com.example.campung.user.repository.UserRepository;
 import com.example.campung.entity.Content;
 import com.example.campung.entity.Attachment;
 import com.example.campung.entity.User;
+import com.example.campung.notification.service.PostEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,9 @@ public class ContentCreateService {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private PostEventPublisher postEventPublisher;
     
     @Transactional
     public ContentCreateResponse createContent(ContentCreateRequest request, String accessToken) throws IOException {
@@ -115,6 +119,15 @@ public class ContentCreateService {
         Content savedContent = contentRepository.save(content);
         System.out.println("=== CONTENT DB 저장 완료 ===");
         System.out.println("저장된 Content ID: " + savedContent.getContentId());
+        
+        // 새 게시글 알림 이벤트 발행
+        if (savedContent.getLatitude() != null && savedContent.getLongitude() != null) {
+            double lat = savedContent.getLatitude().doubleValue();
+            double lon = savedContent.getLongitude().doubleValue();
+            postEventPublisher.publishNewPost(savedContent.getContentId(), lat, lon);
+            System.out.println("=== 새 게시글 이벤트 발행 완료 ===");
+            System.out.println("좌표: lat=" + lat + ", lon=" + lon);
+        }
         
         return new ContentCreateResponse(true, "게시글이 성공적으로 작성되었습니다", savedContent.getContentId());
     }
