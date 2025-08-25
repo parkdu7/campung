@@ -1,0 +1,136 @@
+Merge branch 'android-dev' of https://github.com/parkdu7/campung into backend-dev
+
+# Conflicts:
+#	be/build.gradle
+#	be/settings.gradle
+#	be/src/main/java/com/example/campung/CampungApplication.java
+#	be/src/main/java/com/example/campung/comment/controller/CommentController.java
+#	be/src/main/java/com/example/campung/comment/dto/CommentCreateRequest.java
+#	be/src/main/java/com/example/campung/comment/dto/CommentCreateResponse.java
+#	be/src/main/java/com/example/campung/comment/dto/CommentDto.java
+#	be/src/main/java/com/example/campung/comment/dto/CommentListRequest.java
+#	be/src/main/java/com/example/campung/comment/dto/CommentListResponse.java
+#	be/src/main/java/com/example/campung/comment/repository/CommentRepository.java
+#	be/src/main/java/com/example/campung/comment/service/CommentListService.java
+#	be/src/main/java/com/example/campung/comment/service/CommentMapper.java
+#	be/src/main/java/com/example/campung/comment/service/CommentService.java
+#	be/src/main/java/com/example/campung/config/CorsConfig.java
+#	be/src/main/java/com/example/campung/config/HealthCheckController.java
+#	be/src/main/java/com/example/campung/config/SecurityConfig.java
+#	be/src/main/java/com/example/campung/config/SwaggerConfig.java
+#	be/src/main/java/com/example/campung/config/UserChannelInterceptor.java
+#	be/src/main/java/com/example/campung/config/WsConfig.java
+#	be/src/main/java/com/example/campung/content/controller/ContentController.java
+#	be/src/main/java/com/example/campung/content/controller/ContentLikeController.java
+#	be/src/main/java/com/example/campung/content/dto/ContentCreateRequest.java
+#	be/src/main/java/com/example/campung/content/dto/ContentCreateResponse.java
+#	be/src/main/java/com/example/campung/content/dto/ContentDeleteRequest.java
+#	be/src/main/java/com/example/campung/content/dto/ContentDeleteResponse.java
+#	be/src/main/java/com/example/campung/content/dto/ContentDetailRequest.java
+#	be/src/main/java/com/example/campung/content/dto/ContentDetailResponse.java
+#	be/src/main/java/com/example/campung/content/dto/ContentLikeRequest.java
+#	be/src/main/java/com/example/campung/content/dto/ContentLikeResponse.java
+#	be/src/main/java/com/example/campung/content/dto/ContentListRequest.java
+#	be/src/main/java/com/example/campung/content/dto/ContentListResponse.java
+#	be/src/main/java/com/example/campung/content/dto/ContentSearchRequest.java
+#	be/src/main/java/com/example/campung/content/dto/ContentSearchResponse.java
+#	be/src/main/java/com/example/campung/content/dto/ContentUpdateRequest.java
+#	be/src/main/java/com/example/campung/content/dto/ContentUpdateResponse.java
+#	be/src/main/java/com/example/campung/content/repository/ContentLikeRepository.java
+#	be/src/main/java/com/example/campung/content/service/ContentCreateService.java
+#	be/src/main/java/com/example/campung/content/service/ContentDeleteService.java
+#	be/src/main/java/com/example/campung/content/service/ContentLikeService.java
+#	be/src/main/java/com/example/campung/content/service/ContentListService.java
+#	be/src/main/java/com/example/campung/content/service/ContentSearchService.java
+#	be/src/main/java/com/example/campung/content/service/ContentUpdateService.java
+#	be/src/main/java/com/example/campung/content/service/ContentViewService.java
+#	be/src/main/java/com/example/campung/content/service/S3Service.java
+#	be/src/main/java/com/example/campung/entity/Attachment.java
+#	be/src/main/java/com/example/campung/entity/Comment.java
+#	be/src/main/java/com/example/campung/entity/Content.java
+#	be/src/main/java/com/example/campung/entity/ContentLike.java
+#	be/src/main/java/com/example/campung/entity/Friendship.java
+#	be/src/main/java/com/example/campung/entity/Location.java
+#	be/src/main/java/com/example/campung/entity/LocationRequest.java
+#	be/src/main/java/com/example/campung/entity/LocationShare.java
+#	be/src/main/java/com/example/campung/entity/Notification.java
+#	be/src/main/java/com/example/campung/entity/NotificationSetting.java
+#	be/src/main/java/com/example/campung/entity/Record.java
+#	be/src/main/java/com/example/campung/entity/Report.java
+#	be/src/main/java/com/example/campung/entity/User.java
+#	be/src/main/java/com/example/campung/geo/service/GeohashService.java
+#	be/src/main/java/com/example/campung/global/enums/PostType.java
+#	be/src/main/java/com/example/campung/global/exception/ContentNotFoundException.java
+#	be/src/main/java/com/example/campung/global/exception/UnauthorizedException.java
+#	be/src/main/java/com/example/campung/global/exceptionHandler/GlobalExceptionHandler.java
+#	be/src/main/java/com/example/campung/global/phpmyadmin/PhpMyAdminController.java
+#	be/src/main/java/com/example/campung/notification/controller/NotificationController.java
+#	be/src/main/java/com/example/campung/notification/dto/NewPostEvent.java
+#	be/src/main/java/com/example/campung/notification/dto/NotificationListResponse.java
+#	be/src/main/java/com/example/campung/notification/dto/NotificationResponse.java
+#	be/src/main/java/com/example/campung/notification/dto/NotificationSettingsRequest.java
+#	be/src/main/java/com/example/campung/notification/repository/NotificationRepository.java
+#	be/src/main/java/com/example/campung/notification/repository/NotificationSettingRepository.java
+#	be/src/main/java/com/example/campung/notification/service/NotificationService.java
+#	be/src/main/java/com/example/campung/notification/service/PostEventPublisher.java
+#	be/src/main/java/com/example/campung/user/controller/DuplicateController.java
+#	be/src/main/java/com/example/campung/user/controller/LoginController.java
+#	be/src/main/java/com/example/campung/user/controller/LogoutController.java
+#	be/src/main/java/com/example/campung/user/controller/SignupController.java
+#	be/src/main/java/com/example/campung/user/controller/UserController.java
+#	be/src/main/java/com/example/campung/user/dto/DeleteUserRequest.java
+#	be/src/main/java/com/example/campung/user/dto/DeleteUserResponse.java
+#	be/src/main/java/com/example/campung/user/dto/DuplicateCheckRequest.java
+#	be/src/main/java/com/example/campung/user/dto/DuplicateCheckResponse.java
+#	be/src/main/java/com/example/campung/user/dto/LoginRequest.java
+#	be/src/main/java/com/example/campung/user/dto/LoginResponse.java
+#	be/src/main/java/com/example/campung/user/dto/LogoutResponse.java
+#	be/src/main/java/com/example/campung/user/dto/SignupRequest.java
+#	be/src/main/java/com/example/campung/user/dto/SignupResponse.java
+#	be/src/main/java/com/example/campung/user/repository/UserRepository.java
+#	be/src/main/java/com/example/campung/user/service/UserService.java
+#	be/src/main/resources/application.yml
+#	be/src/test/java/com/example/campung/CampungApplicationTests.java
+#
+# It looks like you may be committing a merge.
+# If this is not correct, please run
+#	git update-ref -d MERGE_HEAD
+# and try again.
+
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch backend-dev
+# Your branch is up to date with 'origin/backend-dev'.
+#
+# All conflicts fixed but you are still merging.
+#
+# Changes to be committed:
+#	modified:   android/campung/app/build.gradle.kts
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/MainActivity.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/data/local/AuthDataStore.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/data/location/LocationTracker.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/data/remote/api/AuthApi.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/data/remote/dto/NewPostEvent.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/data/repository/AuthRepository.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/data/repository/NewPostRepository.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/data/websocket/WebSocketService.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/di/NetworkModule.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/presentation/ui/screens/HomeScreen.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/presentation/viewmodel/NewPostViewModel.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/util/Constants.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/util/GeohashUtil.kt
+#	deleted:    be/deploy.sh
+#	deleted:    be/gradle/wrapper/gradle-wrapper.jar
+#	deleted:    be/gradle/wrapper/gradle-wrapper.properties
+#	deleted:    be/gradlew
+#	deleted:    be/gradlew.bat
+#	deleted:    be/src/main/resources/application-test.yml
+#	deleted:    be/src/main/resources/templates/admin/login.html
+#
+# Untracked files:
+#	be/gradle/
+#	be/gradlew
+#	be/gradlew.bat
+#

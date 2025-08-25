@@ -124,6 +124,17 @@ class LocationTracker @Inject constructor(
         }
     }
     
+    fun getCurrentLocation(): Location? {
+        // 먼저 현재 StateFlow 값 확인
+        val currentLoc = _currentLocation.value
+        if (currentLoc != null) {
+            return currentLoc
+        }
+        
+        // StateFlow에 없으면 LastKnownLocation 시도
+        return getLastKnownLocation()
+    }
+    
     private fun hasLocationPermission(): Boolean {
         return ActivityCompat.checkSelfPermission(
             context,

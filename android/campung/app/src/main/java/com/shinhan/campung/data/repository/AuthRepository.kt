@@ -37,4 +37,22 @@ class AuthRepository(
     }
 
     suspend fun clearLocalToken() { authDataStore.clear() }
+
+    suspend fun updateFcmToken(fcmToken: String): Result<Unit> = runCatching {
+        // TODO: 백엔드에 FCM 토큰 업데이트 API 호출 필요
+        // val res = api.updateFcmToken(UpdateFcmTokenRequest(fcmToken))
+        // if (!res.success) error(res.message)
+        authDataStore.saveFcmToken(fcmToken)
+    }
+
+    suspend fun respondToLocationShareRequest(
+        shareRequestId: Long, 
+        action: String, 
+        latitude: java.math.BigDecimal?, 
+        longitude: java.math.BigDecimal?
+    ): Result<Unit> = runCatching {
+        // TODO: 백엔드에 위치 공유 응답 API 호출 필요
+        // val res = api.respondToLocationShare(shareRequestId, LocationShareRespondRequest(action, latitude, longitude))
+        // if (!res.success) error(res.message)
+    }
 }
