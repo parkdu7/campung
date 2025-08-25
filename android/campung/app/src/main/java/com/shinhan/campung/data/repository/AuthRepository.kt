@@ -13,6 +13,7 @@ class AuthRepository(
     suspend fun login(userId: String, password: String, fcmToken: String?): Result<Unit> = runCatching {
         val res = api.login(LoginRequest(userId, password, fcmToken))
         authDataStore.saveToken(res.token)
+        authDataStore.saveUserId(userId)
     }
 
     suspend fun signUp(userId: String, password: String, nickname: String): Result<Unit> = runCatching {
