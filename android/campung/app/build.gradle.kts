@@ -82,6 +82,10 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
+    
+    // WebSocket & Geohash
+    implementation("org.java-websocket:Java-WebSocket:1.5.3")
+    implementation("ch.hsr:geohash:1.4.0")
 
     // Test
     testImplementation(libs.junit)
