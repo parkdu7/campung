@@ -28,7 +28,7 @@ class AuthDataStore(private val context: Context) {
     }
 
     suspend fun clear() {
-        context.dataStore.edit { 
+        context.dataStore.edit {
             it.remove(KEY_TOKEN)
             it.remove(KEY_USER_ID)
         }
