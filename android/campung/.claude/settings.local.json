@@ -4,7 +4,9 @@
       "Bash(.gradlew build)",
       "Bash(gradlew.bat build:*)",
       "Bash(./gradlew:*)",
-      "Bash(adb logcat:*)"
+      "Bash(adb logcat:*)",
+      "Read(/C:\\Users\\SSAFY\\Downloads/**)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

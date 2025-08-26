@@ -5,9 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shinhan.campung.data.model.MapContent
+import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.remote.response.MapContent
 import com.shinhan.campung.data.repository.MapRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import android.util.Log
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -18,17 +23,48 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
-    private val mapRepository: MapRepository
+    private val mapContentRepository: MapContentRepository
 ) : BaseViewModel() {
+
+    // UI States
+    private val _bottomSheetContents = MutableStateFlow<List<MapContent>>(emptyList())
+    val bottomSheetContents: StateFlow<List<MapContent>> = _bottomSheetContents.asStateFlow()
+
+    private val _selectedMarkerId = MutableStateFlow<Long?>(null)
+    val selectedMarkerId: StateFlow<Long?> = _selectedMarkerId.asStateFlow()
+
+    private val _isBottomSheetExpanded = MutableStateFlow(false)
+    val isBottomSheetExpanded: StateFlow<Boolean> = _isBottomSheetExpanded.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    var isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // 마커 클릭 처리 (자연스러운 바텀시트)
+    fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
+        _selectedMarkerId.value = contentId
+        _isLoading.value = true
+        // 로딩 상태에서 즉시 바텀시트 확장 (로딩 UI 표시)
+        _isBottomSheetExpanded.value = true
+
+        // 데이터 로드
+        viewModelScope.launch {
+            mapContentRepository.getContentsByIds(associatedContentIds)
+                .onSuccess { contents ->
+                    _bottomSheetContents.value = contents
+                    // 컨텐츠가 준비되더라도 이미 확장된 상태 유지
+                }
+                .onFailure {
+                    _bottomSheetContents.value = emptyList()
+                    _isBottomSheetExpanded.value = false  // 실패시만 바텀시트 닫기
+                    }
+            }
+        }
 
     companion object {
         private const val TAG = "MapViewModel"
     }
 
     var mapContents by mutableStateOf<List<MapContent>>(emptyList())
-        private set
-
-    var isLoading by mutableStateOf(false)
         private set
 
     var errorMessage by mutableStateOf<String?>(null)
@@ -47,7 +83,7 @@ class MapViewModel @Inject constructor(
 
     var selectedTags by mutableStateOf<Set<String>>(emptySet())
         private set
-    
+
     var selectedPostType by mutableStateOf("ALL")
         private set
 
@@ -130,6 +166,8 @@ class MapViewModel @Inject constructor(
                 } else {
                     errorMessage = response.message
                 }
+
+            _isLoading.value = false
             } catch (throwable: Throwable) {
                 errorMessage = throwable.message ?: "알 수 없는 오류가 발생했습니다"
             }
@@ -151,11 +189,27 @@ class MapViewModel @Inject constructor(
 
     fun isMarkerSelected(mapContent: MapContent): Boolean {
         return selectedMarker?.contentId == mapContent.contentId
+
+    // 지도 이동시 바텀시트 축소
+    fun onMapMove() {
+        if (_isBottomSheetExpanded.value) {
+            _isBottomSheetExpanded.value = false
+        }
     }
+
+    // 바텀시트 상태 변경
+    fun onBottomSheetStateChange(expanded: Boolean) {
+        _isBottomSheetExpanded.value = expanded
 
     fun clearError() {
         errorMessage = null
     }
+
+    // 바텀시트 닫기
+    fun clearSelection() {
+        _selectedMarkerId.value = null
+        _bottomSheetContents.value = emptyList()
+        _isBottomSheetExpanded.value = false
 
     fun clusteringUpdated() {
         shouldUpdateClustering = false
@@ -191,7 +245,7 @@ class MapViewModel @Inject constructor(
 
     fun updatePostType(postType: String) {
         selectedPostType = postType
-        
+
         // postType 변경 시 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng)
