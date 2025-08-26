@@ -7,48 +7,38 @@ import retrofit2.http.*
 interface FriendApi {
 
     // 친구 요청 보내기
-    @POST("api/friends/requests")
+    @POST("friends/requests")
     suspend fun sendFriendRequest(
-        @Header("Authorization") authorization: String,
         @Body request: FriendRequest
     ): FriendResponse
 
     // 친구 요청 수락
-    @PUT("api/friends/requests/{friendshipId}/accept")
+    @PUT("friends/requests/{friendshipId}/accept")
     suspend fun acceptFriendRequest(
-        @Header("Authorization") authorization: String,
         @Path("friendshipId") friendshipId: Long
     ): FriendResponse
 
     // 친구 요청 거절
-    @PUT("api/friends/requests/{friendshipId}/reject")
+    @PUT("friends/requests/{friendshipId}/reject")
     suspend fun rejectFriendRequest(
-        @Header("Authorization") authorization: String,
         @Path("friendshipId") friendshipId: Long
     ): String
 
     // 받은 친구 요청 목록 조회
-    @GET("api/friends/requests/received")
-    suspend fun getReceivedFriendRequests(
-        @Header("Authorization") authorization: String
-    ): List<FriendResponse>
+    @GET("friends/requests/received")
+    suspend fun getReceivedFriendRequests(): List<FriendResponse>
 
     // 보낸 친구 요청 목록 조회
-    @GET("api/friends/requests/sent")
-    suspend fun getSentFriendRequests(
-        @Header("Authorization") authorization: String
-    ): List<FriendResponse>
+    @GET("friends/requests/sent")
+    suspend fun getSentFriendRequests(): List<FriendResponse>
 
     // 친구 목록 조회
-    @GET("api/friends")
-    suspend fun getFriendsList(
-        @Header("Authorization") authorization: String
-    ): List<FriendResponse>
+    @GET("friends")
+    suspend fun getFriendsList(): List<FriendResponse>
 
     // 친구 끊기
     @DELETE("api/friends/{friendshipId}")
     suspend fun removeFriend(
-        @Header("Authorization") authorization: String,
         @Path("friendshipId") friendshipId: Long
     ): String
 }

@@ -171,9 +171,16 @@ class MapViewModel @Inject constructor(
 
     fun toggleFilterTag(tagId: String) {
         selectedTags = if (selectedTags.contains(tagId)) {
-            selectedTags - tagId
+            emptySet() // 이미 선택된 태그 클릭 시 선택 해제
         } else {
-            selectedTags + tagId
+            setOf(tagId) // 새 태그 선택 시 기존 선택 해제하고 새 태그만 선택
+        }
+
+        // 선택된 태그에 따라 postType 업데이트
+        selectedPostType = if (selectedTags.isEmpty()) {
+            "ALL"
+        } else {
+            selectedTags.first() // 하나만 선택되므로 first() 사용
         }
 
         // 필터가 변경되면 다시 로드

@@ -42,13 +42,16 @@ import com.naver.maps.map.widget.LocationButtonView
 import com.naver.maps.map.overlay.Marker
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
 import com.shinhan.campung.presentation.ui.map.MapClusterManager
+import com.shinhan.campung.presentation.ui.map.LocationPermissionManager
+import com.shinhan.campung.presentation.ui.map.LocationProvider
+import com.shinhan.campung.presentation.ui.map.MapInitializer
+import com.shinhan.campung.presentation.ui.map.MapCameraListener
+import com.shinhan.campung.presentation.ui.map.ClusterManagerInitializer
 import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.presentation.ui.components.DatePickerDialog
-import com.shinhan.campung.presentation.ui.components.GlassTooltipView
 import com.shinhan.campung.data.remote.response.MapContent
 import android.util.Log
-import kotlinx.coroutines.delay
 import com.shinhan.campung.navigation.Route
 
 @Composable
@@ -72,69 +75,42 @@ fun FullMapScreen(
         onDispose { lifecycle.removeObserver(observer) }
     }
 
-    fun hasLocationPermission(): Boolean {
-        val fine = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        val coarse = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        return fine || coarse
-    }
+    val locationPermissionManager = remember { LocationPermissionManager(context) }
+    val locationProvider = remember { LocationProvider(context) }
+    val mapInitializer = remember { MapInitializer() }
+    val clusterManagerInitializer = remember { ClusterManagerInitializer(context, mapViewModel) }
 
-    var hasPermission by remember { mutableStateOf(hasLocationPermission()) }
-    val fused = remember { LocationServices.getFusedLocationProviderClient(context) }
+    var hasPermission by remember { mutableStateOf(locationPermissionManager.hasLocationPermission()) }
     var myLatLng by remember { mutableStateOf<LatLng?>(null) }
     var naverMapRef by remember { mutableStateOf<NaverMap?>(null) }
-    var markers by remember { mutableStateOf<List<Marker>>(emptyList()) }
     var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
-    var lastZoomLevel by remember { mutableStateOf(0.0) }
-    var lastCameraChangeTime by remember { mutableStateOf(0L) }
+    var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // 툴팁은 이제 InfoWindow로 마커에 직접 붙음
-
-    @SuppressLint("MissingPermission")
     fun fetchMyLocationOnce() {
-        if (!hasLocationPermission()) return
-        // last + current
-        fused.lastLocation.addOnSuccessListener { loc ->
-            if (loc != null && myLatLng == null) {
-                myLatLng = LatLng(loc.latitude, loc.longitude)
+        locationProvider.fetchMyLocationOnce(hasPermission) { location ->
+            if (location != null && myLatLng == null) {
+                myLatLng = location
             }
         }
-        val cts = CancellationTokenSource()
-        val priority = if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY
-
-        fused.getCurrentLocation(priority, cts.token)
-            .addOnSuccessListener { loc ->
-                if (loc != null) myLatLng = LatLng(loc.latitude, loc.longitude)
-            }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        hasPermission = (result[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true)
-        if (hasPermission) fetchMyLocationOnce()
+        locationPermissionManager.handlePermissionResult(result) {
+            hasPermission = true
+            fetchMyLocationOnce()
+        }
     }
 
     LaunchedEffect(Unit) {
-        if (hasLocationPermission()) {
+        if (locationPermissionManager.hasLocationPermission()) {
             hasPermission = true
             fetchMyLocationOnce()
         } else {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
+            locationPermissionManager.requestLocationPermission(permissionLauncher)
         }
     }
 
@@ -195,92 +171,18 @@ fun FullMapScreen(
                     if (naverMapRef == null) {
                         mv.getMapAsync { map ->
                             naverMapRef = map
-                            map.uiSettings.apply {
-                                isScrollGesturesEnabled = true
-                                isZoomGesturesEnabled = true
-                                isTiltGesturesEnabled = true
-                                isRotateGesturesEnabled = true
-                                isZoomControlEnabled = false
-                                isScaleBarEnabled = false
-                                isCompassEnabled = true
-                                isLocationButtonEnabled = false
+                            mapInitializer.setupMapUI(map)
+
+                            clusterManager = clusterManagerInitializer.createClusterManager(map) { centerContent ->
+                                highlightedContent = centerContent
                             }
 
-                            clusterManager = MapClusterManager(context, map).also { manager ->
-                                manager.setupClustering()
-
-                                // 마커 클릭 이벤트 처리 - ViewModel과 연동
-                                manager.onMarkerClick = { mapContent ->
-                                    Log.d("FullMapScreen", "마커 클릭: ${mapContent.title}")
-                                    if (mapViewModel.isMarkerSelected(mapContent)) {
-                                        // 이미 선택된 마커 클릭 시 선택 해제
-                                        Log.d("FullMapScreen", "이미 선택된 마커 클릭 - 선택 해제")
-                                        mapViewModel.clearSelectedMarker()
-                                    } else {
-                                        // 새 마커 선택
-                                        Log.d("FullMapScreen", "새 마커 선택: ${mapContent.title}")
-                                        mapViewModel.selectMarker(mapContent)
-                                    }
-                                    // 여기서 바텀시트나 다이얼로그 등을 호출할 수 있음
-                                }
-
-                                // 클러스터 클릭 이벤트 처리
-                                manager.onClusterClick = { clusterContents ->
-                                    Log.d("FullMapScreen", "클러스터 클릭: ${clusterContents.size}개 아이템")
-                                    // 클러스터 클릭 시 선택 해제
-                                    mapViewModel.clearSelectedMarker()
-                                }
-
-                                // 중앙 마커 변경 이벤트 처리 (기존 로직 유지)
-                                manager.onCenterMarkerChanged = { centerContent ->
-                                    highlightedContent = centerContent
-                                }
-
-                                // 툴팁은 이제 InfoWindow로 처리됨
-
-                                Log.d("FullMapScreen", "ClusterManager 생성됨")
-                            }
-
-                            map.addOnCameraChangeListener { _, _ ->
-                                val currentTime = System.currentTimeMillis()
-
-                                // 쓰로틀링: 200ms 이내 연속 호출 방지
-                                if (currentTime - lastCameraChangeTime < 200) {
-                                    return@addOnCameraChangeListener
-                                }
-                                lastCameraChangeTime = currentTime
-
-                                val center = map.cameraPosition.target
-                                val currentZoom = map.cameraPosition.zoom
-
-                                // 툴팁은 InfoWindow로 자동 처리됨
-
-                                // 줌 레벨이 변경된 경우에만 클러스터링 업데이트
-                                if (kotlin.math.abs(currentZoom - lastZoomLevel) > 0.5) {
-                                    lastZoomLevel = currentZoom
-                                    Log.d("FullMapScreen", "줌 레벨 변경: $currentZoom, 마커 개수: ${mapViewModel.mapContents.size}")
-                                    clusterManager?.updateMarkers(mapViewModel.mapContents)
-                                }
-
-                                // API 요청 (디바운스는 ViewModel에서 처리)
-                                mapViewModel.loadMapContents(
-                                    latitude = center.latitude,
-                                    longitude = center.longitude
-                                )
-
-                                // 중앙 마커 찾기
-                                Log.d("FullMapScreen", "카메라 변경 - 중앙 마커 찾기 호출")
-                                clusterManager?.findCenterMarker()
-                            }
+                            mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
+                            map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
                         }
                     } else {
                         naverMapRef?.let { map ->
-                            if (myLatLng != null && hasPermission) {
-                                map.locationOverlay.isVisible = true
-                                map.locationOverlay.position = myLatLng!!
-                            } else {
-                                map.locationOverlay.isVisible = false
-                            }
+                            mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
                         }
                     }
                 },
@@ -318,12 +220,7 @@ fun FullMapScreen(
                                 if (hasPermission) {
                                     fetchMyLocationOnce()
                                 } else {
-                                    permissionLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.ACCESS_FINE_LOCATION,
-                                            Manifest.permission.ACCESS_COARSE_LOCATION
-                                        )
-                                    )
+                                    locationPermissionManager.requestLocationPermission(permissionLauncher)
                                 }
                             }
                         }
@@ -354,7 +251,6 @@ fun FullMapScreen(
                     .padding(top = 64.dp)
             )
 
-            // 툴팁은 이제 InfoWindow로 마커에 직접 붙어서 표시됨
         }
 
         // 날짜 선택 다이얼로그

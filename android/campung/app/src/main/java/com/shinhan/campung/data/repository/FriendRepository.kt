@@ -16,45 +16,45 @@ class FriendRepository @Inject constructor(
 
     // 토큰 가져오기 헬퍼 메서드
     private suspend fun getAuthToken(): String {
-        val token = authDataStore.tokenFlow.first()
+        val token = authDataStore.userIdFlow.first()
             ?: throw IllegalStateException("인증 토큰이 없습니다. 다시 로그인해주세요.")
         return "Bearer $token"
     }
 
     // 친구 목록 조회
     suspend fun getFriendsList(): List<FriendResponse> {
-        return friendApi.getFriendsList(getAuthToken())
+        return friendApi.getFriendsList()
     }
 
     // 친구 요청 보내기
     suspend fun sendFriendRequest(targetUserId: String): FriendResponse {
         val request = FriendRequest(targetUserId = targetUserId)
-        return friendApi.sendFriendRequest(getAuthToken(), request)
+        return friendApi.sendFriendRequest(request)
     }
 
     // 친구 요청 수락
     suspend fun acceptFriendRequest(friendshipId: Long): FriendResponse {
-        return friendApi.acceptFriendRequest(getAuthToken(), friendshipId)
+        return friendApi.acceptFriendRequest(friendshipId)
     }
 
     // 친구 요청 거절
     suspend fun rejectFriendRequest(friendshipId: Long): String {
-        return friendApi.rejectFriendRequest(getAuthToken(), friendshipId)
+        return friendApi.rejectFriendRequest(friendshipId)
     }
 
     // 받은 친구 요청 목록 조회
     suspend fun getReceivedFriendRequests(): List<FriendResponse> {
-        return friendApi.getReceivedFriendRequests(getAuthToken())
+        return friendApi.getReceivedFriendRequests()
     }
 
     // 보낸 친구 요청 목록 조회
     suspend fun getSentFriendRequests(): List<FriendResponse> {
-        return friendApi.getSentFriendRequests(getAuthToken())
+        return friendApi.getSentFriendRequests()
     }
 
     // 친구 끊기
     suspend fun removeFriend(friendshipId: Long): String {
-        return friendApi.removeFriend(getAuthToken(), friendshipId)
+        return friendApi.removeFriend(friendshipId)
     }
 
     // 로컬에서 친구 검색 (네트워크 요청 없음)

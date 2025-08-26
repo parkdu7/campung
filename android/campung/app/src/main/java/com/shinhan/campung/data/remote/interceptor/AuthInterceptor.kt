@@ -31,7 +31,7 @@ class AuthInterceptor(
         
         // Authorization 헤더에 userId 추가
         userId?.let {
-            requestBuilder.addHeader("Authorization", it)
+            requestBuilder.addHeader("Authorization", "Bearer $it")
             Log.d(TAG, "Authorization 헤더 추가: $it, URL: $url")
         } ?: run {
             Log.w(TAG, "userId가 null이어서 헤더 추가 안함, URL: $url")

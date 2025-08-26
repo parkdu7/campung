@@ -1,5 +1,7 @@
 package com.shinhan.campung.presentation.ui.map
 
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -7,9 +9,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.widget.TextView
+import androidx.core.content.ContextCompat
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.CameraUpdate
@@ -17,13 +17,12 @@ import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.OverlayImage
 import com.naver.maps.map.overlay.InfoWindow
 import com.shinhan.campung.data.remote.response.MapContent
-import com.shinhan.campung.presentation.ui.components.GlassTooltipView
 import com.shinhan.campung.R
 import kotlin.math.*
 
 class MapClusterManager(
     private val context: Context,
-    private val naverMap: NaverMap
+    val naverMap: NaverMap
 ) {
 
     // 마커 클릭 콜백
@@ -76,8 +75,10 @@ class MapClusterManager(
         if (targetMarker != null) {
             selectedMarker = targetMarker
             selectedContent = content
-            targetMarker.icon = selectedMarkerIcon!!
             targetMarker.zIndex = 2000 // 최상위
+
+            // 애니메이션과 함께 아이콘 변경
+            animateMarkerSelection(targetMarker, true)
 
             Log.d("MapClusterManager", "마커 선택됨: ${content.title}")
 
@@ -91,7 +92,8 @@ class MapClusterManager(
     // 선택 해제
     fun clearSelection() {
         selectedMarker?.let { marker ->
-            marker.icon = normalMarkerIcon!!
+            // 애니메이션과 함께 아이콘 변경
+            animateMarkerSelection(marker, false)
             marker.zIndex = 0
         }
         selectedMarker = null
@@ -192,7 +194,7 @@ class MapClusterManager(
         // 이전 하이라이트 제거 (툴팁도 함께)
         highlightedMarker?.let { marker ->
             if (marker != selectedMarker) { // 선택된 마커가 아닐 때만
-                marker.icon = normalMarkerIcon!!
+                animateMarkerFocus(marker, false)
                 marker.zIndex = 0
                 // 이전 포커스 마커의 툴팁 숨김
                 hideFocusTooltip()
@@ -205,7 +207,7 @@ class MapClusterManager(
 
         newMarker?.let { marker ->
             if (marker != selectedMarker) { // 선택된 마커가 아닐 때만
-                marker.icon = highlightedMarkerIcon!!
+                animateMarkerFocus(marker, true)
                 marker.zIndex = 1000
                 
                 // 새 포커스 마커에 툴팁 표시
@@ -410,44 +412,73 @@ class MapClusterManager(
     }
 
     private fun createSelectedMarkerIcon(): OverlayImage {
-        val size = 56
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val drawable = ContextCompat.getDrawable(context, R.drawable.marker)
+        val size = (64 * 1.3).toInt() // 1.3배 크기 (선택 시 더 크게)
+        val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-
-        // 외부 링 (펄스 효과)
-        val paint = Paint().apply {
-            isAntiAlias = true
-            color = Color.parseColor("#4DFF5722") // 반투명 주황
-            style = Paint.Style.FILL
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
-
-        // 중간 링
-        paint.apply {
-            color = Color.parseColor("#99FF5722") // 더 진한 주황
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 2.5f, paint)
-
-        // 메인 마커
-        paint.apply {
-            color = Color.parseColor("#FFFF5722") // 완전한 주황
-            style = Paint.Style.FILL
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 3.5f, paint)
-
-        // 테두리
-        paint.apply {
-            color = Color.WHITE
-            style = Paint.Style.STROKE
-            strokeWidth = 4f
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 3.5f, paint)
-
+        
+        drawable?.setBounds(0, 0, size, (size * 1.125).toInt())
+        drawable?.draw(canvas)
+        
         return OverlayImage.fromBitmap(bitmap)
+    }
+
+    // 마커 선택/해제 애니메이션
+    private fun animateMarkerSelection(marker: Marker, isSelected: Boolean) {
+        if (isSelected) {
+            // 선택 시: 작은 크기 → 큰 크기로 애니메이션
+            val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
+                marker,
+                PropertyValuesHolder.ofFloat("scaleX", 1.0f, 1.2f, 1.3f),
+                PropertyValuesHolder.ofFloat("scaleY", 1.0f, 1.2f, 1.3f)
+            )
+            scaleAnimator.duration = 200
+            scaleAnimator.start()
+            
+            // 아이콘 변경
+            marker.icon = selectedMarkerIcon!!
+        } else {
+            // 해제 시: 큰 크기 → 작은 크기로 애니메이션
+            val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
+                marker,
+                PropertyValuesHolder.ofFloat("scaleX", 1.3f, 1.1f, 1.0f),
+                PropertyValuesHolder.ofFloat("scaleY", 1.3f, 1.1f, 1.0f)
+            )
+            scaleAnimator.duration = 200
+            scaleAnimator.start()
+            
+            // 아이콘 변경
+            marker.icon = normalMarkerIcon!!
+        }
+    }
+
+    // 마커 포커스 애니메이션 (중앙 근처 마커)
+    private fun animateMarkerFocus(marker: Marker, isFocused: Boolean) {
+        if (isFocused) {
+            // 포커스 시: 부드럽게 1.2배로 확대
+            val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
+                marker,
+                PropertyValuesHolder.ofFloat("scaleX", 1.0f, 1.2f),
+                PropertyValuesHolder.ofFloat("scaleY", 1.0f, 1.2f)
+            )
+            scaleAnimator.duration = 150
+            scaleAnimator.start()
+            
+            // 아이콘 변경
+            marker.icon = highlightedMarkerIcon!!
+        } else {
+            // 포커스 해제 시: 원래 크기로 축소
+            val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
+                marker,
+                PropertyValuesHolder.ofFloat("scaleX", 1.2f, 1.0f),
+                PropertyValuesHolder.ofFloat("scaleY", 1.2f, 1.0f)
+            )
+            scaleAnimator.duration = 150
+            scaleAnimator.start()
+            
+            // 아이콘 변경
+            marker.icon = normalMarkerIcon!!
+        }
     }
 
     private fun createClusterIcon(count: Int): OverlayImage {
@@ -494,62 +525,26 @@ class MapClusterManager(
     }
 
     private fun createHighlightedMarkerIcon(): OverlayImage {
-        val size = 48
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val drawable = ContextCompat.getDrawable(context, R.drawable.marker)
+        val size = (64 * 1.2).toInt() // 1.2배 크기
+        val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-
-        // 하이라이트 효과 (큰 원)
-        val paint = Paint().apply {
-            isAntiAlias = true
-            color = Color.parseColor("#33FF5722") // 반투명 오렌지
-            style = Paint.Style.FILL
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
-
-        // 메인 마커 (작은 원)
-        paint.apply {
-            color = Color.parseColor("#FFFF5722") // 진한 오렌지
-            style = Paint.Style.FILL
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 3f, paint)
-
-        // 테두리
-        paint.apply {
-            color = Color.WHITE
-            style = Paint.Style.STROKE
-            strokeWidth = 3f
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 3f, paint)
-
+        
+        drawable?.setBounds(0, 0, size, (size * 1.125).toInt())
+        drawable?.draw(canvas)
+        
         return OverlayImage.fromBitmap(bitmap)
     }
 
     private fun createNormalMarkerIcon(): OverlayImage {
-        val size = 36
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val drawable = ContextCompat.getDrawable(context, R.drawable.marker)
+        val size = 64 // drawable의 크기와 맞춤
+        val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888) // 높이를 약간 더 크게
         val canvas = Canvas(bitmap)
-
-        // 메인 마커 (파란색 원)
-        val paint = Paint().apply {
-            isAntiAlias = true
-            color = Color.parseColor("#FF2196F3") // 파란색
-            style = Paint.Style.FILL
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 4f, paint)
-
-        // 테두리
-        paint.apply {
-            color = Color.WHITE
-            style = Paint.Style.STROKE
-            strokeWidth = 3f
-        }
-
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 4f, paint)
-
+        
+        drawable?.setBounds(0, 0, size, (size * 1.125).toInt())
+        drawable?.draw(canvas)
+        
         return OverlayImage.fromBitmap(bitmap)
     }
 }
