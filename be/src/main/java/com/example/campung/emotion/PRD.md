@@ -73,9 +73,6 @@
         {
           "success": true,
           "data": {
-            "nickname": "캠뿡",
-            "popularContents": [...],
-            "recentReviews": [...],
             "emotionWeather": "화창함",
             "emotionTemperature": 28.5
           }
