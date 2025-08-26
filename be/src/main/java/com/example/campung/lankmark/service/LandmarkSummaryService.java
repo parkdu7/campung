@@ -17,7 +17,7 @@ public class LandmarkSummaryService {
     private final RedisTemplate<String, Object> redisTemplate;
     
     private static final String REDIS_KEY_PREFIX = "landmark:summary:";
-    private static final long CACHE_TTL_MINUTES = 30;
+    private static final long CACHE_TTL_MINUTES = 60;
 
     public String generateSummary(Long landmarkId, String landmarkName, List<PostData> posts, int radius) {
         // Redis 캐시에서 먼저 확인
@@ -39,7 +39,7 @@ public class LandmarkSummaryService {
         // GPT-5 API 호출하여 요약 생성
         String summary = generateSummaryWithGPT5(landmarkName, filteredPosts, radius);
         
-        // Redis에 캐싱 (30분 TTL)
+        // Redis에 캐싱 (60분 TTL)
         redisTemplate.opsForValue().set(cacheKey, summary, Duration.ofMinutes(CACHE_TTL_MINUTES));
         
         log.info("랜드마크 {} 요약 생성 완료 및 캐싱", landmarkId);
