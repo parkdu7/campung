@@ -1,10 +1,12 @@
 package com.shinhan.campung
 
-import android.Manifest
 import android.os.Build
+import android.Manifest
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
@@ -29,9 +31,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.navigation.Route
+import com.shinhan.campung.presentation.ui.screens.FriendScreen
 import com.shinhan.campung.presentation.ui.screens.FullMapScreen
 import com.shinhan.campung.presentation.ui.screens.HomeScreen
 import com.shinhan.campung.presentation.ui.screens.LoginScreen
+import com.shinhan.campung.presentation.ui.screens.NotificationScreen
 import com.shinhan.campung.presentation.ui.screens.SignupScreen
 import com.shinhan.campung.presentation.ui.theme.CampungTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -42,7 +46,7 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var authDataStore: AuthDataStore
-    
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -53,10 +57,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = true // 자동 대비 조정 비활성화
+        }
+
         // 알림 권한 요청
         requestNotificationPermission()
-        
+
         setContent {
             CampungTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
@@ -65,14 +72,14 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    
+
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val hasPermission = ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PermissionChecker.PERMISSION_GRANTED
-            
+
             if (!hasPermission) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
@@ -120,7 +127,11 @@ private fun AppNav(authDataStore: AuthDataStore) {
                 onBack = { navController.popBackStack() }
             )
         }
-
+        composable(Route.FRIEND) {
+            FriendScreen(
+                onBackClick = { navController.popBackStack() },
+            )
+        }
         // 홈 화면
         composable(
             route = Route.HOME,
@@ -164,6 +175,13 @@ private fun AppNav(authDataStore: AuthDataStore) {
             }
         ) {
             FullMapScreen(navController = navController)
+        }
+
+        // 알림 화면
+        composable(Route.NOTIFICATION) {
+            NotificationScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
     }
 }

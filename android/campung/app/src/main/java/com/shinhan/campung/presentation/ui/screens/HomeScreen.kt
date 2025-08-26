@@ -80,7 +80,7 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = { navController.navigate("notification") }) {
                         Icon(Icons.Default.Notifications, contentDescription = "알림")
                     }
                     IconButton(onClick = { }) {
