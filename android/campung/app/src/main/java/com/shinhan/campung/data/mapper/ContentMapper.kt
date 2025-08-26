@@ -16,17 +16,17 @@ class ContentMapper @Inject constructor() {
             author = data.author,
             location = data.location ?: com.shinhan.campung.data.model.Location(0.0, 0.0),
             postType = data.postType,
-            postTypeName = ContentCategory.fromValue(data.postType).displayName,
-            markerType = if (data.hotContent) "hot" else data.postType,
-            contentScope = "",
-            contentType = "",
+            postTypeName = data.postTypeName,
+            markerType = data.markerType,
+            contentScope = data.contentScope,
+            contentType = data.contentType,
             title = data.title,
             body = data.body,
             mediaFiles = data.mediaFiles,
-            emotionTag = "",
-            reactions = com.shinhan.campung.data.model.Reactions(data.likeCount, data.commentCount),
-            createdAt = data.createdAt ?: "",
-            expiresAt = null
+            emotionTag = data.emotionTag,
+            reactions = data.reactions,
+            createdAt = data.createdAt,
+            expiresAt = data.expiresAt
         )
     }
     

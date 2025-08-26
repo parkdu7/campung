@@ -181,12 +181,89 @@ class MapViewModel @Inject constructor(
 
     // 마커 선택 상태 관리 함수들
     fun selectMarker(mapContent: MapContent) {
+        Log.e(TAG, "🎯🎯🎯 [FLOW] selectMarker() 시작: ${mapContent.title} (ID: ${mapContent.contentId})")
+        Log.d(TAG, "🎯 [FLOW] selectMarker() 시작: ${mapContent.title} (ID: ${mapContent.contentId})")
+        
         selectedMarker = mapContent
-        Log.d(TAG, "마커 선택됨: ${mapContent.title}")
+        Log.d(TAG, "📌 [FLOW] selectedMarker 상태 업데이트 완료")
+        
+        // 바텀시트 데이터 로딩 - 기존 onMarkerClick 로직과 동일
+        _selectedMarkerId.value = mapContent.contentId
+        Log.d(TAG, "🆔 [FLOW] selectedMarkerId 설정: ${mapContent.contentId}")
+        
+        _isLoading.value = true
+        Log.d(TAG, "⏳ [FLOW] isLoading = true 설정")
+        
+        _isBottomSheetExpanded.value = true
+        Log.d(TAG, "📈 [FLOW] isBottomSheetExpanded = true 설정")
+        
+        viewModelScope.launch {
+            Log.d(TAG, "🚀 [FLOW] 코루틴 시작 - 데이터 로딩 시작")
+            // 단일 마커의 경우 해당 마커의 contentId만 사용
+            mapContentRepository.getContentsByIds(listOf(mapContent.contentId))
+                .onSuccess { contents ->
+                    Log.d(TAG, "✅ [FLOW] 데이터 로딩 성공: ${contents.size}개")
+                    _bottomSheetContents.value = contents
+                    _isLoading.value = false
+                    Log.d(TAG, "📊 [FLOW] bottomSheetContents 업데이트 완료, isLoading = false")
+                }
+                .onFailure {
+                    Log.e(TAG, "❌ [FLOW] 데이터 로딩 실패", it)
+                    _bottomSheetContents.value = emptyList()
+                    _isBottomSheetExpanded.value = false
+                    _isLoading.value = false
+                    Log.d(TAG, "🔄 [FLOW] 실패 처리 완료 - 상태 초기화")
+                }
+        }
+        Log.d(TAG, "🔚 [FLOW] selectMarker() 완료")
+    }
+
+    // 클러스터 선택 처리
+    fun selectCluster(clusterContents: List<MapContent>) {
+        Log.e(TAG, "🎯🎯🎯 [FLOW] selectCluster() 시작: ${clusterContents.size}개 컨텐츠")
+        Log.d(TAG, "🎯 [FLOW] selectCluster() 시작: ${clusterContents.size}개 컨텐츠")
+        
+        selectedMarker = null // 클러스터 선택 시에는 특정 마커 선택 없음
+        Log.d(TAG, "📌 [FLOW] selectedMarker = null 설정")
+        
+        _selectedMarkerId.value = null
+        Log.d(TAG, "🆔 [FLOW] selectedMarkerId = null 설정")
+        
+        _isLoading.value = true
+        Log.d(TAG, "⏳ [FLOW] isLoading = true 설정")
+        
+        _isBottomSheetExpanded.value = true
+        Log.d(TAG, "📈 [FLOW] isBottomSheetExpanded = true 설정")
+        
+        viewModelScope.launch {
+            Log.d(TAG, "🚀 [FLOW] 코루틴 시작 - 클러스터 데이터 로딩 시작")
+            val contentIds = clusterContents.map { it.contentId }
+            Log.d(TAG, "📋 [FLOW] 로딩할 컨텐츠 ID들: $contentIds")
+            
+            mapContentRepository.getContentsByIds(contentIds)
+                .onSuccess { contents ->
+                    Log.d(TAG, "✅ [FLOW] 클러스터 데이터 로딩 성공: ${contents.size}개")
+                    _bottomSheetContents.value = contents
+                    _isLoading.value = false
+                    Log.d(TAG, "📊 [FLOW] 클러스터 bottomSheetContents 업데이트 완료, isLoading = false")
+                }
+                .onFailure {
+                    Log.e(TAG, "❌ [FLOW] 클러스터 데이터 로딩 실패", it)
+                    _bottomSheetContents.value = emptyList()
+                    _isBottomSheetExpanded.value = false
+                    _isLoading.value = false
+                    Log.d(TAG, "🔄 [FLOW] 클러스터 실패 처리 완료 - 상태 초기화")
+                }
+        }
+        Log.d(TAG, "🔚 [FLOW] selectCluster() 완료")
     }
 
     fun clearSelectedMarker() {
         selectedMarker = null
+        _selectedMarkerId.value = null
+        _bottomSheetContents.value = emptyList()
+        _isBottomSheetExpanded.value = false
+        _isLoading.value = false
         Log.d(TAG, "마커 선택 해제됨")
     }
 
@@ -196,8 +273,17 @@ class MapViewModel @Inject constructor(
 
     // 지도 이동시 바텀시트 축소
     fun onMapMove() {
+        val currentTime = System.currentTimeMillis()
+        Log.d(TAG, "🗺️ [FLOW] onMapMove() 호출됨 - 시간: $currentTime")
+        Log.d(TAG, "📊 [FLOW] 현재 isBottomSheetExpanded: ${_isBottomSheetExpanded.value}")
+        Log.d(TAG, "📊 [FLOW] 현재 bottomSheetContents 크기: ${_bottomSheetContents.value.size}")
+        Log.d(TAG, "📊 [FLOW] 현재 selectedMarkerId: ${_selectedMarkerId.value}")
+        
         if (_isBottomSheetExpanded.value) {
             _isBottomSheetExpanded.value = false
+            Log.d(TAG, "📉 [FLOW] 바텀시트 축소됨 - isBottomSheetExpanded = false")
+        } else {
+            Log.d(TAG, "ℹ️ [FLOW] 바텀시트가 이미 축소된 상태")
         }
     }
 
