@@ -67,6 +67,7 @@ import com.shinhan.campung.presentation.ui.components.bottomsheet.*
 @Composable
 fun FullMapScreen(
     navController: NavController,
+    mapView: MapView, // 외부에서 주입받음
     mapViewModel: MapViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
