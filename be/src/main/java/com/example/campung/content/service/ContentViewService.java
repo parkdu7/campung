@@ -3,6 +3,7 @@ package com.example.campung.content.service;
 import com.example.campung.content.dto.ContentDetailResponse;
 import com.example.campung.content.dto.ContentDetailRequest;
 import com.example.campung.content.repository.ContentRepository;
+import com.example.campung.content.repository.ContentLikeRepository;
 import com.example.campung.global.exception.ContentNotFoundException;
 import com.example.campung.entity.Content;
 import com.example.campung.entity.Attachment;
@@ -19,23 +20,31 @@ public class ContentViewService {
     private ContentRepository contentRepository;
     
     @Autowired
+    private ContentLikeRepository contentLikeRepository;
+    
+    @Autowired
     private ContentHotService contentHotService;
     
     public ContentDetailResponse getContentById(Long contentId) {
+        return getContentById(contentId, null);
+    }
+    
+    public ContentDetailResponse getContentById(Long contentId, String userId) {
         System.out.println("=== CONTENT 조회 시작 ===");
         System.out.println("contentId: " + contentId);
+        System.out.println("userId: " + userId);
         
         Content content = contentRepository.findById(contentId)
                 .orElseThrow(() -> new ContentNotFoundException(contentId));
         
         System.out.println("Content 조회 완료: " + content.getTitle());
         
-        ContentDetailRequest contentDetail = buildContentDetail(content);
+        ContentDetailRequest contentDetail = buildContentDetail(content, userId);
         
         return new ContentDetailResponse(true, "게시글 조회 성공", contentDetail);
     }
     
-    private ContentDetailRequest buildContentDetail(Content content) {
+    private ContentDetailRequest buildContentDetail(Content content, String userId) {
         ContentDetailRequest detail = new ContentDetailRequest();
         
         detail.setContentId(content.getContentId());
@@ -56,9 +65,7 @@ public class ContentViewService {
         if (content.getLatitude() != null && content.getLongitude() != null) {
             ContentDetailRequest.LocationInfo location = new ContentDetailRequest.LocationInfo(
                     content.getLatitude().doubleValue(),
-                    content.getLongitude().doubleValue(),
-                    null, // address - 추후 구현
-                    null  // buildingName - 추후 구현
+                    content.getLongitude().doubleValue()
             );
             detail.setLocation(location);
         }
@@ -73,6 +80,19 @@ public class ContentViewService {
         
         // HOT 컨텐츠 여부 설정
         detail.setHotContent(contentHotService.isHotContent(content.getContentId()));
+        
+        // 좋아요 정보 설정
+        int totalLikes = contentLikeRepository.countByContentId(content.getContentId());
+        boolean isLikedByCurrentUser = false;
+        
+        if (userId != null) {
+            isLikedByCurrentUser = contentLikeRepository.existsByContentContentIdAndUserUserId(
+                content.getContentId(), userId);
+        }
+        
+        ContentDetailRequest.LikeInfo likeInfo = new ContentDetailRequest.LikeInfo(
+            totalLikes, isLikedByCurrentUser);
+        detail.setLikeInfo(likeInfo);
         
         return detail;
     }

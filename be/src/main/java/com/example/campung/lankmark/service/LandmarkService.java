@@ -4,6 +4,9 @@ import com.example.campung.lankmark.dto.LandmarkCreateResponse;
 import com.example.campung.lankmark.dto.LandmarkCreateFormRequest;
 import com.example.campung.lankmark.dto.LandmarkUpdateRequest;
 import com.example.campung.lankmark.dto.LandmarkUpdateResponse;
+import com.example.campung.lankmark.dto.LandmarkDetailResponse;
+import com.example.campung.lankmark.dto.MapPOIRequest;
+import com.example.campung.lankmark.dto.MapPOIResponse;
 import com.example.campung.lankmark.entity.Landmark;
 import com.example.campung.lankmark.repository.LandmarkRepository;
 import com.example.campung.global.enums.LandmarkCategory;
@@ -73,6 +76,25 @@ public class LandmarkService {
                 .orElseThrow(() -> new LandmarkNotFoundException(landmarkId));
     }
     
+    public LandmarkDetailResponse getLandmarkDetail(Long landmarkId) {
+        Landmark landmark = findById(landmarkId);
+        
+        return LandmarkDetailResponse.builder()
+                .id(landmark.getId())
+                .name(landmark.getName())
+                .description(landmark.getDescription())
+                .thumbnailUrl(landmark.getThumbnailUrl())
+                .imageUrl(landmark.getImageUrl())
+                .category(landmark.getCategory().getDescription())
+                .latitude(landmark.getLatitude())
+                .longitude(landmark.getLongitude())
+                .currentSummary(landmark.getCurrentSummary())
+                .summaryUpdatedAt(landmark.getSummaryUpdatedAt() != null ? 
+                    landmark.getSummaryUpdatedAt().toString() : null)
+                .createdAt(landmark.getCreatedAt().toString())
+                .build();
+    }
+    
     public List<Landmark> findNearbyLandmarks(Double latitude, Double longitude, Integer radius) {
         validateCoordinates(latitude, longitude);
         
@@ -91,6 +113,45 @@ public class LandmarkService {
     
     public List<Landmark> findLandmarksWithSummary() {
         return landmarkRepository.findLandmarksWithSummary();
+    }
+    
+    public MapPOIResponse getMapPOIs(MapPOIRequest request) {
+        validateCoordinates(request.getLatitude(), request.getLongitude());
+        
+        int searchRadius = request.getRadius() != null ? request.getRadius() : 1000; // 기본 1km
+        
+        List<Landmark> landmarks = landmarkRepository.findNearbyLandmarks(
+            request.getLatitude(), request.getLongitude(), searchRadius);
+        
+        // 카테고리 필터링 (선택사항)
+        if (request.getCategory() != null && !request.getCategory().trim().isEmpty()) {
+            try {
+                LandmarkCategory categoryEnum = LandmarkCategory.valueOf(request.getCategory().toUpperCase());
+                landmarks = landmarks.stream()
+                    .filter(landmark -> landmark.getCategory() == categoryEnum)
+                    .collect(java.util.stream.Collectors.toList());
+            } catch (IllegalArgumentException e) {
+                // 잘못된 카테고리인 경우 모든 랜드마크 반환
+                log.warn("잘못된 카테고리 필터: {}", request.getCategory());
+            }
+        }
+        
+        List<MapPOIResponse.MapPOIItem> poiItems = landmarks.stream()
+            .map(landmark -> MapPOIResponse.MapPOIItem.builder()
+                .id(landmark.getId())
+                .name(landmark.getName())
+                .latitude(landmark.getLatitude())
+                .longitude(landmark.getLongitude())
+                .thumbnailUrl(landmark.getThumbnailUrl())
+                .category(landmark.getCategory().getDescription())
+                .build())
+            .collect(java.util.stream.Collectors.toList());
+        
+        return MapPOIResponse.builder()
+            .success(true)
+            .message("맵 POI 조회 성공")
+            .data(poiItems)
+            .build();
     }
     
     @Transactional

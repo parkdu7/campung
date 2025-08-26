@@ -1,13 +1,15 @@
-# Landmark 기능 명세서
+# Landmark POI 기능 명세서
 
 ## 개요
-대학 캠퍼스 지도 기반 커뮤니티에서 중요한 장소(랜드마크)를 관리하고, 해당 위치의 실시간 분위기를 AI로 요약하는 기능
+대학 캠퍼스 지도 기반 커뮤니티에서 중요한 장소(POI, Point Of Interest)를 관리하고, 해당 위치의 실시간 분위기를 AI로 요약하는 기능
 
 **주요 특징:**
 - Form Data 기반 이미지 업로드 지원
 - 자동 썸네일 생성 (300x300, JPG)  
 - GlobalExceptionHandler를 통한 통합 예외 처리
 - Content 업로드와 동일한 S3 이미지 처리 로직 사용
+- 맵 POI 목록 조회 및 상세 조회 분리
+- 조회수 및 좋아요 기능 제거 (순수 위치 정보 중심)
 
 ## 엔티티 설계
 ```java
@@ -120,8 +122,43 @@ public class Landmark {
   }
   ```
 
-### 4. 랜드마크 상세 조회
+### 4. 맵 POI 목록 조회 (전체 조회)
+- **URL**: `GET /api/landmark/map`
+- **Query Parameters**:
+  - `lat`: 위도 (필수)
+  - `lng`: 경도 (필수) 
+  - `radius`: 반경(미터, 선택, 기본값: 1000)
+  - `category`: 카테고리 필터 (선택, LandmarkCategory enum)
+- **Description**: 맵에서 POI 마커 표시를 위한 간단한 정보 조회
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "맵 POI 조회 성공",
+    "data": [
+      {
+        "id": 1,
+        "name": "중앙도서관",
+        "latitude": 37.123456,
+        "longitude": 127.123456,
+        "thumbnailUrl": "https://example.com/thumbnail.jpg",
+        "category": "도서관"
+      },
+      {
+        "id": 2,
+        "name": "학생회관 카페",
+        "latitude": 37.124456,
+        "longitude": 127.125456,
+        "thumbnailUrl": "https://example.com/thumbnail2.jpg", 
+        "category": "카페"
+      }
+    ]
+  }
+  ```
+
+### 5. POI 요약 조회 (상세 조회)
 - **URL**: `GET /api/landmark/{id}`
+- **Description**: 특정 POI 클릭 시 상세 정보 조회 (이미지, 요약 정보 포함)
 - **Response**:
   ```json
   {
@@ -130,18 +167,19 @@ public class Landmark {
       "id": 1,
       "name": "중앙도서관",
       "description": "24시간 운영하는 메인 도서관",
+      "thumbnailUrl": "https://example.com/thumbnail.jpg",
+      "imageUrl": "https://example.com/image.jpg",
+      "category": "도서관",
       "latitude": 37.123456,
       "longitude": 127.123456,
-      "category": "LIBRARY",
-      "imageUrl": "https://example.com/image.jpg",
-      "thumbnailUrl": "https://example.com/thumbnail.jpg",
       "currentSummary": "최근 중앙도서관 주변에서는 **'시험 기간'**과 관련된 '불안함' 감정이 가장 많이 나타나고 있어요...",
-      "summaryUpdatedAt": "2025-01-01T12:30:00"
+      "summaryUpdatedAt": "2025-01-01T12:30:00",
+      "createdAt": "2025-01-01T10:00:00"
     }
   }
   ```
 
-### 5. 랜드마크 요약 생성
+### 6. 랜드마크 요약 생성
 - **URL**: `POST /api/landmark/{landmarkId}/summary`
 - **Description**: GPT API를 호출하여 실시간으로 해당 랜드마크 주변 게시글들을 분석하고 요약 생성
 - **Response**:
@@ -155,29 +193,6 @@ public class Landmark {
       "postCount": 15,
       "keywords": ["시험", "스터디", "커피", "자리"]
     }
-  }
-  ```
-
-### 6. 현재 위치 기반 주변 랜드마크 조회
-- **URL**: `GET /api/landmarks/nearby?lat={latitude}&lng={longitude}&radius={meters}`
-- **Query Parameters**:
-  - `lat`: 위도 (required)
-  - `lng`: 경도 (required) 
-  - `radius`: 반경(미터, default: 1000)
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": 1,
-        "name": "중앙도서관",
-        "category": "LIBRARY",
-        "distance": 150,
-        "thumbnailUrl": "https://example.com/thumbnail.jpg",
-        "hasActiveSummary": true
-      }
-    ]
   }
   ```
 
@@ -357,6 +372,45 @@ public class LandmarkCreateFormRequest {
     
     private MultipartFile imageFile;
 }
+
+// 맵 POI 조회 전용 Request DTO
+public class MapPOIRequest {
+    private Double latitude;
+    private Double longitude;
+    private Integer radius; // 반경(미터)
+    private String category; // 카테고리 필터 (선택사항)
+}
+
+// 맵 POI 조회 전용 Response DTO
+public class MapPOIResponse {
+    private boolean success;
+    private String message;
+    private List<MapPOIItem> data;
+    
+    public static class MapPOIItem {
+        private Long id;
+        private String name;
+        private Double latitude;
+        private Double longitude;
+        private String thumbnailUrl;
+        private String category; // 한국어 표시명
+    }
+}
+
+// POI 상세 조회 전용 Response DTO
+public class LandmarkDetailResponse {
+    private Long id;
+    private String name;
+    private String description;
+    private String thumbnailUrl;
+    private String imageUrl;
+    private String category; // 한국어 표시명
+    private Double latitude;
+    private Double longitude;
+    private String currentSummary;
+    private String summaryUpdatedAt;
+    private String createdAt;
+}
 ```
 
 ## 보안 설정
@@ -365,3 +419,55 @@ public class LandmarkCreateFormRequest {
 - 요약 조회는 인증된 사용자만 가능
 - 이미지 파일 크기 제한: Spring Boot 기본 설정 준수
 - 파일 타입 검증: `image/*` 타입만 허용
+
+## 최근 업데이트 변경사항
+
+### 2025-08-26 업데이트
+**POI 조회 API 분리:**
+1. **맵 POI 목록 조회 (`GET /api/landmark/map`)** 
+   - 맵 표시용 간단한 정보만 반환 (썸네일, 위치, 이름)
+   - 위치 기반 파라미터 (콘텐츠 조회와 동일한 방식)
+   - 카테고리 필터링 지원
+
+2. **POI 상세 조회 (`GET /api/landmark/{id}`)**
+   - 상세 정보 반환 (이미지 URL, 요약 정보, 설명 등)
+   - 사용자가 특정 POI 클릭 시 사용
+
+**제거된 기능:**
+- ~~조회수 관리 기능~~ (DB 및 엔티티에서 완전 제거)
+- ~~랜드마크 좋아요 기능~~ (DB 및 엔티티에서 완전 제거)
+- ~~`GET /api/landmarks/nearby` API~~ (맵 POI 조회로 통합)
+
+**수정된 구조:**
+- Content 엔티티에서 `viewCount` 필드 제거
+- 게시글 상세 조회 LocationInfo에서 `buildingName` 제거 (위도, 경도만 반환)
+- LandmarkDetailResponse에서 한국어 카테고리명 반환 (`category.getDescription()`)
+
+### 패키지 구성 현황
+```
+com.example.campung.lankmark/
+├── controller/
+│   ├── LandmarkController.java          # CRUD + 맵 POI 조회
+│   └── LandmarkSummaryController.java   # 요약 생성 관련
+├── dto/
+│   ├── LandmarkCreateFormRequest.java   # 생성 요청
+│   ├── LandmarkCreateResponse.java      # 생성 응답
+│   ├── LandmarkUpdateRequest.java       # 수정 요청
+│   ├── LandmarkUpdateResponse.java      # 수정 응답
+│   ├── LandmarkDetailResponse.java      # 상세 조회 응답
+│   ├── MapPOIRequest.java              # 맵 POI 요청
+│   ├── MapPOIResponse.java             # 맵 POI 응답
+│   └── LandmarkSummaryResponse.java    # 요약 응답
+├── entity/
+│   └── Landmark.java                   # 랜드마크 엔티티
+├── repository/
+│   └── LandmarkRepository.java         # 데이터 접근
+└── service/
+    ├── LandmarkService.java            # 메인 비즈니스 로직
+    ├── LandmarkSummaryService.java     # 요약 생성 V1
+    ├── LandmarkSummaryServiceV2.java   # 요약 생성 V2
+    ├── LandmarkPostCollectionService.java # 게시글 수집
+    ├── GPT5ServiceV3.java              # GPT API 호출 V3
+    ├── GPT5ResponsesService.java       # GPT Responses API
+    └── GPT5FallbackService.java        # GPT 폴백 처리
+```

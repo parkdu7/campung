@@ -48,18 +48,18 @@ public class Content {
     @Column(precision = 11, scale = 8)
     private BigDecimal longitude;
     
+    @Column(name = "building_name")
+    private String buildingName;
+    
     private String emotion;
     
-    @Builder.Default
-    @Column(name = "view_count", columnDefinition = "INTEGER DEFAULT 0")
-    private Integer viewCount = 0;
     
     @Builder.Default
-    @Column(name = "like_count", columnDefinition = "INTEGER DEFAULT 0")
+    @Column(name = "like_count", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
     private Integer likeCount = 0;
     
     @Builder.Default
-    @Column(name = "comment_count", columnDefinition = "INTEGER DEFAULT 0")
+    @Column(name = "comment_count", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
     private Integer commentCount = 0;
     
     @CreationTimestamp

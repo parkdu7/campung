@@ -4,6 +4,9 @@ import com.example.campung.lankmark.dto.LandmarkCreateResponse;
 import com.example.campung.lankmark.dto.LandmarkCreateFormRequest;
 import com.example.campung.lankmark.dto.LandmarkUpdateRequest;
 import com.example.campung.lankmark.dto.LandmarkUpdateResponse;
+import com.example.campung.lankmark.dto.LandmarkDetailResponse;
+import com.example.campung.lankmark.dto.MapPOIRequest;
+import com.example.campung.lankmark.dto.MapPOIResponse;
 import com.example.campung.lankmark.service.LandmarkService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -69,6 +72,53 @@ public class LandmarkController {
         
         log.info("랜드마크 수정 성공: {} (ID: {})", 
                 updateRequest.getName(), id);
+        
+        return ResponseEntity.ok(ApiSuccessResponse.of(response));
+    }
+
+    @GetMapping("/map")
+    @Operation(summary = "맵 POI 목록 조회", 
+               description = "위치 기반으로 주변 랜드마크(POI) 목록을 조회합니다. 썸네일, 위도, 경도, 이름 정보를 반환합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "맵 POI 조회 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 파라미터 누락, 잘못된 좌표)"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<MapPOIResponse> getMapPOIs(
+            @Parameter(description = "위도") @RequestParam Double lat,
+            @Parameter(description = "경도") @RequestParam Double lng,
+            @Parameter(description = "검색 반경(미터), 기본값: 1000") @RequestParam(required = false) Integer radius,
+            @Parameter(description = "카테고리 필터 (선택사항)") @RequestParam(required = false) String category) {
+        
+        MapPOIRequest request = MapPOIRequest.builder()
+            .latitude(lat)
+            .longitude(lng)
+            .radius(radius)
+            .category(category)
+            .build();
+        
+        MapPOIResponse response = landmarkService.getMapPOIs(request);
+        
+        log.info("맵 POI 조회 성공: {}개 (위치: {}, {}, 반경: {}m)", 
+                response.getData().size(), lat, lng, radius != null ? radius : 1000);
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "POI 요약 조회 (상세)", 
+               description = "지정된 ID의 랜드마크 상세 정보를 조회합니다. 이름, 설명, 이미지 URL, 요약 정보를 포함합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "POI 상세 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "랜드마크를 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<ApiSuccessResponse<LandmarkDetailResponse>> getPOISummary(
+            @Parameter(description = "랜드마크 ID") @PathVariable Long id) {
+        
+        LandmarkDetailResponse response = landmarkService.getLandmarkDetail(id);
+        
+        log.info("POI 상세 조회 성공: {} (ID: {})", response.getName(), id);
         
         return ResponseEntity.ok(ApiSuccessResponse.of(response));
     }
