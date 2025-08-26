@@ -14,6 +14,7 @@ import com.shinhan.campung.data.repository.NewPostRepository
 import com.shinhan.campung.data.websocket.WebSocketService
 import com.shinhan.campung.util.Constants
 import android.util.Log
+import com.shinhan.campung.data.remote.api.FriendApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -62,6 +63,10 @@ object NetworkModule {
     @Provides @Singleton
     fun provideMapApi(retrofit: Retrofit): MapApi =
         retrofit.create(MapApi::class.java)
+
+    @Provides @Singleton
+    fun provideFriendApi(retrofit: Retrofit): FriendApi =
+        retrofit.create(FriendApi::class.java)
 
     @Provides @Singleton
     fun provideAuthDataStore(@ApplicationContext context: Context) = AuthDataStore(context)

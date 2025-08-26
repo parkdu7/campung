@@ -49,6 +49,7 @@ import com.shinhan.campung.presentation.ui.components.GlassTooltipView
 import com.shinhan.campung.data.remote.response.MapContent
 import android.util.Log
 import kotlinx.coroutines.delay
+import com.shinhan.campung.navigation.Route
 
 @Composable
 fun FullMapScreen(
@@ -337,12 +338,12 @@ fun FullMapScreen(
                     showDatePicker = true
                 },
                 onFriendClick = {
-                    // TODO: 친구 화면 구현
+                    navController.navigate(Route.FRIEND)
                 },
                 modifier = Modifier.align(Alignment.TopCenter)
             )
-
-            // 필터 태그 (오버레이) - 이게 postType 탭임!
+            
+            // 필터 태그 (오버레이)
             HorizontalFilterTags(
                 selectedTags = mapViewModel.selectedTags,
                 onTagClick = { tagId ->

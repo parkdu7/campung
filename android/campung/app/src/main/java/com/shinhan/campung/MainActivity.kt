@@ -29,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.navigation.Route
+import com.shinhan.campung.presentation.ui.screens.FriendScreen
 import com.shinhan.campung.presentation.ui.screens.FullMapScreen
 import com.shinhan.campung.presentation.ui.screens.HomeScreen
 import com.shinhan.campung.presentation.ui.screens.LoginScreen
@@ -120,7 +121,11 @@ private fun AppNav(authDataStore: AuthDataStore) {
                 onBack = { navController.popBackStack() }
             )
         }
-
+        composable(Route.FRIEND) {
+            FriendScreen(
+                onBackClick = { navController.popBackStack() },
+            )
+        }
         // 홈 화면
         composable(
             route = Route.HOME,
