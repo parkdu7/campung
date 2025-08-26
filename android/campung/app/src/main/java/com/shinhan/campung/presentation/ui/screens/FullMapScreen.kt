@@ -67,6 +67,7 @@ import com.shinhan.campung.presentation.ui.components.bottomsheet.*
 @Composable
 fun FullMapScreen(
     navController: NavController,
+    mapView: MapView, // 외부에서 주입받음
     mapViewModel: MapViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -230,31 +231,71 @@ fun FullMapScreen(
 
     BackHandler { navController.popBackStack() }
 
-    // 마커 클릭시 자동 확장 - SideEffect로 즉시 반응
-    if (isLoading) {
+    // 디버깅: 초기 상태 확인
+    LaunchedEffect(Unit) {
+        Log.d("BottomSheetDebug", "=== FullMapScreen 초기화 ===")
+        Log.d("BottomSheetDebug", "초기 bottomSheetContents.size: ${bottomSheetContents.size}")
+        Log.d("BottomSheetDebug", "초기 isLoading: $isLoading")
+        Log.d("BottomSheetDebug", "초기 isBottomSheetExpanded: $isBottomSheetExpanded")
+    }
+
+    // 상태 변화 모니터링
+    LaunchedEffect(bottomSheetContents.size, isLoading, isBottomSheetExpanded) {
+        Log.d("BottomSheetDebug", "=== 상태 변화 감지 ===")
+        Log.d("BottomSheetDebug", "bottomSheetContents.size: ${bottomSheetContents.size}")
+        Log.d("BottomSheetDebug", "bottomSheetContents: $bottomSheetContents")
+        Log.d("BottomSheetDebug", "isLoading: $isLoading")
+        Log.d("BottomSheetDebug", "isBottomSheetExpanded: $isBottomSheetExpanded")
+        Log.d("BottomSheetDebug", "bottomSheetState.currentValue: ${bottomSheetState.currentValue}")
+    }
+
+    // 마커 클릭시 자동 확장 - SideEffect로 즉시 반응 (단, 실제 마커 선택이 있을 때만)
+    if (isLoading && mapViewModel.selectedMarkerId.collectAsState().value != null) {
         SideEffect {
+            Log.d("BottomSheetDebug", "SideEffect: isLoading=true, selectedMarkerId 있음, 바텀시트 확장 중")
             coroutineScope.launch {
                 bottomSheetState.snapTo(BottomSheetValue.Expanded)
             }
         }
+    } else if (isLoading) {
+        Log.d("BottomSheetDebug", "SideEffect: isLoading=true이지만 selectedMarkerId 없음, 바텀시트 확장 안함")
     }
 
     LaunchedEffect(bottomSheetContents.size) {
+        Log.d("BottomSheetDebug", "LaunchedEffect(bottomSheetContents.size): ${bottomSheetContents.size}")
+        Log.d("BottomSheetDebug", "현재 isLoading: $isLoading")
+        
         // 로딩이 끝나고 컨텐츠가 업데이트될 때
         if (!isLoading) {
             when {
-                bottomSheetContents.isEmpty() -> bottomSheetState.snapTo(BottomSheetValue.PartiallyExpanded)
-                bottomSheetContents.size >= 1 -> bottomSheetState.snapTo(BottomSheetValue.Expanded)
+                bottomSheetContents.isEmpty() -> {
+                    Log.d("BottomSheetDebug", "컨텐츠 없음 -> PartiallyExpanded")
+                    bottomSheetState.snapTo(BottomSheetValue.PartiallyExpanded)
+                }
+                bottomSheetContents.size >= 1 -> {
+                    Log.d("BottomSheetDebug", "컨텐츠 ${bottomSheetContents.size}개 -> Expanded")
+                    bottomSheetState.snapTo(BottomSheetValue.Expanded)
+                }
             }
+        } else {
+            Log.d("BottomSheetDebug", "로딩 중이므로 바텀시트 상태 변경 안함")
         }
     }
 
     // isBottomSheetExpanded와 동기화 - 지도 드래그시에는 부드러운 애니메이션 적용
     LaunchedEffect(isBottomSheetExpanded) {
+        Log.d("BottomSheetDebug", "LaunchedEffect(isBottomSheetExpanded): $isBottomSheetExpanded")
+        Log.d("BottomSheetDebug", "bottomSheetContents.isEmpty(): ${bottomSheetContents.isEmpty()}")
+        Log.d("BottomSheetDebug", "isLoading: $isLoading")
+        
         if (isBottomSheetExpanded && (bottomSheetContents.isNotEmpty() || isLoading)) {
+            Log.d("BottomSheetDebug", "isBottomSheetExpanded=true -> snapTo Expanded")
             bottomSheetState.snapTo(BottomSheetValue.Expanded) // 확장시에는 즉시
         } else if (!isBottomSheetExpanded && bottomSheetContents.isNotEmpty() && !isLoading) {
+            Log.d("BottomSheetDebug", "isBottomSheetExpanded=false -> animateTo PartiallyExpanded")
             bottomSheetState.animateTo(BottomSheetValue.PartiallyExpanded) // 축소시에는 애니메이션
+        } else {
+            Log.d("BottomSheetDebug", "isBottomSheetExpanded 동기화 조건 미충족")
         }
     }
 

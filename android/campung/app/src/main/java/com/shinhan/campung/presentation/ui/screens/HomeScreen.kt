@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.naver.maps.map.MapView
 import com.shinhan.campung.presentation.ui.components.*
 import com.shinhan.campung.presentation.ui.theme.CampusBackground
 import com.shinhan.campung.presentation.ui.theme.CampusPrimary
@@ -34,7 +35,8 @@ import com.shinhan.campung.presentation.viewmodel.HomeViewModel
 @Composable
 fun HomeScreen(
     navController: NavController,
-    onLoggedOut: () -> Unit
+    onLoggedOut: () -> Unit,
+    sharedMapView: MapView // ← 추가
 ) {
     val vm: HomeViewModel = hiltViewModel()
     val newPostVm: NewPostViewModel = hiltViewModel()
@@ -114,6 +116,7 @@ fun HomeScreen(
 
             // 맵 카드
             CampusMapCard(
+                mapView = sharedMapView,
                 modifier = Modifier.padding(horizontal = 16.dp),
                 onExpandRequest = { navController.navigate("map/full") }
             )

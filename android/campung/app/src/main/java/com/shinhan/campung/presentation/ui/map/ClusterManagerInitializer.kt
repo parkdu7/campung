@@ -20,23 +20,39 @@ class ClusterManagerInitializer(
             
             // 마커 클릭 이벤트 처리 - ViewModel과 연동
             manager.onMarkerClick = { mapContent ->
-                Log.d("ClusterManagerInitializer", "마커 클릭: ${mapContent.title}")
-                if (mapViewModel.isMarkerSelected(mapContent)) {
-                    // 이미 선택된 마커 클릭 시 선택 해제
-                    Log.d("ClusterManagerInitializer", "이미 선택된 마커 클릭 - 선택 해제")
-                    mapViewModel.clearSelectedMarker()
-                } else {
-                    // 새 마커 선택
-                    Log.d("ClusterManagerInitializer", "새 마커 선택: ${mapContent.title}")
-                    mapViewModel.selectMarker(mapContent)
+                Log.d("ClusterManagerInitializer", "🎯 [FLOW] 마커 클릭 시작: ${mapContent.title} (ID: ${mapContent.contentId})")
+                Log.d("ClusterManagerInitializer", "🔍 [DEBUG] mapViewModel 객체: $mapViewModel")
+                
+                try {
+                    if (mapViewModel.isMarkerSelected(mapContent)) {
+                        // 이미 선택된 마커 클릭 시 선택 해제
+                        Log.d("ClusterManagerInitializer", "⚠️ [FLOW] 이미 선택된 마커 클릭 - 선택 해제 호출")
+                        mapViewModel.clearSelectedMarker()
+                    } else {
+                        // 새 마커 선택
+                        Log.d("ClusterManagerInitializer", "✅ [FLOW] 새 마커 선택 - selectMarker() 호출: ${mapContent.title}")
+                        mapViewModel.selectMarker(mapContent)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ClusterManagerInitializer", "❌ [ERROR] 마커 클릭 처리 중 예외 발생", e)
                 }
+                Log.d("ClusterManagerInitializer", "🔚 [FLOW] 마커 클릭 처리 완료")
             }
             
             // 클러스터 클릭 이벤트 처리
             manager.onClusterClick = { clusterContents ->
-                Log.d("ClusterManagerInitializer", "클러스터 클릭: ${clusterContents.size}개 아이템")
-                // 클러스터 클릭 시 선택 해제
-                mapViewModel.clearSelectedMarker()
+                Log.d("ClusterManagerInitializer", "🎯 [FLOW] 클러스터 클릭 시작: ${clusterContents.size}개 아이템")
+                Log.d("ClusterManagerInitializer", "📋 [FLOW] 클러스터 내용 ID들: ${clusterContents.map { it.contentId }}")
+                Log.d("ClusterManagerInitializer", "🔍 [DEBUG] mapViewModel 객체: $mapViewModel")
+                
+                try {
+                    Log.d("ClusterManagerInitializer", "✅ [FLOW] selectCluster() 호출")
+                    // 클러스터 클릭 시 바텀시트에 클러스터 내용들 표시
+                    mapViewModel.selectCluster(clusterContents)
+                } catch (e: Exception) {
+                    Log.e("ClusterManagerInitializer", "❌ [ERROR] 클러스터 클릭 처리 중 예외 발생", e)
+                }
+                Log.d("ClusterManagerInitializer", "🔚 [FLOW] 클러스터 클릭 처리 완료")
             }
             
             // 중앙 마커 변경 이벤트 처리
