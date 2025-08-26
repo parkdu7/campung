@@ -41,7 +41,8 @@ import com.naver.maps.map.widget.LocationButtonView
 import com.naver.maps.map.overlay.Marker
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
 import com.shinhan.campung.presentation.ui.map.MapClusterManager
-import com.shinhan.campung.presentation.ui.components.MapContentOverlay
+import com.shinhan.campung.presentation.ui.components.MapTopHeader
+import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.data.remote.response.MapContent
 import android.util.Log
 
@@ -164,8 +165,7 @@ fun FullMapScreen(
         color = Color.White
     ) {
         Box(Modifier.fillMaxSize()) {
-
-            // 네이버 지도
+                // 네이버 지도
             AndroidView(
                 factory = { mapView },
                 update = { mv ->
@@ -251,15 +251,7 @@ fun FullMapScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // 상단 좌측: 뒤로가기(아이콘)
-            IconButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .padding(12.dp)
-                    .align(Alignment.TopStart)
-            ) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "뒤로가기")
-            }
+            // 뒤로가기 버튼은 헤더로 이동됨
 
             Box(
                 modifier = Modifier
@@ -306,12 +298,28 @@ fun FullMapScreen(
                 )
             }
             
-            // 글래스 디자인 오버레이 (상단에 표시)
-            MapContentOverlay(
-                mapContent = highlightedContent,
+            // 상단 헤더 (오버레이)
+            MapTopHeader(
+                selectedDate = mapViewModel.selectedDate,
+                onBackClick = { navController.popBackStack() },
+                onDateClick = { 
+                    // TODO: 날짜 선택 다이얼로그 구현
+                },
+                onFriendClick = { 
+                    // TODO: 친구 화면 구현
+                },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+            
+            // 필터 태그 (오버레이)
+            HorizontalFilterTags(
+                selectedTags = mapViewModel.selectedTags,
+                onTagClick = { tagId ->
+                    mapViewModel.toggleFilterTag(tagId)
+                },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
+                    .padding(top = 64.dp) // 헤더 아래 여백
             )
         }
     }

@@ -7,12 +7,17 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.TextView
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.OverlayImage
+import com.naver.maps.map.overlay.InfoWindow
 import com.shinhan.campung.data.remote.response.MapContent
+import com.shinhan.campung.R
 import kotlin.math.*
 
 class MapClusterManager(
@@ -33,10 +38,47 @@ class MapClusterManager(
     private val markers = mutableListOf<Marker>()
     private val clusterMarkers = mutableListOf<Marker>()
     
+    // InfoWindow for tooltip
+    private val tooltipInfoWindow = InfoWindow()
+    
     fun setupClustering() {
         // 마커 아이콘 초기화
         normalMarkerIcon = createNormalMarkerIcon()
         highlightedMarkerIcon = createHighlightedMarkerIcon()
+        
+        // 툴팁 InfoWindow 설정
+        setupTooltipInfoWindow()
+    }
+    
+    private fun setupTooltipInfoWindow() {
+        tooltipInfoWindow.adapter = object : InfoWindow.ViewAdapter() {
+            override fun getView(infoWindow: InfoWindow): View {
+                return createTooltipView(infoWindow.marker?.tag as? MapContent)
+            }
+        }
+    }
+    
+    private fun createTooltipView(mapContent: MapContent?): View {
+        return TextView(context).apply {
+            mapContent?.let { content ->
+                text = content.title
+                textSize = 12f
+                setTextColor(android.graphics.Color.BLACK)
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                maxLines = 1
+                setPadding(24, 16, 24, 16)
+                
+                // 말풍선 배경
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(android.graphics.Color.WHITE)
+                    cornerRadius = 16f
+                    setStroke(1, android.graphics.Color.LTGRAY)
+                }
+                
+                // 그림자
+                elevation = 8f
+            }
+        }
     }
     
     fun findCenterMarker(): MapContent? {
@@ -63,17 +105,19 @@ class MapClusterManager(
     }
     
     private fun updateHighlightedMarker(newMarker: Marker?) {
-        // 이전 하이라이트 제거
+        // 이전 하이라이트 제거 및 툴팁 숨기기
         highlightedMarker?.let { marker ->
             marker.icon = normalMarkerIcon!!
             marker.zIndex = 0
+            tooltipInfoWindow.close()
         }
         
-        // 새로운 하이라이트 적용
+        // 새로운 하이라이트 적용 및 툴팁 표시
         highlightedMarker = newMarker
         newMarker?.let { marker ->
             marker.icon = highlightedMarkerIcon!!
             marker.zIndex = 1000 // 최상위로
+            tooltipInfoWindow.open(marker) // 툴팁 표시
         }
         
         // 콜백 호출

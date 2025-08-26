@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import java.time.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,6 +29,13 @@ class MapViewModel @Inject constructor(
         private set
 
     var shouldUpdateClustering by mutableStateOf(false)
+        private set
+
+    // 필터 상태
+    var selectedDate by mutableStateOf(LocalDate.now())
+        private set
+    
+    var selectedTags by mutableStateOf<Set<String>>(emptySet())
         private set
 
     private var debounceJob: Job? = null
@@ -93,6 +101,37 @@ class MapViewModel @Inject constructor(
     
     fun clusteringUpdated() {
         shouldUpdateClustering = false
+    }
+    
+    fun updateSelectedDate(date: LocalDate) {
+        selectedDate = date
+        // 날짜가 변경되면 다시 로드
+        lastRequestLocation?.let { (lat, lng) ->
+            loadMapContents(lat, lng)
+        }
+    }
+    
+    fun toggleFilterTag(tagId: String) {
+        selectedTags = if (selectedTags.contains(tagId)) {
+            selectedTags - tagId
+        } else {
+            selectedTags + tagId
+        }
+        
+        // 필터가 변경되면 다시 로드
+        lastRequestLocation?.let { (lat, lng) ->
+            loadMapContents(lat, lng)
+        }
+    }
+    
+    fun clearAllFilters() {
+        selectedTags = emptySet()
+        selectedDate = LocalDate.now()
+        
+        // 필터 초기화 후 다시 로드
+        lastRequestLocation?.let { (lat, lng) ->
+            loadMapContents(lat, lng)
+        }
     }
     
     private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
