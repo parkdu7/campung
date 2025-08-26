@@ -83,6 +83,7 @@ class CampungFirebaseMessagingService : FirebaseMessagingService() {
         val fromUserName = data["fromUserName"] ?: "알 수 없는 사용자"
         val message = data["message"] ?: ""
         val shareRequestId = data["shareRequestId"]?.toLongOrNull()
+        val hasActionButtons = data["action_buttons"] == "true"
         
         val title = notification?.title ?: "위치 공유 요청"
         val body = notification?.body ?: "$fromUserName 님이 위치를 요청했습니다: $message"
@@ -95,13 +96,17 @@ class CampungFirebaseMessagingService : FirebaseMessagingService() {
             putExtra("message", message)
         }
         
-        showNotificationWithActions(
-            title = title,
-            body = body,
-            intent = intent,
-            requestId = shareRequestId ?: 0L,
-            channelId = LOCATION_SHARE_CHANNEL_ID
-        )
+        if (hasActionButtons) {
+            showNotificationWithActions(
+                title = title,
+                body = body,
+                intent = intent,
+                requestId = shareRequestId ?: 0L,
+                channelId = LOCATION_SHARE_CHANNEL_ID
+            )
+        } else {
+            showNotification(title, body, intent, LOCATION_SHARE_CHANNEL_ID)
+        }
     }
 
     private fun handleLocationShared(data: Map<String, String>, notification: RemoteMessage.Notification?) {

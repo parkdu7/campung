@@ -8,16 +8,22 @@ import androidx.lifecycle.viewModelScope
 import com.shinhan.campung.data.remote.response.MapContent
 import com.shinhan.campung.data.repository.MapRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import android.util.Log
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val mapRepository: MapRepository
 ) : BaseViewModel() {
+    
+    companion object {
+        private const val TAG = "MapViewModel"
+    }
 
     var mapContents by mutableStateOf<List<MapContent>>(emptyList())
         private set
@@ -40,26 +46,44 @@ class MapViewModel @Inject constructor(
 
     private var debounceJob: Job? = null
     private var lastRequestLocation: Pair<Double, Double>? = null
+    private var lastRequestParams: RequestParams? = null
+    
+    private data class RequestParams(
+        val location: Pair<Double, Double>,
+        val date: LocalDate,
+        val tags: Set<String>,
+        val postType: String?
+    )
 
     fun loadMapContents(
         latitude: Double,
         longitude: Double,
         radius: Int? = null,
-        postType: String? = "ALL",
-        date: String? = null
+        postType: String? = "ALL"
     ) {
         // 이전 요청 취소
         debounceJob?.cancel()
         
         val currentLocation = Pair(latitude, longitude)
+        val currentParams = RequestParams(
+            location = currentLocation,
+            date = selectedDate,
+            tags = selectedTags,
+            postType = postType
+        )
         
-        // 위치가 크게 변하지 않았으면 요청하지 않음 (500m 이내)
-        lastRequestLocation?.let { lastLoc ->
-            val distance = calculateDistance(
-                lastLoc.first, lastLoc.second,
+        // 이전 요청과 비교해서 중복 요청 방지
+        lastRequestParams?.let { lastParams ->
+            val locationDistance = calculateDistance(
+                lastParams.location.first, lastParams.location.second,
                 latitude, longitude
             )
-            if (distance < 500.0) { // 500m 이내면 요청 안함
+            
+            // 위치는 같고(500m 이내), 다른 파라미터도 동일하면 스킵
+            if (locationDistance < 500.0 && 
+                lastParams.date == currentParams.date &&
+                lastParams.tags == currentParams.tags &&
+                lastParams.postType == currentParams.postType) {
                 return
             }
         }
@@ -71,14 +95,18 @@ class MapViewModel @Inject constructor(
             isLoading = true
             errorMessage = null
             lastRequestLocation = currentLocation
+            lastRequestParams = currentParams
 
             try {
+                // 선택된 날짜를 문자열로 변환
+                val dateString = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                
                 val response = mapRepository.getMapContents(
                     latitude = latitude,
                     longitude = longitude,
                     radius = radius,
                     postType = postType,
-                    date = date
+                    date = dateString
                 ).getOrThrow()
                 
                 if (response.success) {

@@ -43,6 +43,7 @@ import com.shinhan.campung.presentation.viewmodel.MapViewModel
 import com.shinhan.campung.presentation.ui.map.MapClusterManager
 import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
+import com.shinhan.campung.presentation.ui.components.DatePickerDialog
 import com.shinhan.campung.data.remote.response.MapContent
 import android.util.Log
 
@@ -86,6 +87,7 @@ fun FullMapScreen(
     var lastZoomLevel by remember { mutableStateOf(0.0) }
     var lastCameraChangeTime by remember { mutableStateOf(0L) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     @SuppressLint("MissingPermission")
     fun fetchMyLocationOnce() {
@@ -303,7 +305,7 @@ fun FullMapScreen(
                 selectedDate = mapViewModel.selectedDate,
                 onBackClick = { navController.popBackStack() },
                 onDateClick = { 
-                    // TODO: 날짜 선택 다이얼로그 구현
+                    showDatePicker = true
                 },
                 onFriendClick = { 
                     // TODO: 친구 화면 구현
@@ -320,6 +322,19 @@ fun FullMapScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 64.dp) // 헤더 아래 여백
+            )
+        }
+        
+        // 날짜 선택 다이얼로그
+        if (showDatePicker) {
+            DatePickerDialog(
+                selectedDate = mapViewModel.selectedDate,
+                onDateSelected = { newDate ->
+                    mapViewModel.updateSelectedDate(newDate)
+                },
+                onDismiss = {
+                    showDatePicker = false
+                }
             )
         }
     }

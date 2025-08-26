@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.location.LocationTracker
+import com.shinhan.campung.data.remote.interceptor.AuthInterceptor
 import com.shinhan.campung.data.remote.api.AuthApi
 import com.shinhan.campung.data.remote.api.MapApi
 import com.shinhan.campung.data.repository.AuthRepository
@@ -32,8 +33,13 @@ object NetworkModule {
     fun provideGson(): Gson = GsonBuilder().create()
 
     @Provides @Singleton
-    fun provideOkHttp(): OkHttpClient =
+    fun provideAuthInterceptor(authDataStore: AuthDataStore): AuthInterceptor =
+        AuthInterceptor(authDataStore)
+
+    @Provides @Singleton
+    fun provideOkHttp(authInterceptor: AuthInterceptor): OkHttpClient =
         OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })

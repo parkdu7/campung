@@ -165,8 +165,7 @@ class MapClusterManager(
         
         Log.d("MapClusterManager", "줌: ${naverMap.cameraPosition.zoom}, 클러스터 거리: ${clusterDistance}m, 생성된 클러스터: ${clusters.size}개")
         
-        clusters.forEachIndexed { index, cluster ->
-            Log.d("MapClusterManager", "클러스터 $index: ${cluster.size}개 아이템")
+        clusters.forEach { cluster ->
             
             if (cluster.size == 1) {
                 // 단일 마커
@@ -183,7 +182,6 @@ class MapClusterManager(
                     }
                 }
                 markers.add(marker)
-                Log.d("MapClusterManager", "단일 마커 추가: ${content.title}")
             } else {
                 // 클러스터 마커
                 val centerLat = cluster.map { it.location.latitude }.average()
@@ -208,7 +206,6 @@ class MapClusterManager(
                     }
                 }
                 clusterMarkers.add(clusterMarker)
-                Log.d("MapClusterManager", "클러스터 마커 추가: ${cluster.size}개 아이템 at ($centerLat, $centerLng)")
             }
         }
     }
