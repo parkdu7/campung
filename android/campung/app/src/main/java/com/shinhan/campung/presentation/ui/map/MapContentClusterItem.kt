@@ -2,7 +2,7 @@ package com.shinhan.campung.presentation.ui.map
 
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.clustering.ClusteringKey
-import com.shinhan.campung.data.remote.response.MapContent
+import com.shinhan.campung.data.model.MapContent
 
 data class MapContentClusterItem(
     val mapContent: MapContent

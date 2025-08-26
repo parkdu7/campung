@@ -16,7 +16,7 @@ import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.OverlayImage
 import com.naver.maps.map.overlay.InfoWindow
-import com.shinhan.campung.data.remote.response.MapContent
+import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.R
 import kotlin.math.*
 

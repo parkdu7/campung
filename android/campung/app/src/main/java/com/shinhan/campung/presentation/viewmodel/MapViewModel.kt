@@ -7,8 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.repository.MapContentRepository
-import com.shinhan.campung.data.remote.response.MapContent
 import com.shinhan.campung.data.repository.MapRepository
+import com.shinhan.campung.data.mapper.ContentMapper
+import com.shinhan.campung.data.model.ContentCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,12 +19,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
-    private val mapContentRepository: MapContentRepository
+    private val mapContentRepository: MapContentRepository,
+    private val mapRepository: MapRepository,
+    private val contentMapper: ContentMapper
 ) : BaseViewModel() {
 
     // UI States
@@ -37,7 +41,7 @@ class MapViewModel @Inject constructor(
     val isBottomSheetExpanded: StateFlow<Boolean> = _isBottomSheetExpanded.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
-    var isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
@@ -56,9 +60,9 @@ class MapViewModel @Inject constructor(
                 .onFailure {
                     _bottomSheetContents.value = emptyList()
                     _isBottomSheetExpanded.value = false  // 실패시만 바텀시트 닫기
-                    }
-            }
+                }
         }
+    }
 
     companion object {
         private const val TAG = "MapViewModel"
@@ -135,7 +139,7 @@ class MapViewModel @Inject constructor(
         debounceJob = viewModelScope.launch {
             delay(500)
 
-            isLoading = true
+            _isLoading.value = true
             errorMessage = null
             lastRequestLocation = currentLocation
             lastRequestParams = currentParams
@@ -170,9 +174,8 @@ class MapViewModel @Inject constructor(
             _isLoading.value = false
             } catch (throwable: Throwable) {
                 errorMessage = throwable.message ?: "알 수 없는 오류가 발생했습니다"
+                _isLoading.value = false
             }
-
-            isLoading = false
         }
     }
 
@@ -189,6 +192,7 @@ class MapViewModel @Inject constructor(
 
     fun isMarkerSelected(mapContent: MapContent): Boolean {
         return selectedMarker?.contentId == mapContent.contentId
+    }
 
     // 지도 이동시 바텀시트 축소
     fun onMapMove() {
@@ -200,6 +204,7 @@ class MapViewModel @Inject constructor(
     // 바텀시트 상태 변경
     fun onBottomSheetStateChange(expanded: Boolean) {
         _isBottomSheetExpanded.value = expanded
+    }
 
     fun clearError() {
         errorMessage = null
@@ -210,6 +215,7 @@ class MapViewModel @Inject constructor(
         _selectedMarkerId.value = null
         _bottomSheetContents.value = emptyList()
         _isBottomSheetExpanded.value = false
+    }
 
     fun clusteringUpdated() {
         shouldUpdateClustering = false
@@ -262,6 +268,7 @@ class MapViewModel @Inject constructor(
             loadMapContents(lat, lng)
         }
     }
+
 
     private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
         val earthRadius = 6371000.0 // 지구 반지름 (미터)
