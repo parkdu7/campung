@@ -113,7 +113,7 @@ fun MapContentItem(
                 ) {
                     // 작성자 정보와 시간
                     Text(
-                        text = "${content.authorNickname} · ${TimeFormatter.formatRelativeTime(content.createdAt)}",
+                        text = "${content.authorNickname} · ${TimeFormatter.formatRelativeTime(content.createdAtDateTime)}",
                         fontSize = 12.sp,
                         color = Color.Gray,
                         maxLines = 1,

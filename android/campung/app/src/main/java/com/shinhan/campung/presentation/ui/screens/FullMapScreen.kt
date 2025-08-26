@@ -36,7 +36,6 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -56,7 +55,7 @@ import com.shinhan.campung.presentation.ui.map.ClusterManagerInitializer
 import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.presentation.ui.components.DatePickerDialog
-import com.shinhan.campung.data.remote.response.MapContent
+import com.shinhan.campung.data.model.MapContent
 import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
@@ -267,12 +266,11 @@ fun FullMapScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // 전체 화면 지도
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = Color.White
-    ) {
-        Box(Modifier.fillMaxSize()) {
+            // 전체 화면 지도 - Surface 블록을 제거하고 직접 Box로 변경
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
             // 네이버 지도
             AndroidView(
                 factory = { mapView },
@@ -395,8 +393,7 @@ fun FullMapScreen(
                     .align(Alignment.TopCenter)
                     .padding(top = 64.dp)
             )
-
-        }
+            }
 
         // 날짜 선택 다이얼로그
         if (showDatePicker) {
@@ -409,6 +406,7 @@ fun FullMapScreen(
                     showDatePicker = false
                 }
             )
+        }
         }
     }
 }

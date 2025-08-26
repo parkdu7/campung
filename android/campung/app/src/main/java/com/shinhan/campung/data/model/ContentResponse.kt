@@ -21,16 +21,3 @@ data class ContentData(
     val createdAt: String? = null // ISO 8601 format
 )
 
-data class Author(
-    val nickname: String,
-    val anonymous: Boolean
-)
-
-data class Location(
-    val latitude: Double,
-    val longitude: Double
-)
-
-data class MediaFile(
-    val thumbnailUrl: String
-)

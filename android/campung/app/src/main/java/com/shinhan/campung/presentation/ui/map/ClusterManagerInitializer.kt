@@ -3,7 +3,7 @@ package com.shinhan.campung.presentation.ui.map
 import android.content.Context
 import android.util.Log
 import com.naver.maps.map.NaverMap
-import com.shinhan.campung.data.remote.response.MapContent
+import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
 
 class ClusterManagerInitializer(

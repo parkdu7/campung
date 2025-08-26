@@ -12,17 +12,21 @@ class ContentMapper @Inject constructor() {
     fun toMapContent(data: ContentData): MapContent {
         return MapContent(
             contentId = data.contentId,
+            userId = data.userId,
+            author = data.author,
+            location = data.location ?: com.shinhan.campung.data.model.Location(0.0, 0.0),
+            postType = data.postType,
+            postTypeName = ContentCategory.fromValue(data.postType).displayName,
+            markerType = if (data.hotContent) "hot" else data.postType,
+            contentScope = "",
+            contentType = "",
             title = data.title,
-            content = data.body,
-            authorNickname = if (data.author.anonymous) "익명" else data.author.nickname,
-            category = ContentCategory.fromValue(data.postType),
-            thumbnailUrl = data.mediaFiles.firstOrNull()?.thumbnailUrl,
-            latitude = data.location?.latitude ?: 0.0,
-            longitude = data.location?.longitude ?: 0.0,
-            likeCount = data.likeCount,
-            commentCount = data.commentCount,
-            createdAt = parseDateTime(data.createdAt),
-            isHot = data.hotContent
+            body = data.body,
+            mediaFiles = data.mediaFiles,
+            emotionTag = "",
+            reactions = com.shinhan.campung.data.model.Reactions(data.likeCount, data.commentCount),
+            createdAt = data.createdAt ?: "",
+            expiresAt = null
         )
     }
     
