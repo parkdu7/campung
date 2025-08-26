@@ -43,14 +43,6 @@ public class Landmark {
     @Column(length = 500)
     private String thumbnailUrl;
     
-    @Builder.Default
-    @Column(nullable = false)
-    private Long viewCount = 0L;
-    
-    @Builder.Default
-    @Column(nullable = false)
-    private Long likeCount = 0L;
-    
     @Column(columnDefinition = "TEXT")
     private String currentSummary;
     
@@ -77,17 +69,4 @@ public class Landmark {
         this.summaryUpdatedAt = LocalDateTime.now();
     }
     
-    public void incrementViewCount() {
-        this.viewCount++;
-    }
-    
-    public void incrementLikeCount() {
-        this.likeCount++;
-    }
-    
-    public void decrementLikeCount() {
-        if (this.likeCount > 0) {
-            this.likeCount--;
-        }
-    }
 }

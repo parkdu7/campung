@@ -15,7 +15,7 @@ import java.util.Map;
  * Spring Boot 3.x 호환 - 특정 패키지만 대상으로 제한
  * @RestControllerAdvice 사용으로 SpringDoc 호환성 개선
  */
-@RestControllerAdvice(basePackages = {"com.example.campung.test.controller", "com.example.campung.user.controller", "com.example.campung.content.controller", "com.example.campung.comment.controller", "com.example.campung.contentlike.controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
+@RestControllerAdvice(basePackages = {"com.example.campung.test.controller", "com.example.campung.user.controller", "com.example.campung.content.controller", "com.example.campung.comment.controller", "com.example.campung.contentlike.controller", "com.example.campung.lankmark.controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
 public class GlobalExceptionHandler {
     
     /**
@@ -180,6 +180,58 @@ public class GlobalExceptionHandler {
         response.put("status", "error");
         response.put("error_type", "REDIS_ERROR");
         response.put("message", "Redis 연결 오류가 발생했습니다.");
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+    
+    /**
+     * 랜드마크를 찾을 수 없는 경우 예외 처리
+     */
+    @ExceptionHandler(com.example.campung.global.exception.LandmarkNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleLandmarkNotFoundException(com.example.campung.global.exception.LandmarkNotFoundException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("errorCode", "LANDMARK_NOT_FOUND");
+        response.put("message", e.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+    
+    /**
+     * 중복된 랜드마크인 경우 예외 처리
+     */
+    @ExceptionHandler(com.example.campung.global.exception.DuplicateLandmarkException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateLandmarkException(com.example.campung.global.exception.DuplicateLandmarkException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("errorCode", "DUPLICATE_LANDMARK");
+        response.put("message", e.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+    
+    /**
+     * 잘못된 좌표인 경우 예외 처리
+     */
+    @ExceptionHandler(com.example.campung.global.exception.InvalidCoordinateException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCoordinateException(com.example.campung.global.exception.InvalidCoordinateException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("errorCode", "INVALID_COORDINATE");
+        response.put("message", e.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+    
+    /**
+     * 이미지 처리 오류인 경우 예외 처리
+     */
+    @ExceptionHandler(com.example.campung.global.exception.ImageProcessingException.class)
+    public ResponseEntity<Map<String, Object>> handleImageProcessingException(com.example.campung.global.exception.ImageProcessingException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("errorCode", "IMAGE_PROCESSING_ERROR");
+        response.put("message", e.getMessage());
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
