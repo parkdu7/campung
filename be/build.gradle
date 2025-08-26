@@ -43,6 +43,12 @@ dependencies {
 	// Firebase Admin SDK
 	implementation 'com.google.firebase:firebase-admin:9.2.0'
 	
+	// WebClient for HTTP requests (GPT-5 API 직접 호출용)
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	
+	// JSON processing
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	
 	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 	
 	// 테스트용 의존성
