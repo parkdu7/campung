@@ -45,6 +45,7 @@ import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.data.remote.response.MapContent
 import android.util.Log
+import com.shinhan.campung.navigation.Route
 
 @Composable
 fun FullMapScreen(
@@ -306,7 +307,7 @@ fun FullMapScreen(
                     // TODO: 날짜 선택 다이얼로그 구현
                 },
                 onFriendClick = { 
-                    // TODO: 친구 화면 구현
+                    navController.navigate(Route.FRIEND)
                 },
                 modifier = Modifier.align(Alignment.TopCenter)
             )
