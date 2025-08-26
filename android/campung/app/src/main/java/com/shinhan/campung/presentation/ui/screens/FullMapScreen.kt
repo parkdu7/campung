@@ -16,6 +16,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +29,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -44,28 +48,8 @@ import com.naver.maps.map.widget.LocationButtonView
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
 
-// 커스텀 bottom sheet를 위한 imports
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.runtime.saveable.rememberSaveable
-import kotlinx.coroutines.launch
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.zIndex
-import kotlin.math.abs
-
-// 커스텀 바텀시트 상태
-enum class CustomSheetValue {
-    PartiallyExpanded,
-    Expanded,
-    Hidden
-}
+// 새로운 바텀시트 컴포넌트 imports
+import com.shinhan.campung.presentation.ui.components.bottomsheet.*
 
 @Composable
 fun FullMapScreen(
@@ -88,153 +72,52 @@ fun FullMapScreen(
     val itemHeight = 120.dp
     val padding = 16.dp
     val itemSpacing = 8.dp
-    val dragHandleHeight = 30.dp // 드래그 핸들 영역 높이 30dp로 변경
-    val sheetHeaderHeight = 48.dp // 기본 시트 헤더 높이
+    val dragHandleHeight = 30.dp
 
-    // MapBottomSheetContent의 실제 패딩들 (추정값이 아닌 실제 컴포넌트 기준)
-    val bottomSheetContentPadding = 16.dp // MapBottomSheetContent 내부 패딩
-    val bottomSheetItemSpacing = 8.dp // 아이템 간 간격
+    // 새로운 바텀시트 상태
+    val bottomSheetState = rememberBottomSheetState(
+        initialValue = BottomSheetValue.PartiallyExpanded,
+        confirmValueChange = { targetValue ->
+            // 빈 상태에서는 확장을 허용하지 않음 (단, 로딩 중에는 허용)
+            if (bottomSheetContents.isEmpty() && !isLoading) {
+                targetValue == BottomSheetValue.PartiallyExpanded
+            } else {
+                true
+            }
+        }
+    )
 
-    // 커스텀 바텀시트 상태
-    var currentSheetValue by rememberSaveable { mutableStateOf(CustomSheetValue.PartiallyExpanded) }
-    var isDragging by remember { mutableStateOf(false) }
-
-    // Y 위치 계산
-    val screenHeightPx = with(density) { screenHeight.toPx() }
+    // 화면 높이 계산
     val navigationBarHeight = WindowInsets.navigationBars.getBottom(density)
-    val statusBarHeight = WindowInsets.statusBars.getTop(density) // 상태바 높이 추가
-    val availableHeightPx = screenHeightPx - navigationBarHeight - statusBarHeight // 상태바와 네비게이션 바 모두 제외
-
-    // 디버깅용 로그
-    LaunchedEffect(Unit) {
-        val navBarHeightDp = with(density) { navigationBarHeight.toDp() }
-        val statusBarHeightDp = with(density) { statusBarHeight.toDp() }
-        val availableHeightDp = with(density) { availableHeightPx.toDp() }
-        Log.d("BottomSheet", "=== 바텀시트 높이 디버깅 ===")
-        Log.d("BottomSheet", "Screen height: ${screenHeight}")
-        Log.d("BottomSheet", "Status bar height: ${statusBarHeightDp}")
-        Log.d("BottomSheet", "Navigation bar height: ${navBarHeightDp}")
-        Log.d("BottomSheet", "Available height: ${availableHeightDp}")
-        Log.d("BottomSheet", "Drag handle height: ${dragHandleHeight}")
+    val statusBarHeight = WindowInsets.statusBars.getTop(density)
+    val availableHeight = screenHeight - with(density) { 
+        (navigationBarHeight + statusBarHeight).toDp() 
     }
 
-    // 바텀시트 위치 계산 - 로딩 상태 고려 및 정확한 패딩 계산
-    val sheetPositions = remember(availableHeightPx, density, bottomSheetContents.size, isLoading) {
-        object {
-            // 네비게이션 바 위에 드래그 핸들 + 더 큰 여유 공간 노출
-            val partiallyExpanded = availableHeightPx - with(density) {
-                (dragHandleHeight).toPx() // 네비게이션 바 위에 30dp 여유 공간 (기존 8dp에서 증가)
+    // 동적 컨텐츠 높이 계산 (기존 로직과 동일)
+    val dynamicContentHeight = remember(bottomSheetContents.size, isLoading) {
+        when {
+            isLoading -> dragHandleHeight + padding * 2 + itemHeight
+            bottomSheetContents.isEmpty() -> dragHandleHeight
+            bottomSheetContents.size == 1 -> dragHandleHeight + itemHeight + padding * 2
+            bottomSheetContents.size == 2 -> dragHandleHeight + (itemHeight * 2) + itemSpacing + padding * 2
+            else -> {
+                val maxHeight = screenHeight * 0.5f
+                val calculatedHeight = dragHandleHeight + padding * 2 + (itemHeight * bottomSheetContents.size) + (itemSpacing * (bottomSheetContents.size - 1))
+                minOf(maxHeight, calculatedHeight)
             }
-
-            val contentHeight = when {
-                // 로딩 중일 때는 항상 1개 컨텐츠 크기로 계산 (모든 패딩 포함)
-                isLoading -> dragHandleHeight +
-                        bottomSheetContentPadding * 2 + // 상하 패딩
-                        itemHeight + // 로딩 영역 높이
-                        sheetHeaderHeight
-                // 로딩 완료 후 실제 컨텐츠 갯수에 따라 계산
-                bottomSheetContents.isEmpty() -> dragHandleHeight + sheetHeaderHeight
-                bottomSheetContents.size == 1 -> dragHandleHeight +
-                        itemHeight +
-                        sheetHeaderHeight
-                bottomSheetContents.size == 2 -> dragHandleHeight +
-                        (itemHeight * 2) +
-                        bottomSheetItemSpacing +
-                        sheetHeaderHeight
-                else -> {
-                    val maxHeight = screenHeight * 0.5f // 원래대로 되돌림
-                    val calculatedHeight = dragHandleHeight +
-                            bottomSheetContentPadding * 2 +
-                            (itemHeight * bottomSheetContents.size) +
-                            (bottomSheetItemSpacing * (bottomSheetContents.size - 1)) +
-                            sheetHeaderHeight
-                    minOf(maxHeight, calculatedHeight)
-                }
-            }
-            val calculatedExpanded = availableHeightPx - with(density) { contentHeight.toPx() } // screenHeightPx 대신 availableHeightPx 사용
-            // 안전장치: expanded가 partiallyExpanded보다 작아야 함 (Y좌표계에서 위쪽이 작은 값)
-            val expanded = calculatedExpanded.coerceAtMost(partiallyExpanded - with(density) { 10.dp.toPx() })
         }
     }
 
-    // 바텀시트 위치 디버깅 로그 (remember 블록 밖에서)
-    LaunchedEffect(sheetPositions, bottomSheetContents.size, isLoading) {
-        Log.d("BottomSheet", "=== 바텀시트 위치 계산 ===")
-        Log.d("BottomSheet", "PartiallyExpanded: ${with(density) { sheetPositions.partiallyExpanded.toDp() }}")
-        Log.d("BottomSheet", "Expanded: ${with(density) { sheetPositions.expanded.toDp() }}")
-        Log.d("BottomSheet", "Contents size: ${bottomSheetContents.size}, isLoading: $isLoading")
-    }
-
-    // Animatable for smooth animation
-    val sheetAnimY = remember { Animatable(sheetPositions.partiallyExpanded) }
-
-    // 상태 변경시 애니메이션
-    LaunchedEffect(currentSheetValue) {
-        val targetY = when (currentSheetValue) {
-            CustomSheetValue.PartiallyExpanded -> sheetPositions.partiallyExpanded
-            CustomSheetValue.Expanded -> sheetPositions.expanded
-            CustomSheetValue.Hidden -> screenHeightPx
-        }
-
-        sheetAnimY.animateTo(
-            targetValue = targetY,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        )
-    }
-
-    // sheetPositions가 변경될 때도 애니메이션 재실행 (로딩 완료 후 크기 조정)
-    LaunchedEffect(sheetPositions) {
-        val targetY = when (currentSheetValue) {
-            CustomSheetValue.PartiallyExpanded -> sheetPositions.partiallyExpanded
-            CustomSheetValue.Expanded -> sheetPositions.expanded
-            CustomSheetValue.Hidden -> screenHeightPx
-        }
-
-        sheetAnimY.animateTo(
-            targetValue = targetY,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        )
-    }
-
-    // LocationButton 오프셋 계산
+    // LocationButton 오프셋 계산 (바텀시트 상태에서 가져옴)
     val locationButtonOffsetY = with(density) {
-        val currentOffset = (sheetAnimY.value - sheetPositions.partiallyExpanded).coerceAtMost(0f)
-        currentOffset.toDp()
-    }
-
-    // 빈 상태에서는 확장을 허용하지 않음 (단, 로딩 중에는 허용)
-    fun confirmValueChange(targetValue: CustomSheetValue): Boolean {
-        return if (bottomSheetContents.isEmpty() && !isLoading) {
-            targetValue == CustomSheetValue.PartiallyExpanded
+        val positions = bottomSheetState.positions
+        if (positions != null) {
+            val currentOffset = (bottomSheetState.offsetY - positions.partiallyExpanded).coerceAtMost(0f)
+            currentOffset.toDp()
         } else {
-            true
+            0.dp
         }
-    }
-
-    // 드래그 처리
-    fun handleDragEnd(velocity: Float, currentPosition: Float) {
-        val fastSwipeThreshold = 800f
-        val midpoint = (sheetPositions.partiallyExpanded + sheetPositions.expanded) / 2
-
-        val targetState = when {
-            // 로딩 중이 아니고 컨텐츠가 없으면 축소 상태만 허용
-            bottomSheetContents.isEmpty() && !isLoading -> CustomSheetValue.PartiallyExpanded
-            velocity > fastSwipeThreshold -> CustomSheetValue.PartiallyExpanded
-            velocity < -fastSwipeThreshold -> CustomSheetValue.Expanded
-            currentPosition > midpoint -> CustomSheetValue.PartiallyExpanded
-            else -> CustomSheetValue.Expanded
-        }
-
-        if (confirmValueChange(targetState)) {
-            currentSheetValue = targetState
-        }
-        isDragging = false
     }
 
     // 지도 설정
@@ -322,11 +205,12 @@ fun FullMapScreen(
 
     BackHandler { navController.popBackStack() }
 
-    // 마커 클릭시 자동 확장 - 로딩 상태와 컨텐츠 갯수 모두 고려
-    LaunchedEffect(isLoading) {
-        // 로딩 시작시 바로 확장
-        if (isLoading) {
-            currentSheetValue = CustomSheetValue.Expanded
+    // 마커 클릭시 자동 확장 - SideEffect로 즉시 반응
+    if (isLoading) {
+        SideEffect {
+            coroutineScope.launch {
+                bottomSheetState.snapTo(BottomSheetValue.Expanded)
+            }
         }
     }
 
@@ -334,18 +218,18 @@ fun FullMapScreen(
         // 로딩이 끝나고 컨텐츠가 업데이트될 때
         if (!isLoading) {
             when {
-                bottomSheetContents.isEmpty() -> currentSheetValue = CustomSheetValue.PartiallyExpanded
-                bottomSheetContents.size >= 1 -> currentSheetValue = CustomSheetValue.Expanded
+                bottomSheetContents.isEmpty() -> bottomSheetState.snapTo(BottomSheetValue.PartiallyExpanded)
+                bottomSheetContents.size >= 1 -> bottomSheetState.snapTo(BottomSheetValue.Expanded)
             }
         }
     }
 
-    // isBottomSheetExpanded와 동기화
+    // isBottomSheetExpanded와 동기화 - 지도 드래그시에는 부드러운 애니메이션 적용
     LaunchedEffect(isBottomSheetExpanded) {
         if (isBottomSheetExpanded && (bottomSheetContents.isNotEmpty() || isLoading)) {
-            currentSheetValue = CustomSheetValue.Expanded
+            bottomSheetState.snapTo(BottomSheetValue.Expanded) // 확장시에는 즉시
         } else if (!isBottomSheetExpanded && bottomSheetContents.isNotEmpty() && !isLoading) {
-            currentSheetValue = CustomSheetValue.PartiallyExpanded
+            bottomSheetState.animateTo(BottomSheetValue.PartiallyExpanded) // 축소시에는 애니메이션
         }
     }
 
@@ -454,101 +338,25 @@ fun FullMapScreen(
                 )
             }
 
-            // 커스텀 바텀시트 - 배경을 사용가능한 높이까지만 연장 (상단만 radius)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(with(density) { availableHeightPx.toDp() }) // screenHeightPx 대신 availableHeightPx 사용
-                    .offset(y = with(density) { sheetAnimY.value.toDp() })
-                    .background(
-                        color = Color.White,
-                        shape = RoundedCornerShape(
-                            topStart = 16.dp,
-                            topEnd = 16.dp,
-                            bottomStart = 0.dp,
-                            bottomEnd = 0.dp
-                        ) // 상단만 radius, 하단은 직각
-                    )
+            // 새로운 바텀시트 컴포넌트 사용
+            MapDraggableBottomSheet(
+                state = bottomSheetState,
+                screenHeight = screenHeight,
+                availableHeight = availableHeight,
+                contentHeight = dynamicContentHeight,
+                dragHandleHeight = dragHandleHeight
             ) {
-                // 실제 바텀시트 컨텐츠
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                            spotColor = Color.Black.copy(alpha = 0.1f)
-                        )
-                        .background(
-                            color = Color.White,
-                            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                        )
-                ) {
-                    Column {
-                        // 드래그 핸들 - 더 큰 터치 영역으로 확장
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(dragHandleHeight) // 터치 영역 확장
-                                .pointerInput(Unit) {
-                                    var totalDragAmount = 0f
-                                    var dragStartTime = 0L
-
-                                    detectDragGestures(
-                                        onDragStart = {
-                                            isDragging = true
-                                            totalDragAmount = 0f
-                                            dragStartTime = System.currentTimeMillis()
-                                        },
-                                        onDragEnd = {
-                                            val duration = System.currentTimeMillis() - dragStartTime
-                                            val velocity =
-                                                if (duration > 0) totalDragAmount / duration * 1000 else 0f
-                                            handleDragEnd(velocity, sheetAnimY.value)
-                                        }
-                                    ) { _, dragAmount ->
-                                        totalDragAmount += dragAmount.y
-
-                                        // 드래그 중 실시간 업데이트
-                                        coroutineScope.launch {
-                                            val newY = (sheetAnimY.value + dragAmount.y).coerceIn(
-                                                sheetPositions.expanded, // min (위쪽, 작은 값)
-                                                sheetPositions.partiallyExpanded // max (아래쪽, 큰 값)
-                                            )
-                                            sheetAnimY.snapTo(newY)
-                                        }
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            // 드래그 핸들 UI
-                            Box(
-                                modifier = Modifier
-                                    .width(40.dp)
-                                    .height(4.dp)
-                                    .background(
-                                        color = Color.Gray,
-                                        shape = RoundedCornerShape(2.dp)
-                                    )
-                                    .semantics {
-                                        contentDescription = "바텀시트 드래그 핸들"
-                                    }
-                            )
-                        }
-
-                        // 바텀시트 콘텐츠
-                        MapBottomSheetContent(
-                            contents = bottomSheetContents,
-                            isLoading = isLoading,
-                            isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
-                            navigationBarHeight = with(density) { navigationBarHeight.toDp() },
-                            statusBarHeight = with(density) { statusBarHeight.toDp() }, // 상태바 높이도 전달
-                            onContentClick = { content ->
-                                // TODO: 컨텐츠 상세 화면으로 이동
-                            }
-                        )
+                // 바텀시트 콘텐츠
+                MapBottomSheetContent(
+                    contents = bottomSheetContents,
+                    isLoading = isLoading,
+                    isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
+                    navigationBarHeight = with(density) { navigationBarHeight.toDp() },
+                    statusBarHeight = with(density) { statusBarHeight.toDp() },
+                    onContentClick = { content ->
+                        // TODO: 컨텐츠 상세 화면으로 이동
                     }
-                }
+                )
             }
         }
     }
