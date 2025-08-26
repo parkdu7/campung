@@ -1,10 +1,13 @@
 package com.shinhan.campung.presentation.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,13 +32,26 @@ fun MapContentItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(120.dp),
-        onClick = onClick,
+            .height(120.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp,
+            focusedElevation = 0.dp,
+            hoveredElevation = 0.dp,
+            draggedElevation = 0.dp,
+            disabledElevation = 0.dp
+        )
     ) {
         Row(
             modifier = Modifier
