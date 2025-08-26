@@ -19,7 +19,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MariaDBDialect
   
   # Redis 설정  
   data:

@@ -52,4 +52,23 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
                                        @Param("maxLng") double maxLng,
                                        @Param("startDate") LocalDateTime startDate,
                                        @Param("endDate") LocalDateTime endDate);
+    
+    /**
+     * 랜드마크 주변 게시글 조회 (Haversine 공식 사용)
+     */
+    @Query(value = """
+        SELECT c.title, c.content, 
+               (6371000 * acos(cos(radians(:latitude)) * cos(radians(CAST(c.latitude AS DOUBLE))) * 
+                              cos(radians(CAST(c.longitude AS DOUBLE)) - radians(:longitude)) + 
+                              sin(radians(:latitude)) * sin(radians(CAST(c.latitude AS DOUBLE))))) AS distance
+        FROM content c
+        WHERE c.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        HAVING distance <= :radiusMeters
+        ORDER BY c.created_at DESC
+        """, nativeQuery = true)
+    List<Object[]> findNearbyContents(
+        @Param("latitude") Double latitude,
+        @Param("longitude") Double longitude,
+        @Param("radiusMeters") Integer radiusMeters
+    );
 }
