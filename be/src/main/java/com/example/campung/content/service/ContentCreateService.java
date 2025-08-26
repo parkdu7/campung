@@ -4,7 +4,7 @@ import com.example.campung.content.dto.ContentCreateRequest;
 import com.example.campung.content.dto.ContentCreateResponse;
 import com.example.campung.content.repository.ContentRepository;
 import com.example.campung.user.repository.UserRepository;
-import com.example.campung.lankmark.service.LandmarkService;
+import com.example.campung.lankmark.service.LandmarkSearchService;
 import com.example.campung.lankmark.entity.Landmark;
 import com.example.campung.entity.Content;
 import com.example.campung.entity.Attachment;
@@ -39,7 +39,7 @@ public class ContentCreateService {
     private PostEventPublisher postEventPublisher;
     
     @Autowired
-    private LandmarkService landmarkService;
+    private LandmarkSearchService landmarkSearchService;
     
     @Transactional
     public ContentCreateResponse createContent(ContentCreateRequest request, String accessToken) throws IOException {
@@ -65,7 +65,7 @@ public class ContentCreateService {
         String buildingName = null;
         if (request.getLatitude() != null && request.getLongitude() != null) {
             try {
-                List<Landmark> nearbyLandmarks = landmarkService.findNearbyLandmarks(
+                List<Landmark> nearbyLandmarks = landmarkSearchService.findNearbyLandmarks(
                     request.getLatitude(), request.getLongitude(), 100); // 100m 반경
                 
                 if (!nearbyLandmarks.isEmpty()) {

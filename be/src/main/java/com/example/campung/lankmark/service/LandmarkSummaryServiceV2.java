@@ -17,7 +17,7 @@ public class LandmarkSummaryServiceV2 {
     private final RedisTemplate<String, Object> redisTemplate;
     
     private static final String REDIS_KEY_PREFIX = "landmark:summary:v2:";
-    private static final long CACHE_TTL_MINUTES = 30;
+    private static final long CACHE_TTL_MINUTES = 60;
 
     /**
      * GPT-5 파라미터를 제어할 수 있는 고급 요약 생성
@@ -46,7 +46,7 @@ public class LandmarkSummaryServiceV2 {
         // GPT-5 파라미터에 따른 맞춤형 요약 생성
         String summary = generateCustomSummary(landmarkName, filteredPosts, radius, reasoningEffort, verbosity);
         
-        // Redis에 캐싱 (30분 TTL)
+        // Redis에 캐싱 (60분 TTL)
         redisTemplate.opsForValue().set(cacheKey, summary, Duration.ofMinutes(CACHE_TTL_MINUTES));
         
         log.info("랜드마크 {} 고급 요약 생성 완료 및 캐싱 (reasoning: {}, verbosity: {})", 

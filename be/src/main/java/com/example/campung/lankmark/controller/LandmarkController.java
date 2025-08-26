@@ -7,7 +7,8 @@ import com.example.campung.lankmark.dto.LandmarkUpdateResponse;
 import com.example.campung.lankmark.dto.LandmarkDetailResponse;
 import com.example.campung.lankmark.dto.MapPOIRequest;
 import com.example.campung.lankmark.dto.MapPOIResponse;
-import com.example.campung.lankmark.service.LandmarkService;
+import com.example.campung.lankmark.service.LandmarkCrudService;
+import com.example.campung.lankmark.service.LandmarkSearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -30,7 +31,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Tag(name = "Landmark", description = "랜드마크 관리 API")
 public class LandmarkController {
 
-    private final LandmarkService landmarkService;
+    private final LandmarkCrudService crudService;
+    private final LandmarkSearchService searchService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "랜드마크 등록 (Form Data)", 
@@ -45,7 +47,7 @@ public class LandmarkController {
     public ResponseEntity<ApiSuccessResponse<LandmarkCreateResponse>> createLandmarkWithFormData(
             @ModelAttribute @Valid LandmarkCreateFormRequest formRequest) {
         
-        LandmarkCreateResponse response = landmarkService.createLandmarkWithFormRequest(formRequest);
+        LandmarkCreateResponse response = crudService.createLandmarkWithFormRequest(formRequest);
         
         log.info("랜드마크 등록 성공: {} (위치: {}, {})", 
                 formRequest.getName(), formRequest.getLatitude(), formRequest.getLongitude());
@@ -68,7 +70,7 @@ public class LandmarkController {
             @Parameter(description = "랜드마크 ID") @PathVariable Long id,
             @ModelAttribute @Valid LandmarkUpdateRequest updateRequest) {
         
-        LandmarkUpdateResponse response = landmarkService.updateLandmark(id, updateRequest);
+        LandmarkUpdateResponse response = crudService.updateLandmark(id, updateRequest);
         
         log.info("랜드마크 수정 성공: {} (ID: {})", 
                 updateRequest.getName(), id);
@@ -97,7 +99,7 @@ public class LandmarkController {
             .category(category)
             .build();
         
-        MapPOIResponse response = landmarkService.getMapPOIs(request);
+        MapPOIResponse response = searchService.getMapPOIs(request);
         
         log.info("맵 POI 조회 성공: {}개 (위치: {}, {}, 반경: {}m)", 
                 response.getData().size(), lat, lng, radius != null ? radius : 1000);
@@ -116,7 +118,7 @@ public class LandmarkController {
     public ResponseEntity<ApiSuccessResponse<LandmarkDetailResponse>> getPOISummary(
             @Parameter(description = "랜드마크 ID") @PathVariable Long id) {
         
-        LandmarkDetailResponse response = landmarkService.getLandmarkDetail(id);
+        LandmarkDetailResponse response = crudService.getLandmarkDetail(id);
         
         log.info("POI 상세 조회 성공: {} (ID: {})", response.getName(), id);
         
@@ -134,7 +136,7 @@ public class LandmarkController {
     public ResponseEntity<ApiSuccessResponse<String>> deleteLandmark(
             @Parameter(description = "랜드마크 ID") @PathVariable Long id) {
         
-        landmarkService.deleteLandmark(id);
+        crudService.deleteLandmark(id);
         
         log.info("랜드마크 삭제 성공: ID {}", id);
         
