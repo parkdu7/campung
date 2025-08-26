@@ -3,6 +3,12 @@
 ## 개요
 대학 캠퍼스 지도 기반 커뮤니티에서 중요한 장소(랜드마크)를 관리하고, 해당 위치의 실시간 분위기를 AI로 요약하는 기능
 
+**주요 특징:**
+- Form Data 기반 이미지 업로드 지원
+- 자동 썸네일 생성 (300x300, JPG)  
+- GlobalExceptionHandler를 통한 통합 예외 처리
+- Content 업로드와 동일한 S3 이미지 처리 로직 사용
+
 ## 엔티티 설계
 ```java
 @Entity
@@ -15,8 +21,6 @@ public class Landmark {
     private LandmarkCategory category; // 카테고리 (도서관, 카페, 강의실 등)
     private String imageUrl;          // 대표 이미지 URL
     private String thumbnailUrl;      // 썸네일 이미지 URL (로딩 최적화용)
-    private Long viewCount;           // 조회수
-    private Long likeCount;           // 좋아요 수
     private String currentSummary;    // 현재 요약
     private LocalDateTime summaryUpdatedAt; // 요약 업데이트 시간
     private LocalDateTime createdAt;
@@ -26,20 +30,27 @@ public class Landmark {
 
 ## API 명세서
 
-### 1. 랜드마크 등록
+### 1. 랜드마크 등록 (Form Data)
 - **URL**: `POST /api/landmark`
-- **Request Body**:
-  ```json
-  {
-    "name": "중앙도서관",
-    "description": "24시간 운영하는 메인 도서관",
-    "latitude": 37.123456,
-    "longitude": 127.123456,
-    "category": "LIBRARY",
-    "imageUrl": "https://example.com/image.jpg",
-    "thumbnailUrl": "https://example.com/thumbnail.jpg"
-  }
+- **Content-Type**: `multipart/form-data`
+- **Request Parameters**:
+  - `name`: 랜드마크 이름 (필수, 최대 100자)
+  - `description`: 랜드마크 설명 (선택, 최대 500자)
+  - `latitude`: 위도 (필수, -90 ~ 90)
+  - `longitude`: 경도 (필수, -180 ~ 180) 
+  - `category`: 카테고리 (필수, LandmarkCategory enum)
+  - `imageFile`: 이미지 파일 (선택, MultipartFile)
+
+- **Request Example (Form Data)**:
   ```
+  name: 중앙도서관
+  description: 24시간 운영하는 메인 도서관
+  latitude: 37.123456
+  longitude: 127.123456
+  category: LIBRARY
+  imageFile: [image.jpg 파일]
+  ```
+
 - **Response**:
   ```json
   {
@@ -51,6 +62,12 @@ public class Landmark {
     }
   }
   ```
+
+- **주요 기능**:
+  - 이미지 파일 업로드 시 S3에 원본 이미지 저장
+  - 자동으로 300x300 썸네일 생성 및 S3 업로드
+  - 썸네일 생성 실패해도 원본 이미지는 정상 처리
+  - 중복 랜드마크 검증 (100m 이내 동일 이름)
 
 ### 2. 랜드마크 수정
 - **URL**: `PUT /api/landmark/{id}`
@@ -91,8 +108,6 @@ public class Landmark {
       "category": "LIBRARY",
       "imageUrl": "https://example.com/image.jpg",
       "thumbnailUrl": "https://example.com/thumbnail.jpg",
-      "viewCount": 150,
-      "likeCount": 23,
       "currentSummary": "최근 중앙도서관 주변에서는 **'시험 기간'**과 관련된 '불안함' 감정이 가장 많이 나타나고 있어요...",
       "summaryUpdatedAt": "2025-01-01T12:30:00"
     }
@@ -133,7 +148,6 @@ public class Landmark {
         "category": "LIBRARY",
         "distance": 150,
         "thumbnailUrl": "https://example.com/thumbnail.jpg",
-        "likeCount": 23,
         "hasActiveSummary": true
       }
     ]
@@ -191,12 +205,55 @@ contents: {내용2}
 - 실패 시 관리자 알림 (Slack/Email)
 - 요약 생성 실패 시 이전 요약 유지
 
-## 에러 코드 정의
+## 에러 코드 정의 및 예외 처리
+
+### HTTP 상태 코드
+- `201`: 랜드마크 등록 성공
 - `400`: 잘못된 요청 (필수 파라미터 누락, 잘못된 좌표)
-- `401`: 인증 실패 (관리자 권한 필요)
+- `401`: 인증 실패 (관리자 권한 필요)  
 - `404`: 랜드마크를 찾을 수 없음
 - `409`: 중복된 랜드마크 (같은 위치에 이미 존재)
-- `500`: 서버 내부 오류 (GPT API 호출 실패 등)
+- `500`: 서버 내부 오류
+
+### 커스텀 예외 클래스
+```java
+// 랜드마크 찾을 수 없음
+@ExceptionHandler(LandmarkNotFoundException.class)
+public ResponseEntity<Map<String, Object>> handleLandmarkNotFoundException() {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(Map.of("success", false, "errorCode", "LANDMARK_NOT_FOUND"));
+}
+
+// 중복 랜드마크  
+@ExceptionHandler(DuplicateLandmarkException.class)
+public ResponseEntity<Map<String, Object>> handleDuplicateLandmarkException() {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(Map.of("success", false, "errorCode", "DUPLICATE_LANDMARK"));
+}
+
+// 잘못된 좌표/입력값
+@ExceptionHandler(InvalidCoordinateException.class) 
+public ResponseEntity<Map<String, Object>> handleInvalidCoordinateException() {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(Map.of("success", false, "errorCode", "INVALID_COORDINATE"));
+}
+
+// 이미지 처리 오류
+@ExceptionHandler(ImageProcessingException.class)
+public ResponseEntity<Map<String, Object>> handleImageProcessingException() {
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .body(Map.of("success", false, "errorCode", "IMAGE_PROCESSING_ERROR"));
+}
+```
+
+### 에러 응답 형식
+```json
+{
+  "success": false,
+  "errorCode": "DUPLICATE_LANDMARK", 
+  "message": "같은 위치에 '중앙도서관' 랜드마크가 이미 존재합니다."
+}
+```
 
 ## 카테고리 정의
 ```java
@@ -212,7 +269,58 @@ public enum LandmarkCategory {
 }
 ```
 
+## 기술 구현 세부사항
+
+### 이미지 처리 로직
+1. **업로드 경로**: 
+   - 원본 이미지: `images/contents/{yyyy}/{MM}/{dd}/{UUID}.{ext}`
+   - 썸네일: `thumbnails/contents/{yyyy}/{MM}/{dd}/{UUID}_thumb.jpg`
+
+2. **썸네일 생성 규칙**:
+   - 크기: 300x300 픽셀 고정
+   - 형식: JPEG 
+   - 품질: 고품질 렌더링 (Bilinear interpolation)
+   - 배경: 흰색, 이미지 중앙 배치
+   - 비율 유지하며 스케일링
+
+3. **S3 설정**:
+   - 버킷: `${S3_BUCKET_NAME}` 환경변수
+   - 리전: `${AWS_REGION}` 환경변수  
+   - 인증: `${AWS_ACCESS_KEY_ID}`, `${AWS_SECRET_ACCESS_KEY}`
+
+### GlobalExceptionHandler 통합
+- **패키지 범위**: `com.example.campung.lankmark.controller`
+- **예외 전파**: Service → Controller → GlobalExceptionHandler
+- **로깅**: 각 예외마다 적절한 로그 레벨 적용
+- **응답 통일**: 모든 에러 응답 형식 표준화
+
+### DTO 구조
+```java
+// Form Data 전용 DTO
+@Schema(description = "랜드마크 등록 요청 (Form Data)")
+public class LandmarkCreateFormRequest {
+    @NotBlank @Size(max = 100)
+    private String name;
+    
+    @Size(max = 500) 
+    private String description;
+    
+    @NotNull
+    private Double latitude;
+    
+    @NotNull
+    private Double longitude;
+    
+    @NotNull
+    private LandmarkCategory category;
+    
+    private MultipartFile imageFile;
+}
+```
+
 ## 보안 설정
 - ChatGPT API Key는 환경변수 `OPENAI_API_KEY`로 관리
 - 랜드마크 CUD 작업은 관리자 권한 필요
 - 요약 조회는 인증된 사용자만 가능
+- 이미지 파일 크기 제한: Spring Boot 기본 설정 준수
+- 파일 타입 검증: `image/*` 타입만 허용

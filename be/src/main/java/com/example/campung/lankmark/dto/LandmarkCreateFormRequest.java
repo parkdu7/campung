@@ -8,12 +8,15 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "랜드마크 등록 요청")
-public class LandmarkCreateRequest {
+@Schema(description = "랜드마크 등록 요청 (Form Data)")
+public class LandmarkCreateFormRequest {
     
     @NotBlank(message = "랜드마크 이름은 필수입니다")
     @Size(max = 100, message = "랜드마크 이름은 100자 이내로 입력해주세요")
@@ -36,9 +39,6 @@ public class LandmarkCreateRequest {
     @Schema(description = "랜드마크 카테고리", example = "LIBRARY")
     private LandmarkCategory category;
     
-    @Schema(description = "대표 이미지 URL", example = "https://example.com/image.jpg")
-    private String imageUrl;
-    
-    @Schema(description = "썸네일 이미지 URL", example = "https://example.com/thumbnail.jpg")
-    private String thumbnailUrl;
+    @Schema(description = "이미지 파일")
+    private MultipartFile imageFile;
 }
