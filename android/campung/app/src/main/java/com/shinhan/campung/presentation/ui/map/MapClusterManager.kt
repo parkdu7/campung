@@ -424,65 +424,102 @@ class MapClusterManager(
         return OverlayImage.fromBitmap(bitmap)
     }
 
-    // 마커 선택/해제 애니메이션
+    // 마커 선택/해제 애니메이션 - 아이콘 크기 변경 방식으로 수정
     private fun animateMarkerSelection(marker: Marker, isSelected: Boolean) {
+        val content = marker.tag as? MapContent
+        
         if (isSelected) {
-            // 선택 시: 작은 크기 → 큰 크기로 애니메이션
-            val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
-                marker,
-                PropertyValuesHolder.ofFloat("scaleX", 1.0f, 1.2f, 1.3f),
-                PropertyValuesHolder.ofFloat("scaleY", 1.0f, 1.2f, 1.3f)
-            )
-            scaleAnimator.duration = 200
-            scaleAnimator.start()
+            // 선택 시: 아이콘 자체를 크게 만들어서 부드러운 효과
+            val normalIcon = createNormalMarkerIcon(content?.postType)
+            val selectedIcon = createSelectedMarkerIcon(content?.postType)
             
-            // 아이콘 변경
-            val content = marker.tag as? MapContent
-            marker.icon = createSelectedMarkerIcon(content?.postType)
+            // ValueAnimator로 직접 크기 변화 처리
+            val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+            animator.duration = 250 // 600ms → 250ms로 빠르게
+            animator.interpolator = android.view.animation.DecelerateInterpolator(1.2f)
+            
+            animator.addUpdateListener { animation ->
+                val progress = animation.animatedValue as Float
+                // 진행률에 따라 아이콘을 점진적으로 변경
+                if (progress < 0.3f) {
+                    marker.icon = normalIcon
+                } else if (progress < 0.7f) {
+                    marker.icon = createIntermediateMarkerIcon(content?.postType, 1.1f)
+                } else {
+                    marker.icon = selectedIcon
+                }
+            }
+            
+            animator.start()
+            
         } else {
-            // 해제 시: 큰 크기 → 작은 크기로 애니메이션
-            val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
-                marker,
-                PropertyValuesHolder.ofFloat("scaleX", 1.3f, 1.1f, 1.0f),
-                PropertyValuesHolder.ofFloat("scaleY", 1.3f, 1.1f, 1.0f)
-            )
-            scaleAnimator.duration = 200
-            scaleAnimator.start()
+            // 해제 시: 점진적 축소
+            val selectedIcon = createSelectedMarkerIcon(content?.postType)
+            val normalIcon = createNormalMarkerIcon(content?.postType)
             
-            // 아이콘 변경
-            val content = marker.tag as? MapContent
-            marker.icon = createNormalMarkerIcon(content?.postType)
+            val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+            animator.duration = 200 // 500ms → 200ms로 빠르게
+            animator.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            
+            animator.addUpdateListener { animation ->
+                val progress = animation.animatedValue as Float
+                // 진행률에 따라 아이콘을 점진적으로 변경
+                if (progress < 0.3f) {
+                    marker.icon = selectedIcon
+                } else if (progress < 0.7f) {
+                    marker.icon = createIntermediateMarkerIcon(content?.postType, 1.15f)
+                } else {
+                    marker.icon = normalIcon
+                }
+            }
+            
+            animator.start()
         }
     }
 
-    // 마커 포커스 애니메이션 (중앙 근처 마커)
+    // 마커 포커스 애니메이션 (중앙 근처 마커) - 부드러운 아이콘 변경 방식
     private fun animateMarkerFocus(marker: Marker, isFocused: Boolean) {
+        val content = marker.tag as? MapContent
+        
         if (isFocused) {
-            // 포커스 시: 부드럽게 1.2배로 확대
-            val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
-                marker,
-                PropertyValuesHolder.ofFloat("scaleX", 1.0f, 1.2f),
-                PropertyValuesHolder.ofFloat("scaleY", 1.0f, 1.2f)
-            )
-            scaleAnimator.duration = 150
-            scaleAnimator.start()
+            // 포커스 시: 부드러운 확대
+            val normalIcon = createNormalMarkerIcon(content?.postType)
+            val highlightedIcon = createHighlightedMarkerIcon(content?.postType)
             
-            // 아이콘 변경
-            val content = marker.tag as? MapContent
-            marker.icon = createHighlightedMarkerIcon(content?.postType)
+            val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+            animator.duration = 180 // 400ms → 180ms로 빠르게
+            animator.interpolator = android.view.animation.DecelerateInterpolator(1.2f)
+            
+            animator.addUpdateListener { animation ->
+                val progress = animation.animatedValue as Float
+                when {
+                    progress < 0.4f -> marker.icon = normalIcon
+                    progress < 0.8f -> marker.icon = createIntermediateMarkerIcon(content?.postType, 1.1f)
+                    else -> marker.icon = highlightedIcon
+                }
+            }
+            
+            animator.start()
+            
         } else {
-            // 포커스 해제 시: 원래 크기로 축소
-            val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
-                marker,
-                PropertyValuesHolder.ofFloat("scaleX", 1.2f, 1.0f),
-                PropertyValuesHolder.ofFloat("scaleY", 1.2f, 1.0f)
-            )
-            scaleAnimator.duration = 150
-            scaleAnimator.start()
+            // 포커스 해제 시: 부드러운 축소
+            val highlightedIcon = createHighlightedMarkerIcon(content?.postType)
+            val normalIcon = createNormalMarkerIcon(content?.postType)
             
-            // 아이콘 변경
-            val content = marker.tag as? MapContent
-            marker.icon = createNormalMarkerIcon(content?.postType)
+            val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+            animator.duration = 150 // 350ms → 150ms로 빠르게
+            animator.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            
+            animator.addUpdateListener { animation ->
+                val progress = animation.animatedValue as Float
+                when {
+                    progress < 0.4f -> marker.icon = highlightedIcon
+                    progress < 0.8f -> marker.icon = createIntermediateMarkerIcon(content?.postType, 1.1f)
+                    else -> marker.icon = normalIcon
+                }
+            }
+            
+            animator.start()
         }
     }
 
@@ -563,6 +600,27 @@ class MapClusterManager(
         val drawable = ContextCompat.getDrawable(context, drawableRes)
         val size = 64 // drawable의 크기와 맞춤
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888) // 높이를 약간 더 크게
+        val canvas = Canvas(bitmap)
+        
+        drawable?.setBounds(0, 0, size, (size * 1.125).toInt())
+        drawable?.draw(canvas)
+        
+        return OverlayImage.fromBitmap(bitmap)
+    }
+
+    private fun createIntermediateMarkerIcon(postType: String? = null, scale: Float): OverlayImage {
+        val drawableRes = when(postType) {
+            "NOTICE" -> R.drawable.marker_notice
+            "INFO" -> R.drawable.marker_info
+            "MARKET" -> R.drawable.marker_market
+            "FREE" -> R.drawable.marker_free
+            "HOT" -> R.drawable.marker_hot
+            else -> R.drawable.marker_info // 기본값
+        }
+        
+        val drawable = ContextCompat.getDrawable(context, drawableRes)
+        val size = (64 * scale).toInt() // 스케일 적용
+        val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
         drawable?.setBounds(0, 0, size, (size * 1.125).toInt())
