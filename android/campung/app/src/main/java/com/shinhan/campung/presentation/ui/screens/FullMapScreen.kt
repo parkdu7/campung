@@ -59,6 +59,7 @@ import com.shinhan.campung.data.model.MapContent
 import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
+import com.shinhan.campung.presentation.ui.components.AnimatedMapTooltip
 
 
 // 새로운 바텀시트 컴포넌트 imports
@@ -80,6 +81,7 @@ fun FullMapScreen(
     val bottomSheetContents by mapViewModel.bottomSheetContents.collectAsState()
     val isBottomSheetExpanded by mapViewModel.isBottomSheetExpanded.collectAsState()
     val isLoading by mapViewModel.isLoading.collectAsState()
+    val tooltipState by mapViewModel.tooltipState.collectAsState()
 
     // 화면 크기
     val screenHeight = configuration.screenHeightDp.dp
@@ -200,6 +202,22 @@ fun FullMapScreen(
                 latitude = pos.latitude,
                 longitude = pos.longitude
             )
+        }
+    }
+
+    // 카메라 이동시 툴팁 위치 업데이트
+    LaunchedEffect(naverMapRef) {
+        naverMapRef?.let { map ->
+            map.addOnCameraChangeListener { reason, animated ->
+                // 툴팁이 표시 중일 때만 위치 업데이트
+                if (tooltipState.isVisible && tooltipState.content != null) {
+                    val content = tooltipState.content!!
+                    val latLng = com.naver.maps.geometry.LatLng(content.location.latitude, content.location.longitude)
+                    val screenPoint = map.projection.toScreenLocation(latLng)
+                    val newPosition = androidx.compose.ui.geometry.Offset(screenPoint.x.toFloat(), screenPoint.y.toFloat())
+                    mapViewModel.updateTooltipPosition(newPosition)
+                }
+            }
         }
     }
 
@@ -433,6 +451,14 @@ fun FullMapScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 64.dp)
+            )
+
+            // 애니메이션 툴팁 오버레이
+            AnimatedMapTooltip(
+                visible = tooltipState.isVisible,
+                content = tooltipState.content?.title ?: "",
+                position = tooltipState.position,
+                type = tooltipState.type
             )
             }
 

@@ -2,9 +2,11 @@ package com.shinhan.campung.presentation.ui.map
 
 import android.content.Context
 import android.util.Log
+import android.view.ViewGroup
 import com.naver.maps.map.NaverMap
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
+import com.shinhan.campung.presentation.ui.components.TooltipType
 
 class ClusterManagerInitializer(
     private val context: Context,
@@ -13,9 +15,10 @@ class ClusterManagerInitializer(
     
     fun createClusterManager(
         naverMap: NaverMap,
+        mapContainer: ViewGroup? = null,
         onHighlightedContentChanged: (MapContent?) -> Unit
     ): MapClusterManager {
-        return MapClusterManager(context, naverMap).also { manager ->
+        return MapClusterManager(context, naverMap, mapContainer).also { manager ->
             manager.setupClustering()
             
             // 마커 클릭 이벤트 처리 - ViewModel과 연동
@@ -60,7 +63,16 @@ class ClusterManagerInitializer(
                 onHighlightedContentChanged(centerContent)
             }
             
-            Log.d("ClusterManagerInitializer", "ClusterManager 생성됨")
+            // 툴팁 콜백 연결
+            manager.onShowTooltip = { content, type ->
+                mapViewModel.showTooltip(content, naverMap, type)
+            }
+            
+            manager.onHideTooltip = {
+                mapViewModel.hideTooltip()
+            }
+            
+            Log.d("ClusterManagerInitializer", "ClusterManager 생성됨 - 툴팁 콜백 연결됨")
         }
     }
 }

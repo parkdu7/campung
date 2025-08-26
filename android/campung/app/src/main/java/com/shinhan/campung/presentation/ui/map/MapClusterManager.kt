@@ -8,27 +8,37 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.Log
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.OverlayImage
-import com.naver.maps.map.overlay.InfoWindow
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.R
 import kotlin.math.*
 
 class MapClusterManager(
     private val context: Context,
-    val naverMap: NaverMap
+    val naverMap: NaverMap,
+    private val mapContainer: ViewGroup? = null // 지도를 포함하는 컨테이너 뷰
 ) {
 
     // 마커 클릭 콜백
     var onMarkerClick: ((MapContent) -> Unit)? = null
     var onClusterClick: ((List<MapContent>) -> Unit)? = null
     var onCenterMarkerChanged: ((MapContent?) -> Unit)? = null
+    
+    // 툴팁 콜백 (InfoWindow 대신 사용)
+    var onShowTooltip: ((MapContent, com.shinhan.campung.presentation.ui.components.TooltipType) -> Unit)? = null
+    var onHideTooltip: (() -> Unit)? = null
 
     // 선택된 마커 상태 관리
     var selectedMarker: Marker? = null
@@ -40,15 +50,11 @@ class MapClusterManager(
     private val markers = mutableListOf<Marker>()
     private val clusterMarkers = mutableListOf<Marker>()
 
-    // 툴팁용 InfoWindow (클릭용)
-    private var tooltipInfoWindow: InfoWindow? = null
-    // 포커스용 InfoWindow (중앙 근처 마커용)
-    private var focusTooltipInfoWindow: InfoWindow? = null
+    // InfoWindow 관련 코드 제거됨 - 이제 Compose 툴팁 사용
 
     fun setupClustering() {
-        // 툴팁용 InfoWindow 초기화
-        tooltipInfoWindow = InfoWindow()
-        focusTooltipInfoWindow = InfoWindow()
+        // 더 이상 InfoWindow 초기화 불필요
+        Log.d("MapClusterManager", "클러스터 관리자 설정 완료 - Compose 툴팁 사용")
     }
 
     // 마커 선택 함수
@@ -74,8 +80,10 @@ class MapClusterManager(
 
             Log.d("MapClusterManager", "마커 선택됨: ${content.title}")
 
-            // 툴팁 InfoWindow를 마커에 직접 붙이기
-            showTooltip(targetMarker, content)
+            // 마커 애니메이션 후에 Compose 툴팁 표시 (약간의 딜레이)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                onShowTooltip?.invoke(content, com.shinhan.campung.presentation.ui.components.TooltipType.CLICK)
+            }, 150) // 마커 애니메이션이 어느정도 진행된 후에 툴팁 표시
         } else {
             Log.e("MapClusterManager", "마커를 찾을 수 없음: ${content.title}")
         }
@@ -91,60 +99,12 @@ class MapClusterManager(
         selectedMarker = null
         selectedContent = null
 
-        // 툴팁 숨김
-        hideTooltip()
+        // Compose 툴팁 숨김
+        onHideTooltip?.invoke()
         Log.d("MapClusterManager", "마커 선택 해제됨")
     }
 
-    // 툴팁 표시
-    private fun showTooltip(marker: Marker, content: MapContent) {
-        tooltipInfoWindow?.let { infoWindow ->
-            Log.d("MapClusterManager", "showTooltip 시작: ${content.title}")
-            
-            // 간단한 텍스트 어댑터로 테스트
-            infoWindow.adapter = object : InfoWindow.DefaultTextAdapter(context) {
-                override fun getText(infoWindow: InfoWindow): CharSequence {
-                    Log.d("MapClusterManager", "InfoWindow getText 호출됨: ${content.title}")
-                    return content.title
-                }
-            }
-            
-            // 마커에 InfoWindow 붙이기
-            infoWindow.open(marker)
-            Log.d("MapClusterManager", "InfoWindow.open() 호출 완료: ${content.title}")
-        } ?: run {
-            Log.e("MapClusterManager", "tooltipInfoWindow가 null입니다!")
-        }
-    }
-    
-    // 툴팁 숨기기
-    private fun hideTooltip() {
-        tooltipInfoWindow?.close()
-        Log.d("MapClusterManager", "툴팁 숨김")
-    }
-    
-    // 포커스 툴팁 표시 (중앙 근처 마커용)
-    private fun showFocusTooltip(marker: Marker, content: MapContent) {
-        focusTooltipInfoWindow?.let { infoWindow ->
-            Log.d("MapClusterManager", "포커스 툴팁 표시: ${content.title}")
-            
-            // 간단한 텍스트 어댑터로 설정
-            infoWindow.adapter = object : InfoWindow.DefaultTextAdapter(context) {
-                override fun getText(infoWindow: InfoWindow): CharSequence {
-                    return content.title
-                }
-            }
-            
-            // 마커에 InfoWindow 붙이기
-            infoWindow.open(marker)
-        }
-    }
-    
-    // 포커스 툴팁 숨기기
-    private fun hideFocusTooltip() {
-        focusTooltipInfoWindow?.close()
-        Log.d("MapClusterManager", "포커스 툴팁 숨김")
-    }
+    // InfoWindow 관련 함수들 제거됨 - 이제 Compose 툴팁으로 대체됨
 
     fun findCenterMarker(): MapContent? {
         // 선택된 마커가 있으면 우선적으로 처리
@@ -188,8 +148,8 @@ class MapClusterManager(
             if (marker != selectedMarker) { // 선택된 마커가 아닐 때만
                 animateMarkerFocus(marker, false)
                 marker.zIndex = 0
-                // 이전 포커스 마커의 툴팁 숨김
-                hideFocusTooltip()
+                // 이전 포커스 마커의 Compose 툴팁 숨김
+                onHideTooltip?.invoke()
             }
         }
 
@@ -202,8 +162,12 @@ class MapClusterManager(
                 animateMarkerFocus(marker, true)
                 marker.zIndex = 1000
                 
-                // 새 포커스 마커에 툴팁 표시
-                content?.let { showFocusTooltip(marker, it) }
+                // 새 포커스 마커에 Compose 툴팁 표시 (딜레이 적용)
+                content?.let { 
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        onShowTooltip?.invoke(it, com.shinhan.campung.presentation.ui.components.TooltipType.FOCUS)
+                    }, 100) // 포커스 애니메이션 후에 툴팁 표시
+                }
             }
         }
 
@@ -628,4 +592,6 @@ class MapClusterManager(
         
         return OverlayImage.fromBitmap(bitmap)
     }
+    
+    // 툴팁 뷰 생성 함수들 제거됨 - Compose 툴팁 사용
 }
