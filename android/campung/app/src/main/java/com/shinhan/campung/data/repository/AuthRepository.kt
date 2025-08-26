@@ -52,7 +52,7 @@ class AuthRepository(
         latitude: java.math.BigDecimal?, 
         longitude: java.math.BigDecimal?
     ): Result<Unit> = runCatching {
-        val request = LocationShareRespondRequest(action, latitude, longitude)
+        val request = LocationShareRespondRequest(shareRequestId, action, latitude, longitude)
         val res = api.respondToLocationShare(shareRequestId, request)
         if (!res.success) error(res.message)
     }

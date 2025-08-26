@@ -15,6 +15,11 @@ import com.shinhan.campung.data.websocket.WebSocketService
 import com.shinhan.campung.util.Constants
 import android.util.Log
 import com.shinhan.campung.data.remote.api.FriendApi
+import com.shinhan.campung.data.remote.api.LocationApi
+import com.shinhan.campung.data.remote.api.NotificationApi
+import com.shinhan.campung.data.repository.FriendRepository
+import com.shinhan.campung.data.repository.LocationRepository
+import com.shinhan.campung.data.repository.NotificationRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -69,6 +74,14 @@ object NetworkModule {
         retrofit.create(FriendApi::class.java)
 
     @Provides @Singleton
+    fun provideNotificationApi(retrofit: Retrofit): NotificationApi =
+        retrofit.create(NotificationApi::class.java)
+
+    @Provides @Singleton
+    fun provideLocationApi(retrofit: Retrofit): LocationApi =
+        retrofit.create(LocationApi::class.java)
+
+    @Provides @Singleton
     fun provideAuthDataStore(@ApplicationContext context: Context) = AuthDataStore(context)
 
     @Provides @Singleton
@@ -89,6 +102,24 @@ object NetworkModule {
         locationTracker: LocationTracker,
         authDataStore: AuthDataStore
     ) = NewPostRepository(webSocketService, locationTracker, authDataStore)
+    
+    @Provides @Singleton
+    fun provideNotificationRepository(
+        notificationApi: NotificationApi,
+        authDataStore: AuthDataStore
+    ) = NotificationRepository(notificationApi, authDataStore)
+    
+    @Provides @Singleton
+    fun provideFriendRepository(
+        friendApi: FriendApi,
+        authDataStore: AuthDataStore
+    ) = FriendRepository(friendApi, authDataStore)
+    
+    @Provides @Singleton
+    fun provideLocationRepository(
+        locationApi: LocationApi,
+        authDataStore: AuthDataStore
+    ) = LocationRepository(locationApi, authDataStore)
 }
 
 //import com.google.gson.Gson

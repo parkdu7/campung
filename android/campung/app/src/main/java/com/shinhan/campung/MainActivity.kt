@@ -36,6 +36,7 @@ import com.shinhan.campung.presentation.ui.screens.FriendScreen
 import com.shinhan.campung.presentation.ui.screens.FullMapScreen
 import com.shinhan.campung.presentation.ui.screens.HomeScreen
 import com.shinhan.campung.presentation.ui.screens.LoginScreen
+import com.shinhan.campung.presentation.ui.screens.NotificationScreen
 import com.shinhan.campung.presentation.ui.screens.SignupScreen
 import com.shinhan.campung.presentation.ui.theme.CampungTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -175,6 +176,13 @@ private fun AppNav(authDataStore: AuthDataStore) {
             }
         ) {
             FullMapScreen(navController = navController)
+        }
+
+        // 알림 화면
+        composable(Route.NOTIFICATION) {
+            NotificationScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
     }
 }
