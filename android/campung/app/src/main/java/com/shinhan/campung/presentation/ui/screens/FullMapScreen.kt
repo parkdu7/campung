@@ -342,7 +342,7 @@ fun FullMapScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            // 필터 태그 (오버레이)
+            // 필터 태그 (오버레이) - 이게 postType 탭임!
             HorizontalFilterTags(
                 selectedTags = mapViewModel.selectedTags,
                 onTagClick = { tagId ->

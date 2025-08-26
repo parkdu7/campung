@@ -47,6 +47,9 @@ class MapViewModel @Inject constructor(
 
     var selectedTags by mutableStateOf<Set<String>>(emptySet())
         private set
+    
+    var selectedPostType by mutableStateOf("ALL")
+        private set
 
     private var debounceJob: Job? = null
     private var lastRequestLocation: Pair<Double, Double>? = null
@@ -56,14 +59,14 @@ class MapViewModel @Inject constructor(
         val location: Pair<Double, Double>,
         val date: LocalDate,
         val tags: Set<String>,
-        val postType: String?
+        val postType: String
     )
 
     fun loadMapContents(
         latitude: Double,
         longitude: Double,
         radius: Int? = null,
-        postType: String? = "ALL"
+        postType: String? = null
     ) {
         // 이전 요청 취소
         debounceJob?.cancel()
@@ -73,7 +76,7 @@ class MapViewModel @Inject constructor(
             location = currentLocation,
             date = selectedDate,
             tags = selectedTags,
-            postType = postType
+            postType = postType ?: selectedPostType
         )
 
         // 이전 요청과 비교해서 중복 요청 방지
@@ -109,7 +112,7 @@ class MapViewModel @Inject constructor(
                     latitude = latitude,
                     longitude = longitude,
                     radius = radius,
-                    postType = postType,
+                    postType = postType ?: selectedPostType,
                     date = dateString
                 ).getOrThrow()
 
@@ -179,9 +182,19 @@ class MapViewModel @Inject constructor(
         }
     }
 
+    fun updatePostType(postType: String) {
+        selectedPostType = postType
+        
+        // postType 변경 시 다시 로드
+        lastRequestLocation?.let { (lat, lng) ->
+            loadMapContents(lat, lng)
+        }
+    }
+
     fun clearAllFilters() {
         selectedTags = emptySet()
         selectedDate = LocalDate.now()
+        selectedPostType = "ALL"
 
         // 필터 초기화 후 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
