@@ -46,8 +46,12 @@ data class MapContent(
 
 data class Author(
     val nickname: String,
-    val anonymous: Boolean
-)
+    val profileImageUrl: String? = null,
+    val isAnonymous: Boolean = false
+) {
+    // 기존 코드와의 호환성을 위한 computed property
+    val anonymous: Boolean get() = isAnonymous
+}
 
 data class Location(
     val latitude: Double,
@@ -55,12 +59,20 @@ data class Location(
 )
 
 data class MediaFile(
-    val id: Long,
-    val url: String,
-    val type: String,
-    val thumbnail: String?,
-    val thumbnailUrl: String? = thumbnail // ContentResponse와의 호환성을 위해
-)
+    val fileId: Long,
+    val fileType: String,
+    val fileUrl: String,
+    val thumbnailUrl: String?,
+    val fileName: String?,
+    val fileSize: Long?,
+    val order: Int?
+) {
+    // 기존 코드와의 호환성을 위한 computed properties
+    val id: Long get() = fileId
+    val url: String get() = fileUrl
+    val type: String get() = fileType
+    val thumbnail: String? get() = thumbnailUrl
+}
 
 data class Reactions(
     val likes: Int,
