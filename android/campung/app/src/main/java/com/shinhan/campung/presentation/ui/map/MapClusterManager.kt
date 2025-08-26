@@ -36,9 +36,6 @@ class MapClusterManager(
     var selectedContent: MapContent? = null
         private set
 
-    private var normalMarkerIcon: OverlayImage? = null
-    private var highlightedMarkerIcon: OverlayImage? = null
-    private var selectedMarkerIcon: OverlayImage? = null // 선택된 마커용 아이콘
 
     private val markers = mutableListOf<Marker>()
     private val clusterMarkers = mutableListOf<Marker>()
@@ -49,11 +46,6 @@ class MapClusterManager(
     private var focusTooltipInfoWindow: InfoWindow? = null
 
     fun setupClustering() {
-        // 마커 아이콘 초기화
-        normalMarkerIcon = createNormalMarkerIcon()
-        highlightedMarkerIcon = createHighlightedMarkerIcon()
-        selectedMarkerIcon = createSelectedMarkerIcon()
-        
         // 툴팁용 InfoWindow 초기화
         tooltipInfoWindow = InfoWindow()
         focusTooltipInfoWindow = InfoWindow()
@@ -253,7 +245,7 @@ class MapClusterManager(
         mapContents.forEach { content ->
             val marker = Marker().apply {
                 position = LatLng(content.location.latitude, content.location.longitude)
-                icon = normalMarkerIcon!!
+                icon = createNormalMarkerIcon(content.postType)
                 map = naverMap
                 tag = content // MapContent 저장
 
@@ -287,7 +279,7 @@ class MapClusterManager(
                 val content = cluster[0]
                 val marker = Marker().apply {
                     position = LatLng(content.location.latitude, content.location.longitude)
-                    icon = normalMarkerIcon!!
+                    icon = createNormalMarkerIcon(content.postType)
                     map = naverMap
                     tag = content // MapContent 저장
 
@@ -411,8 +403,17 @@ class MapClusterManager(
         clearSelection()
     }
 
-    private fun createSelectedMarkerIcon(): OverlayImage {
-        val drawable = ContextCompat.getDrawable(context, R.drawable.marker)
+    private fun createSelectedMarkerIcon(postType: String? = null): OverlayImage {
+        val drawableRes = when(postType) {
+            "NOTICE" -> R.drawable.marker_notice
+            "INFO" -> R.drawable.marker_info
+            "MARKET" -> R.drawable.marker_market
+            "FREE" -> R.drawable.marker_free
+            "HOT" -> R.drawable.marker_hot
+            else -> R.drawable.marker_info // 기본값
+        }
+        
+        val drawable = ContextCompat.getDrawable(context, drawableRes)
         val size = (64 * 1.3).toInt() // 1.3배 크기 (선택 시 더 크게)
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -436,7 +437,8 @@ class MapClusterManager(
             scaleAnimator.start()
             
             // 아이콘 변경
-            marker.icon = selectedMarkerIcon!!
+            val content = marker.tag as? MapContent
+            marker.icon = createSelectedMarkerIcon(content?.postType)
         } else {
             // 해제 시: 큰 크기 → 작은 크기로 애니메이션
             val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
@@ -448,7 +450,8 @@ class MapClusterManager(
             scaleAnimator.start()
             
             // 아이콘 변경
-            marker.icon = normalMarkerIcon!!
+            val content = marker.tag as? MapContent
+            marker.icon = createNormalMarkerIcon(content?.postType)
         }
     }
 
@@ -465,7 +468,8 @@ class MapClusterManager(
             scaleAnimator.start()
             
             // 아이콘 변경
-            marker.icon = highlightedMarkerIcon!!
+            val content = marker.tag as? MapContent
+            marker.icon = createHighlightedMarkerIcon(content?.postType)
         } else {
             // 포커스 해제 시: 원래 크기로 축소
             val scaleAnimator = ObjectAnimator.ofPropertyValuesHolder(
@@ -477,7 +481,8 @@ class MapClusterManager(
             scaleAnimator.start()
             
             // 아이콘 변경
-            marker.icon = normalMarkerIcon!!
+            val content = marker.tag as? MapContent
+            marker.icon = createNormalMarkerIcon(content?.postType)
         }
     }
 
@@ -524,8 +529,17 @@ class MapClusterManager(
         return OverlayImage.fromBitmap(bitmap)
     }
 
-    private fun createHighlightedMarkerIcon(): OverlayImage {
-        val drawable = ContextCompat.getDrawable(context, R.drawable.marker)
+    private fun createHighlightedMarkerIcon(postType: String? = null): OverlayImage {
+        val drawableRes = when(postType) {
+            "NOTICE" -> R.drawable.marker_notice
+            "INFO" -> R.drawable.marker_info
+            "MARKET" -> R.drawable.marker_market
+            "FREE" -> R.drawable.marker_free
+            "HOT" -> R.drawable.marker_hot
+            else -> R.drawable.marker_info // 기본값
+        }
+        
+        val drawable = ContextCompat.getDrawable(context, drawableRes)
         val size = (64 * 1.2).toInt() // 1.2배 크기
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -536,8 +550,17 @@ class MapClusterManager(
         return OverlayImage.fromBitmap(bitmap)
     }
 
-    private fun createNormalMarkerIcon(): OverlayImage {
-        val drawable = ContextCompat.getDrawable(context, R.drawable.marker)
+    private fun createNormalMarkerIcon(postType: String? = null): OverlayImage {
+        val drawableRes = when(postType) {
+            "NOTICE" -> R.drawable.marker_notice
+            "INFO" -> R.drawable.marker_info
+            "MARKET" -> R.drawable.marker_market
+            "FREE" -> R.drawable.marker_free
+            "HOT" -> R.drawable.marker_hot
+            else -> R.drawable.marker_info // 기본값
+        }
+        
+        val drawable = ContextCompat.getDrawable(context, drawableRes)
         val size = 64 // drawable의 크기와 맞춤
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888) // 높이를 약간 더 크게
         val canvas = Canvas(bitmap)
