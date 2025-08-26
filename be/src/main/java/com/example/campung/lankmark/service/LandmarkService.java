@@ -2,6 +2,8 @@ package com.example.campung.lankmark.service;
 
 import com.example.campung.lankmark.dto.LandmarkCreateResponse;
 import com.example.campung.lankmark.dto.LandmarkCreateFormRequest;
+import com.example.campung.lankmark.dto.LandmarkUpdateRequest;
+import com.example.campung.lankmark.dto.LandmarkUpdateResponse;
 import com.example.campung.lankmark.entity.Landmark;
 import com.example.campung.lankmark.repository.LandmarkRepository;
 import com.example.campung.global.enums.LandmarkCategory;
@@ -192,5 +194,100 @@ public class LandmarkService {
                 formRequest.getCategory().name(),
                 formRequest.getImageFile()
         );
+    }
+    
+    @Transactional
+    public LandmarkUpdateResponse updateLandmark(Long landmarkId, LandmarkUpdateRequest updateRequest) {
+        // 1. 랜드마크 존재 확인
+        Landmark landmark = findById(landmarkId);
+        
+        // 2. 입력 파라미터 유효성 검증
+        validateLandmarkInputs(updateRequest.getName(), updateRequest.getLatitude(), 
+                              updateRequest.getLongitude(), updateRequest.getCategory().name());
+        
+        // 3. 중복 랜드마크 체크 (현재 랜드마크 제외)
+        checkDuplicateLandmarkForUpdate(landmarkId, updateRequest.getLatitude(), 
+                                       updateRequest.getLongitude(), updateRequest.getName());
+        
+        // 4. 이미지 처리 (새 이미지가 있는 경우)
+        String newImageUrl = landmark.getImageUrl();
+        String newThumbnailUrl = landmark.getThumbnailUrl();
+        
+        if (updateRequest.getImageFile() != null && !updateRequest.getImageFile().isEmpty()) {
+            log.info("랜드마크 이미지 수정 시작: {}", updateRequest.getImageFile().getOriginalFilename());
+            
+            try {
+                // 새 이미지 업로드
+                newImageUrl = s3Service.uploadFile(updateRequest.getImageFile());
+                log.info("새 이미지 업로드 완료: {}", newImageUrl);
+                
+                // 새 썸네일 생성 및 업로드
+                if (thumbnailService.canGenerateThumbnail(updateRequest.getImageFile())) {
+                    try {
+                        byte[] thumbnailBytes = thumbnailService.generateImageThumbnail(updateRequest.getImageFile());
+                        newThumbnailUrl = s3Service.uploadThumbnail(
+                            new java.io.ByteArrayInputStream(thumbnailBytes), 
+                            thumbnailBytes.length, 
+                            updateRequest.getImageFile().getOriginalFilename()
+                        );
+                        log.info("새 썸네일 생성 및 업로드 완료: {}", newThumbnailUrl);
+                    } catch (Exception e) {
+                        log.warn("썸네일 생성 실패, 원본 이미지만 사용: {}", e.getMessage());
+                    }
+                }
+            } catch (java.io.IOException e) {
+                throw new ImageProcessingException("이미지 처리 중 오류가 발생했습니다.", e);
+            }
+        }
+        
+        // 5. 랜드마크 정보 업데이트
+        Landmark updatedLandmark = Landmark.builder()
+                .id(landmark.getId())
+                .name(updateRequest.getName())
+                .description(updateRequest.getDescription())
+                .latitude(updateRequest.getLatitude())
+                .longitude(updateRequest.getLongitude())
+                .category(updateRequest.getCategory())
+                .imageUrl(newImageUrl)
+                .thumbnailUrl(newThumbnailUrl)
+                .currentSummary(landmark.getCurrentSummary())
+                .summaryUpdatedAt(landmark.getSummaryUpdatedAt())
+                .createdAt(landmark.getCreatedAt())
+                .updatedAt(java.time.LocalDateTime.now())
+                .build();
+        
+        Landmark savedLandmark = landmarkRepository.save(updatedLandmark);
+        
+        log.info("랜드마크 수정 완료: {} (ID: {})", savedLandmark.getName(), savedLandmark.getId());
+        
+        return LandmarkUpdateResponse.builder()
+                .id(savedLandmark.getId())
+                .updatedAt(savedLandmark.getUpdatedAt())
+                .build();
+    }
+    
+    @Transactional
+    public void deleteLandmark(Long landmarkId) {
+        // 1. 랜드마크 존재 확인
+        Landmark landmark = findById(landmarkId);
+        
+        // 2. 랜드마크 삭제
+        landmarkRepository.delete(landmark);
+        
+        log.info("랜드마크 삭제 완료: {} (ID: {})", landmark.getName(), landmarkId);
+    }
+    
+    private void checkDuplicateLandmarkForUpdate(Long currentLandmarkId, Double latitude, Double longitude, String name) {
+        // 같은 위치(100m 이내)에 같은 이름의 다른 랜드마크가 있는지 확인
+        List<Landmark> nearbyLandmarks = landmarkRepository.findNearbyLandmarks(
+                latitude, longitude, (int) DUPLICATE_DISTANCE_THRESHOLD);
+        
+        boolean isDuplicate = nearbyLandmarks.stream()
+                .filter(landmark -> !landmark.getId().equals(currentLandmarkId)) // 현재 랜드마크 제외
+                .anyMatch(landmark -> landmark.getName().equalsIgnoreCase(name.trim()));
+        
+        if (isDuplicate) {
+            throw DuplicateLandmarkException.forLandmark(name);
+        }
     }
 }

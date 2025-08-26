@@ -71,7 +71,27 @@ public class Landmark {
 
 ### 2. 랜드마크 수정
 - **URL**: `PUT /api/landmark/{id}`
-- **Request Body**: 등록과 동일
+- **Content-Type**: `multipart/form-data`
+- **Path Parameters**:
+  - `id`: 수정할 랜드마크 ID (필수)
+- **Request Parameters**:
+  - `name`: 랜드마크 이름 (필수, 최대 100자)
+  - `description`: 랜드마크 설명 (선택, 최대 500자)
+  - `latitude`: 위도 (필수, -90 ~ 90)
+  - `longitude`: 경도 (필수, -180 ~ 180)
+  - `category`: 카테고리 (필수, LandmarkCategory enum)
+  - `imageFile`: 새 이미지 파일 (선택, MultipartFile)
+
+- **Request Example (Form Data)**:
+  ```
+  name: 중앙도서관 (수정됨)
+  description: 24시간 운영하는 메인 도서관 - 리모델링 완료
+  latitude: 37.123456
+  longitude: 127.123456
+  category: LIBRARY
+  imageFile: [new_image.jpg 파일] (선택)
+  ```
+
 - **Response**:
   ```json
   {
@@ -83,13 +103,20 @@ public class Landmark {
   }
   ```
 
+- **주요 기능**:
+  - 기존 이미지 유지 또는 새 이미지로 교체
+  - 새 이미지 제공 시 자동 썸네일 재생성
+  - 중복 랜드마크 검증 (현재 수정 중인 랜드마크 제외)
+
 ### 3. 랜드마크 삭제
 - **URL**: `DELETE /api/landmark/{id}`
+- **Path Parameters**:
+  - `id`: 삭제할 랜드마크 ID (필수)
 - **Response**:
   ```json
   {
     "success": true,
-    "message": "랜드마크가 삭제되었습니다"
+    "data": "랜드마크가 삭제되었습니다"
   }
   ```
 
@@ -164,10 +191,13 @@ public class Landmark {
 ### 데이터 수집 범위
 - **기본 반경**: 500m
 - **카테고리별 적응적 범위**:
-  - 도서관: 300m (집중된 활동)
-  - 카페: 200m (좁은 범위)
-  - 운동시설: 800m (넓은 영향 범위)
-  - 강의실: 400m
+  - 도서관(LIBRARY): 300m (집중된 학습 활동)
+  - 식당(RESTAURANT): 300m (식사 관련 정보)
+  - 카페(CAFE): 200m (정확한 위치의 분위기)
+  - 기숙사(DORMITORY): 500m (생활권 정보)
+  - 푸드트럭(FOOD_TRUCK): 150m (정확한 위치가 중요)
+  - 행사(EVENT): 200m (행사장 주변 정보)
+  - 대학건물(UNIVERSITY_BUILDING): 400m (교육 시설 관련)
 
 ### GPT 요청 형식
 ```
@@ -258,16 +288,27 @@ public ResponseEntity<Map<String, Object>> handleImageProcessingException() {
 ## 카테고리 정의
 ```java
 public enum LandmarkCategory {
-    LIBRARY("도서관"),
-    CAFE("카페"), 
-    CLASSROOM("강의실"),
-    SPORTS("운동시설"),
-    RESTAURANT("식당"),
-    DORMITORY("기숙사"),
-    CONVENIENCE("편의시설"),
-    ETC("기타");
+    LIBRARY("도서관", 300),        // 도서관 - 300m 반경
+    RESTAURANT("식당", 300),       // 식당 - 300m 반경
+    CAFE("카페", 200),             // 카페 - 200m 반경
+    DORMITORY("기숙사", 500),       // 기숙사 - 500m 반경
+    FOOD_TRUCK("푸드트럭", 150),    // 푸드트럭 - 150m 반경
+    EVENT("행사", 200),            // 행사 - 200m 반경
+    UNIVERSITY_BUILDING("대학건물", 400); // 대학건물 - 400m 반경
+    
+    private final String description;
+    private final int defaultRadius; // 기본 검색 반경(미터)
 }
 ```
+
+### 카테고리별 특징
+- **LIBRARY**: 조용한 학습 공간, 비교적 넓은 영향 범위
+- **RESTAURANT**: 식사 관련 정보, 메뉴와 혼잡도 중심
+- **CAFE**: 카페 분위기, 좁은 범위로 정확한 위치 정보
+- **DORMITORY**: 기숙사 생활 정보, 넓은 범위의 생활권 정보
+- **FOOD_TRUCK**: 이동식 판매, 정확한 위치가 중요한 좁은 범위
+- **EVENT**: 임시 행사, 단기간 정보로 좁은 범위
+- **UNIVERSITY_BUILDING**: 대학 건물, 강의실 등 교육 시설
 
 ## 기술 구현 세부사항
 
