@@ -7,6 +7,7 @@ import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -60,7 +61,15 @@ import com.shinhan.campung.data.model.MapContent
 import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
-
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import com.shinhan.campung.R
 
 // 새로운 바텀시트 컴포넌트 imports
 import com.shinhan.campung.presentation.ui.components.bottomsheet.*
@@ -405,6 +414,127 @@ fun FullMapScreen(
                 )
             }
 
+            // 플로팅 버튼 상태 관리
+            var isFabExpanded by remember { mutableStateOf(false) }
+
+            // 확장 가능한 플로팅 액션 버튼 - 우측 하단
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 16.dp,
+                        bottom = 16.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이만큼 위로
+                    )
+                    .offset(y = locationButtonOffsetY) // 바텀시트와 함께 움직임
+            ) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // 확장된 상태에서 보이는 버튼들 (위에서 아래로 순서)
+                        AnimatedVisibility(
+                            visible = isFabExpanded,
+                            enter = slideInVertically(
+                                initialOffsetY = { -it },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300)),
+                            exit = slideOutVertically(
+                                targetOffsetY = { -it },
+                                animationSpec = tween(200)
+                            ) + fadeOut(animationSpec = tween(200))
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // 취소 버튼 (X) - 가장 위
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) {
+                                            isFabExpanded = false
+                                        }
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.btn_cancel),
+                                        contentDescription = "닫기",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                // 펜 버튼
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) {
+                                            // TODO: 펜/그리기 기능 구현
+                                        }
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.btn_post),
+                                        contentDescription = "글쓰기",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                // 게시판 버튼
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) {
+                                            // TODO: 게시판 기능 구현
+                                        }
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.btn_board),
+                                        contentDescription = "게시판 이동",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                        }
+
+                        // 메인 버튼 (+ 또는 다른 아이콘) - 가장 아래
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp) // 메인 버튼은 조금 더 크게
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) {
+                                    if (!isFabExpanded) {
+                                        isFabExpanded = true
+                                    }
+                                }
+                        ) {
+                            AnimatedContent(
+                                targetState = isFabExpanded,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = tween(150)) togetherWith
+                                            fadeOut(animationSpec = tween(150))
+                                },
+                                label = "fab_icon"
+                            ) { expanded ->
+                                Image(
+                                    painter = painterResource(R.drawable.btn_add),
+                                    contentDescription = if (expanded) "메뉴 열림" else "메뉴",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 새로운 바텀시트 컴포넌트 사용
             MapDraggableBottomSheet(
                 state = bottomSheetState,
@@ -449,7 +579,7 @@ fun FullMapScreen(
                     .align(Alignment.TopCenter)
                     .padding(top = 64.dp)
             )
-            }
+        }
 
         // 날짜 선택 다이얼로그
         if (showDatePicker) {
@@ -462,31 +592,6 @@ fun FullMapScreen(
                     showDatePicker = false
                 }
             )
-        }
-        }
-    }
-}
-
-// 예시 마커 추가 함수
-private fun addSampleMarkers(map: NaverMap, mapViewModel: MapViewModel) {
-    val sampleMarkers = listOf(
-        Triple(37.5665, 126.9780, listOf(1L, 2L)),
-        Triple(37.5640, 126.9750, listOf(3L)),
-        Triple(37.5660, 126.9820, listOf(4L, 5L, 6L, 1L, 2L))
-    )
-
-    sampleMarkers.forEachIndexed { index, (lat, lng, contentIds) ->
-        val marker = Marker()
-        marker.position = LatLng(lat, lng)
-        marker.map = map
-        marker.captionText = "마커 ${index + 1}"
-
-        marker.setOnClickListener {
-            mapViewModel.onMarkerClick(
-                contentId = contentIds.first(),
-                associatedContentIds = contentIds
-            )
-            true
         }
     }
 }
