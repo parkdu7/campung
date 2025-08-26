@@ -4,6 +4,9 @@ import com.google.gson.annotations.SerializedName
 import java.math.BigDecimal
 
 data class LocationShareRespondRequest(
+    @SerializedName("locationRequestId")
+    val locationRequestId: Long? = null,
+    
     @SerializedName("action")
     val action: String, // "accept" or "reject"
     
