@@ -3,6 +3,7 @@ package com.shinhan.campung.data.repository
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.remote.api.AuthApi
 import com.shinhan.campung.data.remote.request.DuplicateRequest
+import com.shinhan.campung.data.remote.request.LocationShareRespondRequest
 import com.shinhan.campung.data.remote.request.LoginRequest
 import com.shinhan.campung.data.remote.request.SignUpRequest
 
@@ -51,8 +52,8 @@ class AuthRepository(
         latitude: java.math.BigDecimal?, 
         longitude: java.math.BigDecimal?
     ): Result<Unit> = runCatching {
-        // TODO: 백엔드에 위치 공유 응답 API 호출 필요
-        // val res = api.respondToLocationShare(shareRequestId, LocationShareRespondRequest(action, latitude, longitude))
-        // if (!res.success) error(res.message)
+        val request = LocationShareRespondRequest(action, latitude, longitude)
+        val res = api.respondToLocationShare(shareRequestId, request)
+        if (!res.success) error(res.message)
     }
 }

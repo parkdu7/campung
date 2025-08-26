@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.location.LocationTracker
+import com.shinhan.campung.data.remote.interceptor.AuthInterceptor
 import com.shinhan.campung.data.remote.api.AuthApi
 import com.shinhan.campung.data.remote.api.MapApi
 import com.shinhan.campung.data.repository.AuthRepository
@@ -13,6 +14,7 @@ import com.shinhan.campung.data.repository.NewPostRepository
 import com.shinhan.campung.data.websocket.WebSocketService
 import com.shinhan.campung.util.Constants
 import android.util.Log
+import com.shinhan.campung.data.remote.api.FriendApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,8 +34,13 @@ object NetworkModule {
     fun provideGson(): Gson = GsonBuilder().create()
 
     @Provides @Singleton
-    fun provideOkHttp(): OkHttpClient =
+    fun provideAuthInterceptor(authDataStore: AuthDataStore): AuthInterceptor =
+        AuthInterceptor(authDataStore)
+
+    @Provides @Singleton
+    fun provideOkHttp(authInterceptor: AuthInterceptor): OkHttpClient =
         OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
@@ -56,6 +63,10 @@ object NetworkModule {
     @Provides @Singleton
     fun provideMapApi(retrofit: Retrofit): MapApi =
         retrofit.create(MapApi::class.java)
+
+    @Provides @Singleton
+    fun provideFriendApi(retrofit: Retrofit): FriendApi =
+        retrofit.create(FriendApi::class.java)
 
     @Provides @Singleton
     fun provideAuthDataStore(@ApplicationContext context: Context) = AuthDataStore(context)
