@@ -625,7 +625,8 @@ fun FullMapScreen(
                 position = tooltipState.position,
                 type = tooltipState.type
             )
-            }
+
+
 
         // 날짜 선택 다이얼로그
         if (showDatePicker) {
@@ -640,4 +641,5 @@ fun FullMapScreen(
             )
         }
     }
+}
 }
