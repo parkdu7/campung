@@ -6,7 +6,9 @@ import com.google.gson.GsonBuilder
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.location.LocationTracker
 import com.shinhan.campung.data.remote.api.AuthApi
+import com.shinhan.campung.data.remote.api.MapApi
 import com.shinhan.campung.data.repository.AuthRepository
+import com.shinhan.campung.data.repository.MapRepository
 import com.shinhan.campung.data.repository.NewPostRepository
 import com.shinhan.campung.data.websocket.WebSocketService
 import com.shinhan.campung.util.Constants
@@ -52,10 +54,17 @@ object NetworkModule {
         retrofit.create(AuthApi::class.java)
 
     @Provides @Singleton
+    fun provideMapApi(retrofit: Retrofit): MapApi =
+        retrofit.create(MapApi::class.java)
+
+    @Provides @Singleton
     fun provideAuthDataStore(@ApplicationContext context: Context) = AuthDataStore(context)
 
     @Provides @Singleton
     fun provideAuthRepository(api: AuthApi, ds: AuthDataStore) = AuthRepository(api, ds)
+
+    @Provides @Singleton
+    fun provideMapRepository(api: MapApi) = MapRepository(api)
     
     @Provides @Singleton
     fun provideWebSocketService(gson: Gson) = WebSocketService(gson)

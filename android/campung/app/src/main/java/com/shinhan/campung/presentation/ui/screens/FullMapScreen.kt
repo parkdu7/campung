@@ -29,6 +29,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -37,10 +38,18 @@ import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.MapView
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.widget.LocationButtonView
+import com.naver.maps.map.overlay.Marker
+import com.shinhan.campung.presentation.viewmodel.MapViewModel
+import com.shinhan.campung.presentation.ui.map.MapClusterManager
+import com.shinhan.campung.presentation.ui.components.MapTopHeader
+import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
+import com.shinhan.campung.data.remote.response.MapContent
+import android.util.Log
 
 @Composable
 fun FullMapScreen(
-    navController: NavController
+    navController: NavController,
+    mapViewModel: MapViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -72,6 +81,11 @@ fun FullMapScreen(
     val fused = remember { LocationServices.getFusedLocationProviderClient(context) }
     var myLatLng by remember { mutableStateOf<LatLng?>(null) }
     var naverMapRef by remember { mutableStateOf<NaverMap?>(null) }
+    var markers by remember { mutableStateOf<List<Marker>>(emptyList()) }
+    var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
+    var lastZoomLevel by remember { mutableStateOf(0.0) }
+    var lastCameraChangeTime by remember { mutableStateOf(0L) }
+    var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
 
     @SuppressLint("MissingPermission")
     fun fetchMyLocationOnce() {
@@ -124,6 +138,22 @@ fun FullMapScreen(
             map.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
+            
+            mapViewModel.loadMapContents(
+                latitude = pos.latitude,
+                longitude = pos.longitude
+            )
+        }
+    }
+    
+    LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
+        val map = naverMapRef ?: return@LaunchedEffect
+        
+        if (mapViewModel.shouldUpdateClustering) {
+            // 처음 로딩 시에만 클러스터링 업데이트
+            Log.d("FullMapScreen", "LaunchedEffect에서 클러스터링 업데이트: ${mapViewModel.mapContents.size}개")
+            clusterManager?.updateMarkers(mapViewModel.mapContents)
+            mapViewModel.clusteringUpdated()
         }
     }
 
@@ -135,8 +165,7 @@ fun FullMapScreen(
         color = Color.White
     ) {
         Box(Modifier.fillMaxSize()) {
-
-            // 네이버 지도
+                // 네이버 지도
             AndroidView(
                 factory = { mapView },
                 update = { mv ->
@@ -151,7 +180,61 @@ fun FullMapScreen(
                                 isZoomControlEnabled = false
                                 isScaleBarEnabled = false
                                 isCompassEnabled = true
-                                isLocationButtonEnabled = false // 자체 LocationButtonView 사용
+                                isLocationButtonEnabled = false
+                            }
+                            
+                            clusterManager = MapClusterManager(context, map).also { manager ->
+                                manager.setupClustering()
+                                
+                                // 마커 클릭 이벤트 처리
+                                manager.onMarkerClick = { mapContent ->
+                                    Log.d("FullMapScreen", "마커 클릭: ${mapContent.title}")
+                                    // 여기서 바텀시트나 다이얼로그 등을 호출
+                                    // 예: showBottomSheet(mapContent)
+                                }
+                                
+                                // 클러스터 클릭 이벤트 처리
+                                manager.onClusterClick = { clusterContents ->
+                                    Log.d("FullMapScreen", "클러스터 클릭: ${clusterContents.size}개 아이템")
+                                    // 여기서 클러스터 리스트를 보여주거나 특별한 처리
+                                    // 예: showClusterList(clusterContents)
+                                }
+                                
+                                // 중앙 마커 변경 이벤트 처리
+                                manager.onCenterMarkerChanged = { centerContent ->
+                                    highlightedContent = centerContent
+                                }
+                                
+                                Log.d("FullMapScreen", "ClusterManager 생성됨")
+                            }
+                            
+                            map.addOnCameraChangeListener { _, _ ->
+                                val currentTime = System.currentTimeMillis()
+                                
+                                // 쓰로틀링: 200ms 이내 연속 호출 방지
+                                if (currentTime - lastCameraChangeTime < 200) {
+                                    return@addOnCameraChangeListener
+                                }
+                                lastCameraChangeTime = currentTime
+                                
+                                val center = map.cameraPosition.target
+                                val currentZoom = map.cameraPosition.zoom
+                                
+                                // 줌 레벨이 변경된 경우에만 클러스터링 업데이트
+                                if (kotlin.math.abs(currentZoom - lastZoomLevel) > 0.5) {
+                                    lastZoomLevel = currentZoom
+                                    Log.d("FullMapScreen", "줌 레벨 변경: $currentZoom, 마커 개수: ${mapViewModel.mapContents.size}")
+                                    clusterManager?.updateMarkers(mapViewModel.mapContents)
+                                }
+                                
+                                // API 요청 (디바운스는 ViewModel에서 처리)
+                                mapViewModel.loadMapContents(
+                                    latitude = center.latitude,
+                                    longitude = center.longitude
+                                )
+                                
+                                // 중앙 마커 찾기
+                                clusterManager?.findCenterMarker()
                             }
                         }
                     } else {
@@ -168,15 +251,7 @@ fun FullMapScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // 상단 좌측: 뒤로가기(아이콘)
-            IconButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .padding(12.dp)
-                    .align(Alignment.TopStart)
-            ) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "뒤로가기")
-            }
+            // 뒤로가기 버튼은 헤더로 이동됨
 
             Box(
                 modifier = Modifier
@@ -222,6 +297,30 @@ fun FullMapScreen(
                         }
                 )
             }
+            
+            // 상단 헤더 (오버레이)
+            MapTopHeader(
+                selectedDate = mapViewModel.selectedDate,
+                onBackClick = { navController.popBackStack() },
+                onDateClick = { 
+                    // TODO: 날짜 선택 다이얼로그 구현
+                },
+                onFriendClick = { 
+                    // TODO: 친구 화면 구현
+                },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+            
+            // 필터 태그 (오버레이)
+            HorizontalFilterTags(
+                selectedTags = mapViewModel.selectedTags,
+                onTagClick = { tagId ->
+                    mapViewModel.toggleFilterTag(tagId)
+                },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 64.dp) // 헤더 아래 여백
+            )
         }
     }
 }

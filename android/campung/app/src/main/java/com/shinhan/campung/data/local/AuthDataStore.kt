@@ -14,10 +14,12 @@ class AuthDataStore(private val context: Context) {
     companion object {
         private val KEY_TOKEN = stringPreferencesKey("auth_token")
         private val KEY_USER_ID = stringPreferencesKey("user_id")
+        private val KEY_FCM_TOKEN = stringPreferencesKey("fcm_token")
     }
 
     val tokenFlow: Flow<String?> = context.dataStore.data.map { it[KEY_TOKEN] }
     val userIdFlow: Flow<String?> = context.dataStore.data.map { it[KEY_USER_ID] }
+    val fcmTokenFlow: Flow<String?> = context.dataStore.data.map { it[KEY_FCM_TOKEN] }
 
     suspend fun saveToken(token: String) {
         context.dataStore.edit { it[KEY_TOKEN] = token }
@@ -27,10 +29,15 @@ class AuthDataStore(private val context: Context) {
         context.dataStore.edit { it[KEY_USER_ID] = userId }
     }
 
+    suspend fun saveFcmToken(fcmToken: String) {
+        context.dataStore.edit { it[KEY_FCM_TOKEN] = fcmToken }
+    }
+
     suspend fun clear() {
         context.dataStore.edit {
             it.remove(KEY_TOKEN)
             it.remove(KEY_USER_ID)
+            it.remove(KEY_FCM_TOKEN)
         }
     }
 }
