@@ -3,6 +3,7 @@ package com.example.campung.friendship.service;
 import com.example.campung.entity.*;
 import com.example.campung.friendship.dto.*;
 import com.example.campung.friendship.repository.FriendshipRepository;
+import com.example.campung.notification.repository.NotificationRepository;
 import com.example.campung.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class FriendshipService {
 
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final NotificationRepository notificationRepository;
 
     public FriendshipDto sendFriendRequest(FriendRequestDto requestDto) {
         // 요청자와 대상 사용자 존재 확인
@@ -52,6 +54,17 @@ public class FriendshipService {
                 .build();
 
         friendshipRepository.save(friendship);
+
+        // 친구 요청 알림 생성
+        Notification notification = Notification.builder()
+                .user(targetUser)
+                .type("friend_request")
+                .title("새로운 친구 요청")
+                .message(requester.getNickname() + "님이 친구 요청을 보냈습니다.")
+                .data("{\"friendshipId\":" + friendship.getFriendshipId() + ",\"requesterId\":\"" + requester.getUserId() + "\"}")
+                .build();
+        
+        notificationRepository.save(notification);
 
         return FriendshipDto.builder()
                 .friendshipId(friendship.getFriendshipId())

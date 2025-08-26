@@ -29,10 +29,14 @@ public class NotificationService {
     private final UserRepository userRepository;
     
     public NotificationListResponse getNotifications(String userId, int page, int size) {
+        // 사용자 존재 확인
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("유저를 찾을 수 없습니다"));
+        
         Pageable pageable = PageRequest.of(page, size);
         
-        var notificationPage = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
-        long unreadCount = notificationRepository.countUnreadByUserId(userId);
+        var notificationPage = notificationRepository.findByUser_UserIdOrderByCreatedAtDesc(userId, pageable);
+        long unreadCount = notificationRepository.countByUser_UserIdAndIsReadFalse(userId);
         
         List<NotificationResponse> notifications = notificationPage.getContent()
                 .stream()
@@ -51,7 +55,7 @@ public class NotificationService {
     
     @Transactional
     public void markAsRead(String userId, Long notificationId) {
-        Notification notification = notificationRepository.findByIdAndUserId(notificationId, userId)
+        Notification notification = notificationRepository.findByNotificationIdAndUser_UserId(notificationId, userId)
                 .orElseThrow(() -> new RuntimeException("Notification not found or access denied"));
         
         if (!notification.getIsRead()) {
@@ -63,7 +67,7 @@ public class NotificationService {
     
     @Transactional
     public void deleteNotification(String userId, Long notificationId) {
-        Notification notification = notificationRepository.findByIdAndUserId(notificationId, userId)
+        Notification notification = notificationRepository.findByNotificationIdAndUser_UserId(notificationId, userId)
                 .orElseThrow(() -> new RuntimeException("Notification not found or access denied"));
         
         notificationRepository.delete(notification);

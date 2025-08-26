@@ -13,12 +13,9 @@ import java.util.Optional;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
     
-    @Query("SELECT n FROM Notification n WHERE n.user.userId = :userId ORDER BY n.createdAt DESC")
-    Page<Notification> findByUserIdOrderByCreatedAtDesc(@Param("userId") String userId, Pageable pageable);
+    Page<Notification> findByUser_UserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
     
-    @Query("SELECT COUNT(n) FROM Notification n WHERE n.user.userId = :userId AND n.isRead = false")
-    long countUnreadByUserId(@Param("userId") String userId);
+    long countByUser_UserIdAndIsReadFalse(String userId);
     
-    @Query("SELECT n FROM Notification n WHERE n.notificationId = :notificationId AND n.user.userId = :userId")
-    Optional<Notification> findByIdAndUserId(@Param("notificationId") Long notificationId, @Param("userId") String userId);
+    Optional<Notification> findByNotificationIdAndUser_UserId(Long notificationId, String userId);
 }
