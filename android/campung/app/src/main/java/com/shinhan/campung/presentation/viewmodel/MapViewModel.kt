@@ -295,6 +295,12 @@ class MapViewModel @Inject constructor(
         }
     }
 
+    // 바텀시트 확장 상태 업데이트 (UI에서 직접 드래그했을 때 사용)
+    fun updateBottomSheetExpanded(isExpanded: Boolean) {
+        Log.d(TAG, "🔄 [FLOW] updateBottomSheetExpanded() 호출: $isExpanded")
+        _isBottomSheetExpanded.value = isExpanded
+    }
+
     // 바텀시트 상태 변경
     fun onBottomSheetStateChange(expanded: Boolean) {
         _isBottomSheetExpanded.value = expanded
