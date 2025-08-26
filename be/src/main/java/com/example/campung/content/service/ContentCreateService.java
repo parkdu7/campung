@@ -4,6 +4,8 @@ import com.example.campung.content.dto.ContentCreateRequest;
 import com.example.campung.content.dto.ContentCreateResponse;
 import com.example.campung.content.repository.ContentRepository;
 import com.example.campung.user.repository.UserRepository;
+import com.example.campung.lankmark.service.LandmarkSearchService;
+import com.example.campung.lankmark.entity.Landmark;
 import com.example.campung.entity.Content;
 import com.example.campung.entity.Attachment;
 import com.example.campung.entity.User;
@@ -36,6 +38,9 @@ public class ContentCreateService {
     @Autowired
     private PostEventPublisher postEventPublisher;
     
+    @Autowired
+    private LandmarkSearchService landmarkSearchService;
+    
     @Transactional
     public ContentCreateResponse createContent(ContentCreateRequest request, String accessToken) throws IOException {
         System.out.println("=== CONTENT 생성 시작 ===");
@@ -56,12 +61,30 @@ public class ContentCreateService {
                 });
         System.out.println("User 조회/생성 완료: " + author.getUserId());
         
+        // 주변 랜드마크를 찾아서 건물 이름 설정
+        String buildingName = null;
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            try {
+                List<Landmark> nearbyLandmarks = landmarkSearchService.findNearbyLandmarks(
+                    request.getLatitude(), request.getLongitude(), 100); // 100m 반경
+                
+                if (!nearbyLandmarks.isEmpty()) {
+                    // 가장 가까운 랜드마크의 이름을 건물 이름으로 사용
+                    buildingName = nearbyLandmarks.get(0).getName();
+                    System.out.println("주변 랜드마크 발견: " + buildingName);
+                }
+            } catch (Exception e) {
+                System.out.println("랜드마크 검색 중 오류 (무시하고 계속): " + e.getMessage());
+            }
+        }
+
         Content.ContentBuilder contentBuilder = Content.builder()
                 .title(request.getTitle())
                 .content(request.getBody())
                 .author(author)
                 .postType(request.getPostType())
-                .emotion(request.getEmotionTag());
+                .emotion(request.getEmotionTag())
+                .buildingName(buildingName);
         
         if (request.getLatitude() != null && request.getLongitude() != null) {
             contentBuilder.latitude(BigDecimal.valueOf(request.getLatitude()))
@@ -143,10 +166,6 @@ public class ContentCreateService {
         
         if (request.getPostType() == null) {
             throw new IllegalArgumentException("게시글 타입을 선택해주세요");
-        }
-        
-        if (request.getEmotionTag() == null || request.getEmotionTag().trim().isEmpty()) {
-            throw new IllegalArgumentException("감정 태그를 선택해주세요");
         }
         
         if (request.getIsAnonymous() == null) {

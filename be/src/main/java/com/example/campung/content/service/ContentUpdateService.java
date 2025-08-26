@@ -121,9 +121,5 @@ public class ContentUpdateService {
         if (request.getPostType() != null && request.getPostType().toString().trim().isEmpty()) {
             throw new IllegalArgumentException("게시글 타입을 선택해주세요");
         }
-        
-        if (request.getEmotionTag() != null && request.getEmotionTag().trim().isEmpty()) {
-            throw new IllegalArgumentException("감정 태그를 선택해주세요");
-        }
     }
 }

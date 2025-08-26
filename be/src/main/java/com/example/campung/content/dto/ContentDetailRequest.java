@@ -1,5 +1,7 @@
 package com.example.campung.content.dto;
 
+import lombok.Getter;
+
 import java.util.List;
 
 public class ContentDetailRequest {
@@ -12,6 +14,7 @@ public class ContentDetailRequest {
     private String body;
     private List<MediaFileInfo> mediaFiles;
     private boolean isHotContent;
+    private LikeInfo likeInfo;
     
     public static class AuthorInfo {
         private String nickname;
@@ -32,27 +35,19 @@ public class ContentDetailRequest {
         public void setIsAnonymous(Boolean isAnonymous) { this.isAnonymous = isAnonymous; }
     }
     
+    @Getter
     public static class LocationInfo {
         private Double latitude;
         private Double longitude;
-        private String address;
-        private String buildingName;
         
-        public LocationInfo(Double latitude, Double longitude, String address, String buildingName) {
+        public LocationInfo(Double latitude, Double longitude) {
             this.latitude = latitude;
             this.longitude = longitude;
-            this.address = address;
-            this.buildingName = buildingName;
         }
-        
-        public Double getLatitude() { return latitude; }
+
         public void setLatitude(Double latitude) { this.latitude = latitude; }
-        public Double getLongitude() { return longitude; }
+
         public void setLongitude(Double longitude) { this.longitude = longitude; }
-        public String getAddress() { return address; }
-        public void setAddress(String address) { this.address = address; }
-        public String getBuildingName() { return buildingName; }
-        public void setBuildingName(String buildingName) { this.buildingName = buildingName; }
     }
     
     public static class MediaFileInfo {
@@ -91,6 +86,21 @@ public class ContentDetailRequest {
         public void setOrder(Integer order) { this.order = order; }
     }
     
+    public static class LikeInfo {
+        private int totalLikes;
+        private boolean isLikedByCurrentUser;
+        
+        public LikeInfo(int totalLikes, boolean isLikedByCurrentUser) {
+            this.totalLikes = totalLikes;
+            this.isLikedByCurrentUser = isLikedByCurrentUser;
+        }
+        
+        public int getTotalLikes() { return totalLikes; }
+        public void setTotalLikes(int totalLikes) { this.totalLikes = totalLikes; }
+        public boolean isLikedByCurrentUser() { return isLikedByCurrentUser; }
+        public void setLikedByCurrentUser(boolean likedByCurrentUser) { isLikedByCurrentUser = likedByCurrentUser; }
+    }
+    
     // Main class getters and setters
     public Long getContentId() { return contentId; }
     public void setContentId(Long contentId) { this.contentId = contentId; }
@@ -110,4 +120,6 @@ public class ContentDetailRequest {
     public void setMediaFiles(List<MediaFileInfo> mediaFiles) { this.mediaFiles = mediaFiles; }
     public boolean isHotContent() { return isHotContent; }
     public void setHotContent(boolean hotContent) { isHotContent = hotContent; }
+    public LikeInfo getLikeInfo() { return likeInfo; }
+    public void setLikeInfo(LikeInfo likeInfo) { this.likeInfo = likeInfo; }
 }
