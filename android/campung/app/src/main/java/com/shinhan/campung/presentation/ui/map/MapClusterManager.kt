@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.CameraUpdate
+import com.naver.maps.map.CameraAnimation
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.OverlayImage
 import com.shinhan.campung.data.model.MapContent
@@ -44,6 +45,14 @@ class MapClusterManager(
     var selectedMarker: Marker? = null
         private set
     var selectedContent: MapContent? = null
+        private set
+        
+    // 클러스터 클릭으로 인한 카메라 이동 플래그
+    var isClusterMoving = false
+        private set
+        
+    // 선택된 클러스터 마커 상태 관리
+    var selectedClusterMarker: Marker? = null
         private set
 
 
@@ -99,9 +108,24 @@ class MapClusterManager(
         selectedMarker = null
         selectedContent = null
 
+        // 선택된 클러스터도 해제
+        selectedClusterMarker?.let { clusterMarker ->
+            val count = clusterMarker.captionText.replace("개 항목", "").toIntOrNull() ?: 1
+            clusterMarker.icon = createClusterIcon(count, false)
+            clusterMarker.zIndex = 0
+        }
+        selectedClusterMarker = null
+
+        // 하이라이트된 마커도 함께 해제
+        highlightedMarker?.let { marker ->
+            animateMarkerFocus(marker, false)
+            marker.zIndex = 0
+        }
+        highlightedMarker = null
+
         // Compose 툴팁 숨김
         onHideTooltip?.invoke()
-        Log.d("MapClusterManager", "마커 선택 해제됨")
+        Log.d("MapClusterManager", "마커 및 클러스터 선택 해제됨")
     }
 
     // InfoWindow 관련 함수들 제거됨 - 이제 Compose 툴팁으로 대체됨
@@ -186,15 +210,9 @@ class MapClusterManager(
         val currentZoom = naverMap.cameraPosition.zoom
         Log.d("MapClusterManager", "현재 줌 레벨: $currentZoom, 마커 개수: ${mapContents.size}")
 
-        if (currentZoom >= 18) {
-            // 높은 줌 레벨: 개별 마커 표시
-            Log.d("MapClusterManager", "개별 마커 모드")
-            showIndividualMarkers(mapContents)
-        } else {
-            // 낮은 줌 레벨: 클러스터링 적용
-            Log.d("MapClusterManager", "클러스터링 모드")
-            showClusteredMarkers(mapContents)
-        }
+        // 모든 줌 레벨에서 클러스터링 적용 (최대 줌까지)
+        Log.d("MapClusterManager", "클러스터링 모드 (줌 레벨: $currentZoom)")
+        showClusteredMarkers(mapContents)
 
         // 이전에 선택된 마커가 있었다면 다시 선택
         wasSelectedContent?.let { prevSelected ->
@@ -219,8 +237,22 @@ class MapClusterManager(
                         clearSelection()
                         onMarkerClick?.invoke(content) // 콜백은 여전히 호출
                     } else {
-                        // 새로운 마커 선택
+                        // 새로운 마커 선택 및 카메라 이동 (줌레벨 유지)
                         selectMarker(content)
+                        
+                        // 마커 클릭 이동 플래그 설정
+                        isClusterMoving = true
+                        
+                        naverMap.moveCamera(
+                            CameraUpdate.scrollTo(LatLng(content.location.latitude, content.location.longitude))
+                                .animate(CameraAnimation.Easing)
+                        )
+                        
+                        // 애니메이션 완료 후 플래그 해제 (1초 후)
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            isClusterMoving = false
+                        }, 1000)
+                        
                         onMarkerClick?.invoke(content)
                     }
                     true
@@ -253,8 +285,22 @@ class MapClusterManager(
                             clearSelection()
                             onMarkerClick?.invoke(content)
                         } else {
-                            // 새로운 마커 선택
+                            // 새로운 마커 선택 및 카메라 이동 (줌레벨 유지)
                             selectMarker(content)
+                            
+                            // 마커 클릭 이동 플래그 설정
+                            isClusterMoving = true
+                            
+                            naverMap.moveCamera(
+                                CameraUpdate.scrollTo(LatLng(content.location.latitude, content.location.longitude))
+                                    .animate(CameraAnimation.Easing)
+                            )
+                            
+                            // 애니메이션 완료 후 플래그 해제 (1초 후)
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                isClusterMoving = false
+                            }, 1000)
+                            
                             onMarkerClick?.invoke(content)
                         }
                         true
@@ -273,17 +319,43 @@ class MapClusterManager(
                     map = naverMap
 
                     setOnClickListener {
-                        // 클러스터 클릭 시 선택 해제
-                        clearSelection()
+                        // 개별 마커 선택 해제
+                        selectedMarker?.let { marker ->
+                            animateMarkerSelection(marker, false)
+                            marker.zIndex = 0
+                        }
+                        selectedMarker = null
+                        selectedContent = null
+
+                        // 이전 선택된 클러스터 해제
+                        selectedClusterMarker?.let { oldCluster ->
+                            val oldCount = oldCluster.captionText.replace("개 항목", "").toIntOrNull() ?: 1
+                            oldCluster.icon = createClusterIcon(oldCount, false)
+                            oldCluster.zIndex = 0
+                        }
+                        
+                        // 새로운 클러스터 선택
+                        selectedClusterMarker = this
+                        this.icon = createClusterIcon(cluster.size, true)
+                        this.zIndex = 2000
 
                         // 클러스터 클릭 콜백 먼저 호출
                         onClusterClick?.invoke(cluster)
 
-                        // 기본 동작: 줌인
-                        val newZoom = (naverMap.cameraPosition.zoom + 2).coerceAtMost(naverMap.maxZoom)
+                        // 클러스터 이동 플래그 설정
+                        isClusterMoving = true
+                        
+                        // 줌 레벨 유지하면서 애니메이션으로 중앙 이동
                         naverMap.moveCamera(
-                            CameraUpdate.scrollAndZoomTo(position, newZoom)
+                            CameraUpdate.scrollTo(position)
+                                .animate(CameraAnimation.Easing)
                         )
+                        
+                        // 애니메이션 완료 후 플래그 해제 (1초 후)
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            isClusterMoving = false
+                        }, 1000)
+                        
                         true
                     }
                 }
@@ -340,14 +412,19 @@ class MapClusterManager(
 
     private fun getClusterDistance(): Double {
         return when {
-            naverMap.cameraPosition.zoom >= 17 -> 20.0   // 20m - 매우 가깝게만
-            naverMap.cameraPosition.zoom >= 16 -> 30.0   // 30m - 아주 가깝게
-            naverMap.cameraPosition.zoom >= 15 -> 50.0   // 50m - 가깝게만
-            naverMap.cameraPosition.zoom >= 14 -> 80.0   // 80m - 조금 가깝게
-            naverMap.cameraPosition.zoom >= 13 -> 120.0  // 120m - 적당히
-            naverMap.cameraPosition.zoom >= 12 -> 200.0  // 200m
-            naverMap.cameraPosition.zoom >= 11 -> 300.0  // 300m
-            else -> 500.0 // 500m - 매우 낮은 줌에서만 넓게
+            naverMap.cameraPosition.zoom >= 21 -> 1.0    // 1m - 최대 줌 (거의 동일한 위치만)
+            naverMap.cameraPosition.zoom >= 20 -> 2.0    // 2m - 초초세밀
+            naverMap.cameraPosition.zoom >= 19 -> 3.0    // 3m - 초세밀
+            naverMap.cameraPosition.zoom >= 18 -> 5.0    // 5m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 17 -> 8.0    // 8m - 세밀
+            naverMap.cameraPosition.zoom >= 16 -> 12.0   // 12m
+            naverMap.cameraPosition.zoom >= 15 -> 18.0   // 18m
+            naverMap.cameraPosition.zoom >= 14 -> 28.0   // 28m
+            naverMap.cameraPosition.zoom >= 13 -> 45.0   // 45m
+            naverMap.cameraPosition.zoom >= 12 -> 75.0   // 75m
+            naverMap.cameraPosition.zoom >= 11 -> 130.0  // 130m
+            naverMap.cameraPosition.zoom >= 10 -> 220.0  // 220m
+            else -> 450.0 // 450m - 멀리서 볼 때는 넓게 클러스터링
         }
     }
 
@@ -359,6 +436,8 @@ class MapClusterManager(
         clusterMarkers.clear()
 
         // 선택 상태는 유지 (selectedMarker, selectedContent는 그대로)
+        // 단, 클러스터는 새로 생성되므로 참조 초기화
+        selectedClusterMarker = null
         highlightedMarker = null
     }
 
@@ -487,15 +566,15 @@ class MapClusterManager(
         }
     }
 
-    private fun createClusterIcon(count: Int): OverlayImage {
-        val size = 80
+    private fun createClusterIcon(count: Int, isSelected: Boolean = false): OverlayImage {
+        val size = if (isSelected) 96 else 80 // 선택 시 크기 증가
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         // 배경 원 그리기
         val paint = Paint().apply {
             isAntiAlias = true
-            color = Color.parseColor("#FF3F51B5") // Material Blue
+            color = if (isSelected) Color.parseColor("#FF1976D2") else Color.parseColor("#FF3F51B5") // 선택 시 더 진한 파랑
             style = Paint.Style.FILL
         }
 
@@ -506,9 +585,18 @@ class MapClusterManager(
         paint.apply {
             color = Color.WHITE
             style = Paint.Style.STROKE
-            strokeWidth = 4f
+            strokeWidth = if (isSelected) 6f else 4f // 선택 시 테두리 두께 증가
         }
         canvas.drawCircle(size / 2f, size / 2f, radius, paint)
+
+        // 선택 시 추가 외곽 테두리
+        if (isSelected) {
+            paint.apply {
+                color = Color.parseColor("#FFE91E63") // 핑크색 외곽 테두리
+                strokeWidth = 2f
+            }
+            canvas.drawCircle(size / 2f, size / 2f, radius + 4f, paint)
+        }
 
         // 텍스트 그리기
         paint.apply {
@@ -517,9 +605,9 @@ class MapClusterManager(
             textAlign = Paint.Align.CENTER
             typeface = Typeface.DEFAULT_BOLD
             textSize = when {
-                count < 10 -> 24f
-                count < 100 -> 20f
-                else -> 16f
+                count < 10 -> if (isSelected) 28f else 24f
+                count < 100 -> if (isSelected) 24f else 20f
+                else -> if (isSelected) 20f else 16f
             }
         }
 

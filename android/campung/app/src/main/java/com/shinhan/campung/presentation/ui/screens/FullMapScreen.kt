@@ -247,7 +247,17 @@ fun FullMapScreen(
     // 툴팁 표시/숨기기 처리 - 더 이상 자동으로 사라지지 않음
     // selectedMarker가 있을 때만 툴팁 표시
 
-    BackHandler { navController.popBackStack() }
+    // 뒤로가기 버튼 처리
+    BackHandler {
+        if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
+            // 마커나 클러스터가 선택되어 있으면 선택 해제
+            mapViewModel.clearSelectedMarker()
+            clusterManager?.clearSelection()
+        } else {
+            // 아무것도 선택되어 있지 않으면 화면 나가기
+            navController.popBackStack()
+        }
+    }
 
     // 디버깅: 초기 상태 확인
     LaunchedEffect(Unit) {
@@ -345,6 +355,14 @@ fun FullMapScreen(
 
                             mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
                             map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
+                            
+                            // 지도 클릭 시 마커 및 클러스터 선택 해제
+                            map.setOnMapClickListener { _, _ ->
+                                if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
+                                    mapViewModel.clearSelectedMarker()
+                                    clusterManager?.clearSelection()
+                                }
+                            }
                         }
                     } else {
                         naverMapRef?.let { map ->
