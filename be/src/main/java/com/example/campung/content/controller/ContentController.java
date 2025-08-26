@@ -65,8 +65,16 @@ public class ContentController {
     }
     
     @GetMapping("/contents/{contentId}")
-    public ResponseEntity<ContentDetailResponse> getContent(@PathVariable Long contentId) {
-        ContentDetailResponse response = contentViewService.getContentById(contentId);
+    public ResponseEntity<ContentDetailResponse> getContent(
+            @PathVariable Long contentId,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        
+        String userId = null;
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            userId = authorization.substring(7);
+        }
+        
+        ContentDetailResponse response = contentViewService.getContentById(contentId, userId);
         return ResponseEntity.ok(response);
     }
     
