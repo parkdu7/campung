@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -236,6 +237,21 @@ fun FullMapScreen(
         Log.d("BottomSheetDebug", "초기 bottomSheetContents.size: ${bottomSheetContents.size}")
         Log.d("BottomSheetDebug", "초기 isLoading: $isLoading")
         Log.d("BottomSheetDebug", "초기 isBottomSheetExpanded: $isBottomSheetExpanded")
+    }
+
+    // 바텀시트 상태 실시간 추적 - 사용자가 직접 드래그했을 때도 ViewModel에 반영
+    LaunchedEffect(bottomSheetState) {
+        snapshotFlow { bottomSheetState.currentValue }
+            .collect { currentValue ->
+                Log.d("BottomSheetDebug", "바텀시트 상태 변화 감지: $currentValue")
+                val isExpanded = currentValue == BottomSheetValue.Expanded
+                
+                // ViewModel의 상태와 실제 바텀시트 상태가 다를 때만 업데이트
+                if (isBottomSheetExpanded != isExpanded) {
+                    Log.d("BottomSheetDebug", "ViewModel 상태 업데이트: $isBottomSheetExpanded -> $isExpanded")
+                    mapViewModel.updateBottomSheetExpanded(isExpanded)
+                }
+            }
     }
 
     // 상태 변화 모니터링
