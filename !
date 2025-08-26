@@ -1,0 +1,30 @@
+Merge branch 'android/feat/friend' of https://github.com/parkdu7/campung into android/feat/marker
+
+# Conflicts:
+#	android/campung/app/src/main/java/com/shinhan/campung/presentation/ui/screens/FullMapScreen.kt
+#
+# It looks like you may be committing a merge.
+# If this is not correct, please run
+#	git update-ref -d MERGE_HEAD
+# and try again.
+
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch android/feat/marker
+# All conflicts fixed but you are still merging.
+#
+# Changes to be committed:
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/MainActivity.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/data/remote/api/FriendApi.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/data/remote/request/FriendRequest.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/data/remote/response/FriendResponse.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/data/repository/FriendRepository.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/di/NetworkModule.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/navigation/Route.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/presentation/ui/screens/FriendScreen.kt
+#	modified:   android/campung/app/src/main/java/com/shinhan/campung/presentation/ui/screens/FullMapScreen.kt
+#	new file:   android/campung/app/src/main/java/com/shinhan/campung/presentation/viewmodel/FriendViewModel.kt
+#	new file:   android/campung/app/src/main/res/drawable/friend_plus.xml
+#

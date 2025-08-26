@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,12 +29,14 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -43,10 +44,23 @@ import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.MapView
 import com.naver.maps.map.NaverMap
-import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.widget.LocationButtonView
-import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
+import com.naver.maps.map.overlay.Marker
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
+import com.shinhan.campung.presentation.ui.map.MapClusterManager
+import com.shinhan.campung.presentation.ui.map.LocationPermissionManager
+import com.shinhan.campung.presentation.ui.map.LocationProvider
+import com.shinhan.campung.presentation.ui.map.MapInitializer
+import com.shinhan.campung.presentation.ui.map.MapCameraListener
+import com.shinhan.campung.presentation.ui.map.ClusterManagerInitializer
+import com.shinhan.campung.presentation.ui.components.MapTopHeader
+import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
+import com.shinhan.campung.presentation.ui.components.DatePickerDialog
+import com.shinhan.campung.data.remote.response.MapContent
+import android.util.Log
+import com.shinhan.campung.navigation.Route
+import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
+
 
 // 새로운 바텀시트 컴포넌트 imports
 import com.shinhan.campung.presentation.ui.components.bottomsheet.*
@@ -90,8 +104,8 @@ fun FullMapScreen(
     // 화면 높이 계산
     val navigationBarHeight = WindowInsets.navigationBars.getBottom(density)
     val statusBarHeight = WindowInsets.statusBars.getTop(density)
-    val availableHeight = screenHeight - with(density) { 
-        (navigationBarHeight + statusBarHeight).toDp() 
+    val availableHeight = screenHeight - with(density) {
+        (navigationBarHeight + statusBarHeight).toDp()
     }
 
     // 동적 컨텐츠 높이 계산 (기존 로직과 동일)
@@ -134,65 +148,46 @@ fun FullMapScreen(
         onDispose { lifecycle.removeObserver(observer) }
     }
 
-    // 위치 권한 및 관련 로직
-    fun hasLocationPermission(): Boolean {
-        val fine = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        val coarse = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        return fine || coarse
-    }
+    val locationPermissionManager = remember { LocationPermissionManager(context) }
+    val locationProvider = remember { LocationProvider(context) }
+    val mapInitializer = remember { MapInitializer() }
+    val clusterManagerInitializer = remember { ClusterManagerInitializer(context, mapViewModel) }
 
-    var hasPermission by remember { mutableStateOf(hasLocationPermission()) }
-    val fused = remember { LocationServices.getFusedLocationProviderClient(context) }
+    var hasPermission by remember { mutableStateOf(locationPermissionManager.hasLocationPermission()) }
     var myLatLng by remember { mutableStateOf<LatLng?>(null) }
     var naverMapRef by remember { mutableStateOf<NaverMap?>(null) }
+    var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
+    var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
+    var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
-    @SuppressLint("MissingPermission")
     fun fetchMyLocationOnce() {
-        if (!hasLocationPermission()) return
-        fused.lastLocation.addOnSuccessListener { loc ->
-            if (loc != null && myLatLng == null) {
-                myLatLng = LatLng(loc.latitude, loc.longitude)
+        locationProvider.fetchMyLocationOnce(hasPermission) { location ->
+            if (location != null && myLatLng == null) {
+                myLatLng = location
             }
         }
-        val cts = CancellationTokenSource()
-        val priority = if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY
-
-        fused.getCurrentLocation(priority, cts.token)
-            .addOnSuccessListener { loc ->
-                if (loc != null) myLatLng = LatLng(loc.latitude, loc.longitude)
-            }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        hasPermission = (result[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true)
-        if (hasPermission) fetchMyLocationOnce()
-    }
-
-    LaunchedEffect(Unit) {
-        if (hasLocationPermission()) {
+        locationPermissionManager.handlePermissionResult(result) {
             hasPermission = true
             fetchMyLocationOnce()
-        } else {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
         }
     }
 
-    // 내 위치 찍히면 카메라 이동
+    LaunchedEffect(Unit) {
+        if (locationPermissionManager.hasLocationPermission()) {
+            hasPermission = true
+            fetchMyLocationOnce()
+        } else {
+            locationPermissionManager.requestLocationPermission(permissionLauncher)
+        }
+    }
+
+    // 내 위치 찾히면 카메라 이동
     LaunchedEffect(myLatLng, naverMapRef) {
         val map = naverMapRef
         val pos = myLatLng
@@ -200,8 +195,39 @@ fun FullMapScreen(
             map.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
+
+            mapViewModel.loadMapContents(
+                latitude = pos.latitude,
+                longitude = pos.longitude
+            )
         }
     }
+
+    LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
+        val map = naverMapRef ?: return@LaunchedEffect
+
+        if (mapViewModel.shouldUpdateClustering) {
+            Log.d("FullMapScreen", "LaunchedEffect에서 클러스터링 업데이트: ${mapViewModel.mapContents.size}개")
+            clusterManager?.updateMarkers(mapViewModel.mapContents)
+            mapViewModel.clusteringUpdated()
+        }
+    }
+
+    // 선택된 마커가 변경될 때마다 ClusterManager에 반영
+    LaunchedEffect(mapViewModel.selectedMarker) {
+        val selectedMarker = mapViewModel.selectedMarker
+        Log.d("FullMapScreen", "LaunchedEffect: selectedMarker 변경됨 - ${selectedMarker?.title}")
+        if (selectedMarker != null) {
+            Log.d("FullMapScreen", "ClusterManager에 마커 선택 요청: ${selectedMarker.title}")
+            clusterManager?.selectMarker(selectedMarker)
+        } else {
+            Log.d("FullMapScreen", "ClusterManager 선택 해제")
+            clusterManager?.clearSelection()
+        }
+    }
+
+    // 툴팁 표시/숨기기 처리 - 더 이상 자동으로 사라지지 않음
+    // selectedMarker가 있을 때만 툴팁 표시
 
     BackHandler { navController.popBackStack() }
 
@@ -242,38 +268,30 @@ fun FullMapScreen(
                 .padding(innerPadding)
         ) {
             // 전체 화면 지도
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color.White
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            // 네이버 지도
             AndroidView(
                 factory = { mapView },
                 update = { mv ->
                     if (naverMapRef == null) {
                         mv.getMapAsync { map ->
                             naverMapRef = map
-                            map.uiSettings.apply {
-                                isScrollGesturesEnabled = true
-                                isZoomGesturesEnabled = true
-                                isTiltGesturesEnabled = true
-                                isRotateGesturesEnabled = true
-                                isZoomControlEnabled = false
-                                isScaleBarEnabled = false
-                                isCompassEnabled = true
-                                isLocationButtonEnabled = false
+                            mapInitializer.setupMapUI(map)
+
+                            clusterManager = clusterManagerInitializer.createClusterManager(map) { centerContent ->
+                                highlightedContent = centerContent
                             }
 
-                            // 지도 이동시 바텀시트 축소
-                            map.addOnCameraChangeListener { _, _ ->
-                                mapViewModel.onMapMove()
-                            }
-
-                            addSampleMarkers(map, mapViewModel)
+                            mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
+                            map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
                         }
                     } else {
                         naverMapRef?.let { map ->
-                            if (myLatLng != null && hasPermission) {
-                                map.locationOverlay.isVisible = true
-                                map.locationOverlay.position = myLatLng!!
-                            } else {
-                                map.locationOverlay.isVisible = false
-                            }
+                            mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
                         }
                     }
                 },
@@ -326,12 +344,7 @@ fun FullMapScreen(
                                 if (hasPermission) {
                                     fetchMyLocationOnce()
                                 } else {
-                                    permissionLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.ACCESS_FINE_LOCATION,
-                                            Manifest.permission.ACCESS_COARSE_LOCATION
-                                        )
-                                    )
+                                    locationPermissionManager.requestLocationPermission(permissionLauncher)
                                 }
                             }
                         }
@@ -358,6 +371,44 @@ fun FullMapScreen(
                     }
                 )
             }
+
+            // 상단 헤더 (오버레이)
+            MapTopHeader(
+                selectedDate = mapViewModel.selectedDate,
+                onBackClick = { navController.popBackStack() },
+                onDateClick = {
+                    showDatePicker = true
+                },
+                onFriendClick = {
+                    navController.navigate(Route.FRIEND)
+                },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+
+            // 필터 태그 (오버레이)
+            HorizontalFilterTags(
+                selectedTags = mapViewModel.selectedTags,
+                onTagClick = { tagId ->
+                    mapViewModel.toggleFilterTag(tagId)
+                },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 64.dp)
+            )
+
+        }
+
+        // 날짜 선택 다이얼로그
+        if (showDatePicker) {
+            DatePickerDialog(
+                selectedDate = mapViewModel.selectedDate,
+                onDateSelected = { newDate ->
+                    mapViewModel.updateSelectedDate(newDate)
+                },
+                onDismiss = {
+                    showDatePicker = false
+                }
+            )
         }
     }
 }
