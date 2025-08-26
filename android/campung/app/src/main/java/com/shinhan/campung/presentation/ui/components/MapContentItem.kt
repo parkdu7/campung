@@ -39,11 +39,11 @@ fun MapContentItem(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // 이미지
+            // 이미지 - 정사각형
             Box(
                 modifier = Modifier
                     .size(96.dp)
@@ -64,14 +64,15 @@ fun MapContentItem(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween
+                    .fillMaxHeight()
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // 제목과 카테고리
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = content.title,
@@ -79,7 +80,9 @@ fun MapContentItem(
                         fontSize = 16.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
                     )
                     
                     Icon(
@@ -97,28 +100,40 @@ fun MapContentItem(
                     color = Color.Gray,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    lineHeight = 18.sp
                 )
+                // Spacer로 하단에 메타정보 고정
+                Spacer(modifier = Modifier.weight(1f))
                 
-                // 작성자 정보와 시간
-                Text(
-                    text = "${content.authorNickname} · ${TimeFormatter.formatRelativeTime(content.createdAt)}",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-                
-                // 좋아요, 댓글
+                // 작성자 정보와 좋아요/댓글
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // 작성자 정보와 시간
+                    Text(
+                        text = "${content.authorNickname} · ${TimeFormatter.formatRelativeTime(content.createdAt)}",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    
+                    // 좋아요, 댓글
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_heart),
-                            contentDescription = "좋아요",
-                            modifier = Modifier.size(16.dp),
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_heart),
+                                contentDescription = "좋아요",
+                                modifier = Modifier.size(16.dp),
                             tint = Color.Gray
                         )
                         Text(
@@ -126,23 +141,24 @@ fun MapContentItem(
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
-                    }
-                    
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_comment),
-                            contentDescription = "댓글",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.Gray
-                        )
-                        Text(
-                            text = content.commentCount.toString(),
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
+                        }
+                        
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_comment),
+                                contentDescription = "댓글",
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.Gray
+                            )
+                            Text(
+                                text = content.commentCount.toString(),
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
                     }
                 }
             }

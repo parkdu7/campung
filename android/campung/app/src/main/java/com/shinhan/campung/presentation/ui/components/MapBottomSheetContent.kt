@@ -12,31 +12,39 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.Surface
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.shinhan.campung.data.model.MapContent
-
 @Composable
 fun MapBottomSheetContent(
     contents: List<MapContent>,
+    isLoading: Boolean = false,
     isInteractionEnabled: Boolean = true,
+    navigationBarHeight: Dp = 0.dp, // 추가된 파라미터
+    statusBarHeight: Dp = 0.dp, // 추가된 파라미터
     onContentClick: (MapContent) -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
-    
+
     // 높이 구성 요소
     val itemHeight = 120.dp
     val padding = 16.dp
     val itemSpacing = 8.dp
-    
-    // 동적 높이 계산 (확장시)
+
+    // 네비게이션 바와 상태바를 모두 제외한 사용 가능한 높이
+    val availableHeight = screenHeight - navigationBarHeight - statusBarHeight
+
     val expandedHeight = when (contents.size) {
-        0 -> 0.dp  // 빈 상태: 기본 핸들만 보임 (BottomSheetScaffold에서 처리)
+        0 -> 0.dp
         1 -> itemHeight + (padding * 2)
         2 -> (itemHeight * 2) + itemSpacing + (padding * 2)
-        else -> screenHeight * 0.5f  // 3개 이상은 화면 절반
+        else -> availableHeight * 0.5f  // 실제 사용가능 높이의 50%
     }
-    
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -48,7 +56,27 @@ fun MapBottomSheetContent(
             modifier = Modifier.fillMaxWidth()
         ) {
         // 컨텐츠 리스트
-        if (contents.isEmpty()) {
+        if (isLoading) {
+            // 로딩 상태: 즉각적인 피드백 제공
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(color = Color(0xFF0066FF))
+                    Text(
+                        text = "콘텐츠를 불러오는 중...",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+        } else if (contents.isEmpty()) {
             // 빈 상태: 핸들만 보이고 상호작용 불가
             Box(
                 modifier = Modifier

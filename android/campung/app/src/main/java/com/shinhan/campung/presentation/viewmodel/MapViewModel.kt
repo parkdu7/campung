@@ -29,19 +29,23 @@ class MapViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
-    // 마커 클릭 처리
+    // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
+        _selectedMarkerId.value = contentId
+        _isLoading.value = true
+        // 로딩 상태에서 즉시 바텀시트 확장 (로딩 UI 표시)
+        _isBottomSheetExpanded.value = true
+        
+        // 데이터 로드
         viewModelScope.launch {
-            _isLoading.value = true
-            _selectedMarkerId.value = contentId
-            
             mapContentRepository.getContentsByIds(associatedContentIds)
                 .onSuccess { contents ->
                     _bottomSheetContents.value = contents
-                    _isBottomSheetExpanded.value = true
+                    // 컨텐츠가 준비되더라도 이미 확장된 상태 유지
                 }
                 .onFailure { 
                     _bottomSheetContents.value = emptyList()
+                    _isBottomSheetExpanded.value = false  // 실패시만 바텀시트 닫기
                 }
             
             _isLoading.value = false
