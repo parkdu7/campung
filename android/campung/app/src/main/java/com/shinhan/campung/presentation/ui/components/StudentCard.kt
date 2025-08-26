@@ -5,8 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -41,7 +44,8 @@ fun StudentCard() {
                         )
                     )
                 )
-                .padding(20.dp)
+                .padding(40.dp),
+//            contentAlignment = Alignment.Center // 박스 안 전체 중앙정렬
         ) {
             Column {
                 Text(
@@ -87,26 +91,32 @@ fun StudentCard() {
                 
                 Spacer(modifier = Modifier.height(30.dp))
                 
-                // QR 코드 영역
-                Box(
+                // QR 코드 버튼 영역
+                Row(
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(100.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White.copy(alpha = 0.2f))
-                        .padding(8.dp)
+                        .align(Alignment.CenterHorizontally) // 전체 Column에서 중앙정렬
+                        .fillMaxWidth()                      // 가로 전체 차지
+                        .clip(RoundedCornerShape(10.dp)) // 둥근 모서리
+                        .background(Color.White.copy(alpha = 0.2f)) // 배경
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    QRCodePlaceholder()
+                    Icon(
+                        imageVector = Icons.Default.AccountBox, // androidx.compose.material.icons.filled.QrCode 사용
+                        contentDescription = "QR",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "QR",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    "QR",
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    color = Color.White,
-                    fontSize = 14.sp
-                )
+
             }
         }
     }

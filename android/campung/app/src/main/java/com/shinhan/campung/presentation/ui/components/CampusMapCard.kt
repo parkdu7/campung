@@ -45,6 +45,7 @@ private val LatLngSaver: Saver<LatLng?, String> = Saver(
 
 @Composable
 fun CampusMapCard(
+    mapView: MapView, // 외부에서 주입받음
     modifier: Modifier = Modifier,
     initialCamera: LatLng = LatLng(37.5666102, 126.9783881),
     onExpandRequest: () -> Unit,
@@ -179,6 +180,7 @@ fun CampusMapCard(
             } else {
                 AndroidView(
                     factory = { mapView },
+                    modifier = Modifier.fillMaxSize(),
                     update = { mv ->
                         if (naverMapRef == null) {
                             mv.getMapAsync { map ->
