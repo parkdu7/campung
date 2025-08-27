@@ -59,6 +59,7 @@ class MapClusterManager(
     private val markers = mutableListOf<Marker>()
     private val clusterMarkers = mutableListOf<Marker>()
     private var quadTree: QuadTree? = null
+    private var lastMapContents: List<MapContent> = emptyList() // QuadTree 재사용을 위한 캐시
     
     // 아이콘 캐싱 시스템
     private val normalIconCache = mutableMapOf<String, OverlayImage>()
@@ -119,10 +120,8 @@ class MapClusterManager(
 
             Log.d("MapClusterManager", "마커 선택됨: ${content.title}")
 
-            // 마커 애니메이션 후에 Compose 툴팁 표시 (약간의 딜레이)
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                onShowTooltip?.invoke(content, com.shinhan.campung.presentation.ui.components.TooltipType.CLICK)
-            }, 150) // 마커 애니메이션이 어느정도 진행된 후에 툴팁 표시
+            // 툴팁 표시는 MapSelectionManager에서 처리하도록 위임
+            // (클러스터 선택 상태 등을 고려해서 표시 여부 결정)
         } else {
             Log.e("MapClusterManager", "마커를 찾을 수 없음: ${content.title}")
         }
@@ -130,7 +129,12 @@ class MapClusterManager(
 
     // 선택 해제
     fun clearSelection() {
+        Log.d("MapClusterManager", "🔄 clearSelection() 호출됨")
+        Log.d("MapClusterManager", "selectedMarker: ${selectedMarker != null}")
+        Log.d("MapClusterManager", "selectedClusterMarker: ${selectedClusterMarker != null}")
+        
         selectedMarker?.let { marker ->
+            Log.d("MapClusterManager", "개별 마커 선택 해제")
             // 애니메이션과 함께 아이콘 변경
             animateMarkerSelection(marker, false)
             marker.zIndex = 0
@@ -140,6 +144,7 @@ class MapClusterManager(
 
         // 선택된 클러스터도 해제
         selectedClusterMarker?.let { clusterMarker ->
+            Log.d("MapClusterManager", "클러스터 마커 선택 해제")
             val count = clusterMarker.captionText.replace("개 항목", "").toIntOrNull() ?: 1
             clusterMarker.icon = getClusterIcon(count, false)
             clusterMarker.zIndex = 0
@@ -148,6 +153,7 @@ class MapClusterManager(
 
         // 하이라이트된 마커도 함께 해제
         highlightedMarker?.let { marker ->
+            Log.d("MapClusterManager", "하이라이트 마커 해제")
             animateMarkerFocus(marker, false)
             marker.zIndex = 0
         }
@@ -155,7 +161,7 @@ class MapClusterManager(
 
         // Compose 툴팁 숨김
         onHideTooltip?.invoke()
-        Log.d("MapClusterManager", "마커 및 클러스터 선택 해제됨")
+        Log.d("MapClusterManager", "✅ 마커 및 클러스터 선택 해제 완료됨")
     }
 
     // InfoWindow 관련 함수들 제거됨 - 이제 Compose 툴팁으로 대체됨
@@ -216,12 +222,8 @@ class MapClusterManager(
                 animateMarkerFocus(marker, true)
                 marker.zIndex = 1000
                 
-                // 새 포커스 마커에 Compose 툴팁 표시 (딜레이 적용)
-                content?.let { 
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        onShowTooltip?.invoke(it, com.shinhan.campung.presentation.ui.components.TooltipType.FOCUS)
-                    }, 100) // 포커스 애니메이션 후에 툴팁 표시
-                }
+                // 포커스 툴팁은 MapSelectionManager에서 처리하도록 위임
+                // (클러스터 선택 상태에서는 표시하지 않음)
             }
         }
 
@@ -395,9 +397,13 @@ class MapClusterManager(
     }
 
     private fun clusterMarkers(mapContents: List<MapContent>, distance: Double): List<List<MapContent>> {
-        // QuadTree 생성 (데이터가 변경된 경우에만)
-        if (quadTree == null) {
+        // QuadTree 재사용 최적화: 데이터가 변경된 경우에만 재생성
+        if (quadTree == null || !isSameMapContents(mapContents)) {
+            Log.d("MapClusterManager", "QuadTree 생성/갱신: ${mapContents.size}개 항목")
             quadTree = QuadTree.fromMapContents(mapContents)
+            lastMapContents = mapContents.toList() // 복사본 저장
+        } else {
+            Log.d("MapClusterManager", "QuadTree 재사용: ${mapContents.size}개 항목")
         }
         
         val clusters = mutableListOf<MutableList<MapContent>>()
@@ -429,6 +435,19 @@ class MapClusterManager(
         }
 
         return clusters
+    }
+    
+    /**
+     * 맵 데이터가 이전과 동일한지 확인 (QuadTree 재사용 최적화)
+     */
+    private fun isSameMapContents(newContents: List<MapContent>): Boolean {
+        if (lastMapContents.size != newContents.size) return false
+        
+        // contentId 기준으로 빠른 비교
+        val lastIds = lastMapContents.map { it.contentId }.toSet()
+        val newIds = newContents.map { it.contentId }.toSet()
+        
+        return lastIds == newIds
     }
 
     private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
@@ -471,8 +490,8 @@ class MapClusterManager(
         clusterMarkers.forEach { it.map = null }
         clusterMarkers.clear()
 
-        // QuadTree도 초기화 (새로운 데이터로 다시 생성하기 위해)
-        quadTree = null
+        // QuadTree는 데이터가 실제로 변경될 때만 초기화 (재사용 최적화)
+        // quadTree = null  // 이 줄 제거!
 
         // 선택 상태는 유지 (selectedMarker, selectedContent는 그대로)
         // 단, 클러스터는 새로 생성되므로 참조 초기화
@@ -496,7 +515,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (64 * 1.3).toInt() // 1.3배 크기 (선택 시 더 크게)
+        val size = (80 * 1.5).toInt() // 기본 80에서 1.5배 크기 (선택 시 더 크게)
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -506,25 +525,33 @@ class MapClusterManager(
         return OverlayImage.fromBitmap(bitmap)
     }
 
-    // 마커 선택/해제 애니메이션 - ObjectAnimator + 캐시 사용으로 최적화
+    // 마커 선택/해제 애니메이션 - 실제 크기 변화 애니메이션
     private fun animateMarkerSelection(marker: Marker, isSelected: Boolean) {
         val content = marker.tag as? MapContent
         
         if (isSelected) {
-            // 선택 시: 캐시된 아이콘 사용 + 크기 애니메이션
-            marker.icon = getSelectedMarkerIcon(content?.postType)
+            // 선택 시: 1.0 → 1.5 크기로 부드럽게 애니메이션
+            val scaleAnimator = ObjectAnimator.ofFloat(1.0f, 1.5f)
+            scaleAnimator.duration = 300
+            scaleAnimator.interpolator = android.view.animation.OvershootInterpolator(1.8f)
             
-            // ObjectAnimator로 크기 애니메이션 (GPU 가속)
-            val scaleAnimator = ObjectAnimator.ofFloat(marker, "alpha", 0.7f, 1.0f)
-            scaleAnimator.duration = 200
-            scaleAnimator.interpolator = android.view.animation.OvershootInterpolator(1.2f)
+            scaleAnimator.addUpdateListener { animator ->
+                val scale = animator.animatedValue as Float
+                marker.icon = createIntermediateMarkerIcon(content?.postType, scale)
+            }
+            
             scaleAnimator.start()
             
         } else {
-            // 해제 시: 부드러운 축소 + 캐시된 아이콘 변경
-            val scaleAnimator = ObjectAnimator.ofFloat(marker, "alpha", 1.0f, 0.8f, 1.0f)
-            scaleAnimator.duration = 150
+            // 해제 시: 현재 크기 → 1.0으로 부드럽게 축소
+            val scaleAnimator = ObjectAnimator.ofFloat(1.5f, 1.0f)
+            scaleAnimator.duration = 200
             scaleAnimator.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            
+            scaleAnimator.addUpdateListener { animator ->
+                val scale = animator.animatedValue as Float
+                marker.icon = createIntermediateMarkerIcon(content?.postType, scale)
+            }
             
             scaleAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
@@ -536,33 +563,41 @@ class MapClusterManager(
         }
     }
 
-    // 마커 포커스 애니메이션 (중앙 근처 마커) - ObjectAnimator + 캐시 최적화
+    // 마커 포커스 애니메이션 (중앙 근처 마커) - 부드러운 크기 변화
     private fun animateMarkerFocus(marker: Marker, isFocused: Boolean) {
         val content = marker.tag as? MapContent
         
         if (isFocused) {
-            // 포커스 시: 캐시된 아이콘 사용 + 부드러운 펄스 효과
-            marker.icon = getHighlightedMarkerIcon(content?.postType)
+            // 포커스 시: 1.0 → 1.4 크기로 부드럽게 애니메이션
+            val scaleAnimator = ObjectAnimator.ofFloat(1.0f, 1.4f)
+            scaleAnimator.duration = 200
+            scaleAnimator.interpolator = android.view.animation.DecelerateInterpolator()
             
-            // ObjectAnimator로 펄스 애니메이션
-            val pulseAnimator = ObjectAnimator.ofFloat(marker, "alpha", 0.6f, 1.0f, 0.8f, 1.0f)
-            pulseAnimator.duration = 300
-            pulseAnimator.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-            pulseAnimator.start()
+            scaleAnimator.addUpdateListener { animator ->
+                val scale = animator.animatedValue as Float
+                marker.icon = createIntermediateMarkerIcon(content?.postType, scale)
+            }
+            
+            scaleAnimator.start()
             
         } else {
-            // 포커스 해제 시: 페이드 아웃 후 캐시된 아이콘 변경
-            val fadeAnimator = ObjectAnimator.ofFloat(marker, "alpha", 1.0f, 0.7f, 1.0f)
-            fadeAnimator.duration = 200
-            fadeAnimator.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            // 포커스 해제 시: 1.4 → 1.0으로 부드럽게 축소
+            val scaleAnimator = ObjectAnimator.ofFloat(1.4f, 1.0f)
+            scaleAnimator.duration = 150
+            scaleAnimator.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
             
-            fadeAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
+            scaleAnimator.addUpdateListener { animator ->
+                val scale = animator.animatedValue as Float
+                marker.icon = createIntermediateMarkerIcon(content?.postType, scale)
+            }
+            
+            scaleAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     marker.icon = getNormalMarkerIcon(content?.postType)
                 }
             })
             
-            fadeAnimator.start()
+            scaleAnimator.start()
         }
     }
 
@@ -629,7 +664,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (64 * 1.2).toInt() // 1.2배 크기
+        val size = (80 * 1.4).toInt() // 기본 80에서 1.4배 크기
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -650,7 +685,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = 64 // drawable의 크기와 맞춤
+        val size = 80 // 64 -> 80으로 크기 증가
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888) // 높이를 약간 더 크게
         val canvas = Canvas(bitmap)
         
@@ -671,7 +706,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (64 * scale).toInt() // 스케일 적용
+        val size = (80 * scale).toInt() // 기본 80에 스케일 적용
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -722,7 +757,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = 64 // drawable의 크기와 맞춤
+        val size = 80 // 64 -> 80으로 크기 증가
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888) // 높이를 약간 더 크게
         val canvas = Canvas(bitmap)
         
@@ -743,7 +778,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (64 * 1.3).toInt() // 1.3배 크기 (선택 시 더 크게)
+        val size = (80 * 1.5).toInt() // 기본 80에서 1.5배 크기 (선택 시 더 크게)
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -764,7 +799,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (64 * 1.2).toInt() // 1.2배 크기
+        val size = (80 * 1.4).toInt() // 기본 80에서 1.4배 크기
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         

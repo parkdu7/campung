@@ -172,6 +172,7 @@ fun FullMapScreen(
     var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
     var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
     var mapViewportManager by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapViewportManager?>(null) }
+    var mapInteractionController by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapInteractionController?>(null) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -387,28 +388,33 @@ fun FullMapScreen(
                             naverMapRef = map
                             mapInitializer.setupMapUI(map)
 
-                            clusterManager = clusterManagerInitializer.createClusterManager(map) { centerContent ->
+                            // 새로운 통합 시스템으로 클러스터 매니저 생성
+                            val (manager, controller) = clusterManagerInitializer.createClusterManager(map) { centerContent ->
                                 highlightedContent = centerContent
                             }
+                            clusterManager = manager
+                            mapInteractionController = controller
 
-                            // 기존 카메라 리스너 (마커 중심점 관리)
-                            mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
-                            map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
-
-                            // 새로운 뷰포트 관리자 (화면 영역 기반 데이터 로드)
+                            // 단순화된 카메라 리스너 생성
+                            mapCameraListener = MapCameraListener(mapViewModel, clusterManager, controller)
+                            
+                            // 뷰포트 관리자 (화면 영역 기반 데이터 로드)
                             mapViewportManager = com.shinhan.campung.presentation.ui.map.MapViewportManager(mapViewModel, coroutineScope).apply {
-                                setNaverMap(map) // NaverMap 참조 설정
+                                setNaverMap(map)
                             }
                             
-                            // 뷰포트 매니저의 카메라 리스너 추가
-                            map.addOnCameraChangeListener(mapViewportManager!!.createCameraChangeListener())
+                            // 통합된 카메라 리스너 - 두 기능을 모두 처리
+                            map.addOnCameraChangeListener { reason, animated ->
+                                // 1. 단순화된 카메라 처리 (상호작용 + 클러스터링)
+                                mapCameraListener?.createCameraChangeListener()?.onCameraChange(reason, animated)
+                                
+                                // 2. 화면 영역 기반 데이터 로드 
+                                mapViewportManager?.createCameraChangeListener()?.onCameraChange(reason, animated)
+                            }
 
-                            // 지도 클릭 시 마커 및 클러스터 선택 해제
+                            // 지도 클릭 시 → 상호작용 컨트롤러로 위임
                             map.setOnMapClickListener { _, _ ->
-                                if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
-                                    mapViewModel.clearSelectedMarker()
-                                    clusterManager?.clearSelection()
-                                }
+                                mapInteractionController?.onMapClick()
                             }
                         }
                     } else {

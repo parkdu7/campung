@@ -13,66 +13,42 @@ class ClusterManagerInitializer(
     private val mapViewModel: MapViewModel
 ) {
     
+    // 새로운 통합 상호작용 컨트롤러
+    private val interactionController = MapInteractionController(mapViewModel)
+    
     fun createClusterManager(
         naverMap: NaverMap,
         mapContainer: ViewGroup? = null,
         onHighlightedContentChanged: (MapContent?) -> Unit
-    ): MapClusterManager {
-        return MapClusterManager(context, naverMap, mapContainer).also { manager ->
+    ): Pair<MapClusterManager, MapInteractionController> {
+        // 상호작용 컨트롤러에 NaverMap 설정
+        interactionController.setNaverMap(naverMap)
+        
+        val manager = MapClusterManager(context, naverMap, mapContainer).also { manager ->
             manager.setupClustering()
             
-            // 마커 클릭 이벤트 처리 - ViewModel과 연동
+            // 마커 클릭 → 상호작용 컨트롤러로 위임
             manager.onMarkerClick = { mapContent ->
-                Log.d("ClusterManagerInitializer", "🎯 [FLOW] 마커 클릭 시작: ${mapContent.title} (ID: ${mapContent.contentId})")
-                Log.d("ClusterManagerInitializer", "🔍 [DEBUG] mapViewModel 객체: $mapViewModel")
-                
-                try {
-                    if (mapViewModel.isMarkerSelected(mapContent)) {
-                        // 이미 선택된 마커 클릭 시 선택 해제
-                        Log.d("ClusterManagerInitializer", "⚠️ [FLOW] 이미 선택된 마커 클릭 - 선택 해제 호출")
-                        mapViewModel.clearSelectedMarker()
-                    } else {
-                        // 새 마커 선택
-                        Log.d("ClusterManagerInitializer", "✅ [FLOW] 새 마커 선택 - selectMarker() 호출: ${mapContent.title}")
-                        mapViewModel.selectMarker(mapContent)
-                    }
-                } catch (e: Exception) {
-                    Log.e("ClusterManagerInitializer", "❌ [ERROR] 마커 클릭 처리 중 예외 발생", e)
-                }
-                Log.d("ClusterManagerInitializer", "🔚 [FLOW] 마커 클릭 처리 완료")
+                interactionController.onMarkerClick(mapContent)
             }
             
-            // 클러스터 클릭 이벤트 처리
+            // 클러스터 클릭 → 상호작용 컨트롤러로 위임
             manager.onClusterClick = { clusterContents ->
-                Log.d("ClusterManagerInitializer", "🎯 [FLOW] 클러스터 클릭 시작: ${clusterContents.size}개 아이템")
-                Log.d("ClusterManagerInitializer", "📋 [FLOW] 클러스터 내용 ID들: ${clusterContents.map { it.contentId }}")
-                Log.d("ClusterManagerInitializer", "🔍 [DEBUG] mapViewModel 객체: $mapViewModel")
-                
-                try {
-                    Log.d("ClusterManagerInitializer", "✅ [FLOW] selectCluster() 호출")
-                    // 클러스터 클릭 시 바텀시트에 클러스터 내용들 표시
-                    mapViewModel.selectCluster(clusterContents)
-                } catch (e: Exception) {
-                    Log.e("ClusterManagerInitializer", "❌ [ERROR] 클러스터 클릭 처리 중 예외 발생", e)
-                }
-                Log.d("ClusterManagerInitializer", "🔚 [FLOW] 클러스터 클릭 처리 완료")
+                interactionController.onClusterClick(clusterContents)
             }
             
-            // 중앙 마커 변경 이벤트 처리
+            // 중앙 마커 변경은 기존 콜백만 유지 (상호작용 컨트롤러는 카메라 리스너에서 처리)
             manager.onCenterMarkerChanged = { centerContent ->
                 onHighlightedContentChanged(centerContent)
             }
             
-            // 툴팁 콜백 연결
-            manager.onShowTooltip = { content, type ->
-                mapViewModel.showTooltip(content, naverMap, type)
-            }
+            // 툴팁 콜백 제거 (상호작용 컨트롤러에서 직접 처리)
+            manager.onShowTooltip = null
+            manager.onHideTooltip = null
             
-            manager.onHideTooltip = {
-                mapViewModel.hideTooltip()
-            }
-            
-            Log.d("ClusterManagerInitializer", "ClusterManager 생성됨 - 툴팁 콜백 연결됨")
+            Log.d("ClusterManagerInitializer", "✅ ClusterManager 생성 완료 - 새로운 상호작용 시스템 적용")
         }
+        
+        return Pair(manager, interactionController)
     }
 }

@@ -143,9 +143,9 @@ class MapViewModel @Inject constructor(
             }
         }
 
-        // 500ms 디바운스 적용
+        // 100ms 디바운스 적용 (빠른 반응)
         debounceJob = viewModelScope.launch {
-            delay(500)
+            delay(100)
 
             _isLoading.value = true
             errorMessage = null
@@ -423,12 +423,25 @@ class MapViewModel @Inject constructor(
         Log.d(TAG, "📱 화면 좌표: x=${screenPoint.x}, y=${screenPoint.y}")
         Log.d(TAG, "🎨 툴팁 타입: $type")
         
-        _tooltipState.value = TooltipState(
-            isVisible = true,
-            content = content,
-            position = position,
-            type = type
-        )
+        // 현재 상태와 비교해서 다를 때만 새로운 상태 생성
+        val currentState = _tooltipState.value
+        val isSameContent = currentState.content?.contentId == content.contentId
+        
+        if (!isSameContent || !currentState.isVisible) {
+            Log.d(TAG, "🎯 새로운 마커이거나 툴팁이 숨겨진 상태 -> 새 상태 생성")
+            _tooltipState.value = TooltipState(
+                isVisible = true,
+                content = content,
+                position = position,
+                type = type
+            )
+        } else {
+            Log.d(TAG, "🎯 같은 마커 -> 위치만 업데이트")
+            _tooltipState.value = currentState.copy(
+                position = position,
+                type = type
+            )
+        }
         
         Log.d(TAG, "✅ 툴팁 상태 업데이트 완료: ${_tooltipState.value}")
     }
