@@ -25,6 +25,8 @@ public class MapContentResponse {
         private List<RecordItem> records;
         private int totalCount;
         private boolean hasMore;
+        private String emotionWeather;
+        private Double emotionTemperature;
 
         public MapContentData(List<MapContentItem> contents) {
             this.contents = contents;
@@ -76,6 +78,22 @@ public class MapContentResponse {
 
         public void setRecords(List<RecordItem> records) {
             this.records = records;
+        }
+
+        public String getEmotionWeather() {
+            return emotionWeather;
+        }
+
+        public void setEmotionWeather(String emotionWeather) {
+            this.emotionWeather = emotionWeather;
+        }
+
+        public Double getEmotionTemperature() {
+            return emotionTemperature;
+        }
+
+        public void setEmotionTemperature(Double emotionTemperature) {
+            this.emotionTemperature = emotionTemperature;
         }
     }
 
