@@ -41,6 +41,44 @@ data class MapContent(
         } catch (e: Exception) {
             LocalDateTime.now()
         }
+    }override fun hashCode(): Int {
+        var result = contentId.hashCode()
+        result = 31 * result + (userId?.hashCode() ?: 0)
+        result = 31 * result + author.hashCode()
+        result = 31 * result + location.hashCode()
+        result = 31 * result + (postType?.hashCode() ?: 0)
+        result = 31 * result + (postTypeName?.hashCode() ?: 0)
+        result = 31 * result + (markerType?.hashCode() ?: 0)
+        result = 31 * result + (contentScope?.hashCode() ?: 0)
+        result = 31 * result + (contentType?.hashCode() ?: 0)
+        result = 31 * result + (title?.hashCode() ?: 0)
+        result = 31 * result + (body?.hashCode() ?: 0)
+        result = 31 * result + (mediaFiles?.hashCode() ?: 0)
+        result = 31 * result + (emotionTag?.hashCode() ?: 0)
+        result = 31 * result + reactions.hashCode()
+        result = 31 * result + (createdAt?.hashCode() ?: 0)
+        result = 31 * result + (expiresAt?.hashCode() ?: 0)
+        return result
+    }
+    
+    override fun hashCode(): Int {
+        var result = contentId.hashCode()
+        result = 31 * result + (userId?.hashCode() ?: 0)
+        result = 31 * result + author.hashCode()
+        result = 31 * result + location.hashCode()
+        result = 31 * result + (postType?.hashCode() ?: 0)
+        result = 31 * result + (postTypeName?.hashCode() ?: 0)
+        result = 31 * result + (markerType?.hashCode() ?: 0)
+        result = 31 * result + (contentScope?.hashCode() ?: 0)
+        result = 31 * result + (contentType?.hashCode() ?: 0)
+        result = 31 * result + (title?.hashCode() ?: 0)
+        result = 31 * result + (body?.hashCode() ?: 0)
+        result = 31 * result + (mediaFiles?.hashCode() ?: 0)
+        result = 31 * result + (emotionTag?.hashCode() ?: 0)
+        result = 31 * result + reactions.hashCode()
+        result = 31 * result + (createdAt?.hashCode() ?: 0)
+        result = 31 * result + (expiresAt?.hashCode() ?: 0)
+        return result
     }
 }
 
@@ -72,6 +110,17 @@ data class MediaFile(
     val url: String get() = fileUrl
     val type: String get() = fileType
     val thumbnail: String? get() = thumbnailUrl
+    
+    override fun hashCode(): Int {
+        var result = fileId.hashCode()
+        result = 31 * result + (fileType?.hashCode() ?: 0)
+        result = 31 * result + (fileUrl?.hashCode() ?: 0)
+        result = 31 * result + (thumbnailUrl?.hashCode() ?: 0)
+        result = 31 * result + (fileName?.hashCode() ?: 0)
+        result = 31 * result + (fileSize?.hashCode() ?: 0)
+        result = 31 * result + (order?.hashCode() ?: 0)
+        return result
+    }
 }
 
 data class Reactions(

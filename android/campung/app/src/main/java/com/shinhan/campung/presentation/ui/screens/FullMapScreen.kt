@@ -10,6 +10,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +43,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.shinhan.campung.data.service.LocationSharingManager
+import com.shinhan.campung.presentation.ui.map.SharedLocationMarkerManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -70,6 +77,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.shinhan.campung.R
 
@@ -82,6 +90,8 @@ fun FullMapScreen(
     mapView: MapView, // 외부에서 주입받음
     mapViewModel: MapViewModel = hiltViewModel()
 ) {
+    // LocationSharingManager는 MapViewModel에서 이미 주입받았으므로 거기서 가져옴
+    val locationSharingManager = mapViewModel.locationSharingManager
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val configuration = LocalConfiguration.current
@@ -93,6 +103,80 @@ fun FullMapScreen(
     val isBottomSheetExpanded by mapViewModel.isBottomSheetExpanded.collectAsState()
     val isLoading by mapViewModel.isLoading.collectAsState()
     val tooltipState by mapViewModel.tooltipState.collectAsState()
+    val sharedLocations by locationSharingManager.sharedLocations.collectAsState()
+
+    // 위치 공유 브로드캐스트 수신
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                android.util.Log.d("FullMapScreen", "브로드캐스트 수신됨 - action: ${intent?.action}")
+
+                if (intent?.action == "com.shinhan.campung.LOCATION_SHARED") {
+                    android.util.Log.d("FullMapScreen", "위치 공유 브로드캐스트 처리 시작")
+
+                    val userName = intent.getStringExtra("userName")
+                    val latitude = intent.getStringExtra("latitude")?.toDoubleOrNull()
+                    val longitude = intent.getStringExtra("longitude")?.toDoubleOrNull()
+                    val displayUntil = intent.getStringExtra("displayUntil")
+                    val shareId = intent.getStringExtra("shareId")
+
+                    android.util.Log.d("FullMapScreen", "브로드캐스트 데이터: userName=$userName, lat=$latitude, lng=$longitude, displayUntil=$displayUntil, shareId=$shareId")
+
+                    if (userName == null || latitude == null || longitude == null || displayUntil == null || shareId == null) {
+                        android.util.Log.e("FullMapScreen", "브로드캐스트 데이터 누락 - 처리 중단")
+                        return
+                    }
+
+                    android.util.Log.d("FullMapScreen", "LocationSharingManager.addSharedLocation 호출")
+                    locationSharingManager.addSharedLocation(
+                        userName, latitude, longitude, displayUntil, shareId
+                    )
+                } else {
+                    android.util.Log.d("FullMapScreen", "다른 액션의 브로드캐스트 무시")
+                }
+            }
+        }
+
+        val intentFilter = IntentFilter("com.shinhan.campung.LOCATION_SHARED")
+        android.util.Log.d("FullMapScreen", "브로드캐스트 수신기 등록 중 - action: com.shinhan.campung.LOCATION_SHARED")
+
+        // 전역 브로드캐스트 수신기 등록
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API 33+)")
+        } else {
+            context.registerReceiver(receiver, intentFilter)
+            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API <33)")
+        }
+
+        // LocalBroadcastManager도 등록 (더 안전함)
+        try {
+            androidx.localbroadcastmanager.content.LocalBroadcastManager
+                .getInstance(context)
+                .registerReceiver(receiver, intentFilter)
+            android.util.Log.d("FullMapScreen", "LocalBroadcast 수신기도 등록 완료")
+        } catch (e: Exception) {
+            android.util.Log.e("FullMapScreen", "LocalBroadcast 수신기 등록 실패", e)
+        }
+
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+                android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 해제 완료")
+            } catch (e: IllegalArgumentException) {
+                android.util.Log.w("FullMapScreen", "전역 브로드캐스트 수신기 해제 실패 (이미 해제됨)")
+            }
+
+            try {
+                androidx.localbroadcastmanager.content.LocalBroadcastManager
+                    .getInstance(context)
+                    .unregisterReceiver(receiver)
+                android.util.Log.d("FullMapScreen", "LocalBroadcast 수신기 해제 완료")
+            } catch (e: Exception) {
+                android.util.Log.w("FullMapScreen", "LocalBroadcast 수신기 해제 실패", e)
+            }
+        }
+    }
 
     // 화면 크기
     val screenHeight = configuration.screenHeightDp.dp
@@ -171,6 +255,8 @@ fun FullMapScreen(
     var naverMapRef by remember { mutableStateOf<NaverMap?>(null) }
     var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
     var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
+    var mapViewportManager by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapViewportManager?>(null) }
+    var mapInteractionController by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapInteractionController?>(null) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -180,6 +266,23 @@ fun FullMapScreen(
                 myLatLng = location
             }
         }
+    }
+
+    // 위치 공유 마커 매니저 (모듈화됨)
+    val sharedLocationMarkerManager = remember { SharedLocationMarkerManager() }
+
+    // 위치 공유 데이터 변경 시 마커 업데이트
+    LaunchedEffect(sharedLocations) {
+        android.util.Log.d("FullMapScreen", "sharedLocations 업데이트됨 - 크기: ${sharedLocations.size}")
+        sharedLocations.forEachIndexed { index, location ->
+            android.util.Log.d("FullMapScreen", "[$index] ${location.userName} - (${location.latitude}, ${location.longitude}) - 만료: ${location.displayUntil}")
+        }
+
+        naverMapRef?.let { map ->
+            android.util.Log.d("FullMapScreen", "지도 마커 업데이트 시작")
+            sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
+            android.util.Log.d("FullMapScreen", "지도 마커 업데이트 완료")
+        } ?: android.util.Log.w("FullMapScreen", "naverMapRef가 null - 마커 업데이트 건너뜀")
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -209,10 +312,21 @@ fun FullMapScreen(
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
 
-            mapViewModel.loadMapContents(
-                latitude = pos.latitude,
-                longitude = pos.longitude
-            )
+            // 초기 로드시에도 화면 영역 기반 반경 계산 사용
+            naverMapRef?.let { map ->
+                val radius = com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(map)
+                mapViewModel.loadMapContentsWithCalculatedRadius(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude,
+                    radius = radius
+                )
+            } ?: run {
+                // NaverMap이 아직 준비되지 않았으면 기본 방식 사용
+                mapViewModel.loadMapContents(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude
+                )
+            }
         }
     }
 
@@ -366,118 +480,138 @@ fun FullMapScreen(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
-            // 네이버 지도
-            AndroidView(
-                factory = { mapView },
-                update = { mv ->
-                    if (naverMapRef == null) {
-                        mv.getMapAsync { map ->
-                            naverMapRef = map
-                            mapInitializer.setupMapUI(map)
+                // 네이버 지도
+                AndroidView(
+                    factory = { mapView },
+                    update = { mv ->
+                        if (naverMapRef == null) {
+                            mv.getMapAsync { map ->
+                                naverMapRef = map
+                                mapInitializer.setupMapUI(map)
 
-                            clusterManager = clusterManagerInitializer.createClusterManager(map) { centerContent ->
-                                highlightedContent = centerContent
+                                clusterManager =
+                                    clusterManagerInitializer.createClusterManager(map) { centerContent ->
+                                        highlightedContent = centerContent
+                                    }
+
+                            // 지도 상호작용 컨트롤러 생성
+                            val interactionController = com.shinhan.campung.presentation.ui.map.MapInteractionController(mapViewModel).apply {
+                                setNaverMap(map)
                             }
 
-                            mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
-                            map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
+                            // 기존 카메라 리스너 (마커 중심점 관리)
+                                mapCameraListener = MapCameraListener(mapViewModel, clusterManager, interactionController)
+                                map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
 
-                            // 지도 클릭 시 마커 및 클러스터 선택 해제
-                            map.setOnMapClickListener { _, _ ->
-                                if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
-                                    mapViewModel.clearSelectedMarker()
-                                    clusterManager?.clearSelection()
+                            // 새로운 뷰포트 관리자 (화면 영역 기반 데이터 로드)
+                            mapViewportManager = com.shinhan.campung.presentation.ui.map.MapViewportManager(mapViewModel, coroutineScope).apply {
+                                setNaverMap(map) // NaverMap 참조 설정
+                            }
+                            
+                            // 뷰포트 매니저의 카메라 리스너 추가
+                            map.addOnCameraChangeListener(mapViewportManager!!.createCameraChangeListener())
+
+                                // 지도 클릭 시 마커 및 클러스터 선택 해제
+                                map.setOnMapClickListener { _, _ ->
+                                    if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
+                                        mapViewModel.clearSelectedMarker()
+                                        clusterManager?.clearSelection()
+                                    }
                                 }
                             }
-                        }
-                    } else {
-                        naverMapRef?.let { map ->
-                            mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+                        } else {
+                            naverMapRef?.let { map ->
+                                mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
 
-            // 뒤로가기 버튼
-            IconButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .padding(12.dp)
-                    .align(Alignment.TopStart)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
-            }
-
-            // LocationButton - 바텀시트와 함께 움직임
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(
-                        start = 16.dp,
-                        bottom = 16.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이(30dp)만큼 위로
-                    )
-                    .offset(y = locationButtonOffsetY)
-            ) {
-                AndroidView(
-                    factory = { ctx -> LocationButtonView(ctx) },
-                    update = { btn ->
-                        naverMapRef?.let { btn.map = it }
-                    }
+                                // 위치 공유 마커 업데이트 (모듈화된 매니저 사용)
+                                sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
 
-                // 클릭 오버레이
+                // 뒤로가기 버튼
+                IconButton(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .align(Alignment.TopStart)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
+                }
+
+                // LocationButton - 바텀시트와 함께 움직임
                 Box(
                     modifier = Modifier
-                        .matchParentSize()
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            val pos = myLatLng
-                            if (pos != null) {
-                                naverMapRef?.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
-                                naverMapRef?.locationOverlay?.apply {
-                                    isVisible = true
-                                    position = pos
-                                }
-                            } else {
-                                if (hasPermission) {
-                                    fetchMyLocationOnce()
+                        .align(Alignment.BottomStart)
+                        .padding(
+                            start = 16.dp,
+                            bottom = 16.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이(30dp)만큼 위로
+                        )
+                        .offset(y = locationButtonOffsetY)
+                ) {
+                    AndroidView(
+                        factory = { ctx -> LocationButtonView(ctx) },
+                        update = { btn ->
+                            naverMapRef?.let { btn.map = it }
+                        }
+                    )
+
+                    // 클릭 오버레이
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) {
+                                val pos = myLatLng
+                                if (pos != null) {
+                                    naverMapRef?.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
+                                    naverMapRef?.locationOverlay?.apply {
+                                        isVisible = true
+                                        position = pos
+                                    }
                                 } else {
-                                    locationPermissionManager.requestLocationPermission(permissionLauncher)
+                                    if (hasPermission) {
+                                        fetchMyLocationOnce()
+                                    } else {
+                                        locationPermissionManager.requestLocationPermission(
+                                            permissionLauncher
+                                        )
+                                    }
                                 }
                             }
-                        }
-                )
-            }
-
-            // 플로팅 버튼 상태 관리
-            var isFabExpanded by remember { mutableStateOf(false) }
-
-            // 확장 가능한 플로팅 액션 버튼 - 우측 하단
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(
-                        end = 16.dp,
-                        bottom = 16.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이만큼 위로
                     )
-                    .offset(y = locationButtonOffsetY) // 바텀시트와 함께 움직임
-            ) {
+                }
+
+                // 플로팅 버튼 상태 관리
+                var isFabExpanded by remember { mutableStateOf(false) }
+
+                // 확장 가능한 플로팅 액션 버튼 - 우측 하단
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(
+                            end = 16.dp,
+                            bottom = 8.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이만큼 위로
+                        )
+                        .offset(y = locationButtonOffsetY) // 바텀시트와 함께 움직임
+                ) {
                     Column(
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // 확장된 상태에서 보이는 버튼들 (위에서 아래로 순서)
+                        // 확장된 상태에서 보이는 버튼들 (아래에서 위로 나타남)
                         AnimatedVisibility(
                             visible = isFabExpanded,
                             enter = slideInVertically(
-                                initialOffsetY = { -it },
+                                initialOffsetY = { it }, // 양수 = 아래에서 위로
                                 animationSpec = tween(300)
                             ) + fadeIn(animationSpec = tween(300)),
                             exit = slideOutVertically(
-                                targetOffsetY = { -it },
+                                targetOffsetY = { it }, // 양수 = 위에서 아래로 사라짐
                                 animationSpec = tween(200)
                             ) + fadeOut(animationSpec = tween(200))
                         ) {
@@ -485,28 +619,10 @@ fun FullMapScreen(
                                 horizontalAlignment = Alignment.End,
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // 취소 버튼 (X) - 가장 위
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clickable(
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() }
-                                        ) {
-                                            isFabExpanded = false
-                                        }
-                                ) {
-                                    Image(
-                                        painter = painterResource(R.drawable.btn_cancel),
-                                        contentDescription = "닫기",
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-
                                 // 펜 버튼
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
+                                        .size(56.dp)
                                         .clickable(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
@@ -524,7 +640,7 @@ fun FullMapScreen(
                                 // 게시판 버튼
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
+                                        .size(56.dp)
                                         .clickable(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
@@ -541,7 +657,13 @@ fun FullMapScreen(
                             }
                         }
 
-                        // 메인 버튼 (+ 또는 다른 아이콘) - 가장 아래
+                        // 메인 버튼 (+ 또는 X) - 가장 아래
+                        val rotationAngle by animateFloatAsState(
+                            targetValue = if (isFabExpanded) 45f else 0f,
+                            animationSpec = tween(300),
+                            label = "fab_rotation"
+                        )
+
                         Box(
                             modifier = Modifier
                                 .size(56.dp) // 메인 버튼은 조금 더 크게
@@ -549,97 +671,88 @@ fun FullMapScreen(
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() }
                                 ) {
-                                    if (!isFabExpanded) {
-                                        isFabExpanded = true
-                                    }
+                                    // 토글 기능
+                                    isFabExpanded = !isFabExpanded
                                 }
                         ) {
-                            AnimatedContent(
-                                targetState = isFabExpanded,
-                                transitionSpec = {
-                                    fadeIn(animationSpec = tween(150)) togetherWith
-                                            fadeOut(animationSpec = tween(150))
-                                },
-                                label = "fab_icon"
-                            ) { expanded ->
-                                Image(
-                                    painter = painterResource(R.drawable.btn_add),
-                                    contentDescription = if (expanded) "메뉴 열림" else "메뉴",
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
+                            Image(
+                                painter = painterResource(R.drawable.btn_add),
+                                contentDescription = if (isFabExpanded) "메뉴 닫기" else "메뉴 열기",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .rotate(rotationAngle) // 45도 회전 애니메이션
+                            )
                         }
                     }
                 }
-            }
 
-            // 새로운 바텀시트 컴포넌트 사용
-            MapDraggableBottomSheet(
-                state = bottomSheetState,
-                screenHeight = screenHeight,
-                availableHeight = availableHeight,
-                contentHeight = dynamicContentHeight,
-                dragHandleHeight = dragHandleHeight
-            ) {
-                // 바텀시트 콘텐츠
-                MapBottomSheetContent(
-                    contents = bottomSheetContents,
-                    isLoading = isLoading,
-                    isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
-                    navigationBarHeight = with(density) { navigationBarHeight.toDp() },
-                    statusBarHeight = with(density) { statusBarHeight.toDp() },
-                    onContentClick = { content ->
-                        // TODO: 컨텐츠 상세 화면으로 이동
-                    }
-                )
-            }
-
-            // 상단 헤더 (오버레이)
-            MapTopHeader(
-                selectedDate = mapViewModel.selectedDate,
-                onBackClick = { navController.popBackStack() },
-                onDateClick = {
-                    showDatePicker = true
-                },
-                onFriendClick = {
-                    navController.navigate(Route.FRIEND)
-                },
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-
-            // 필터 태그 (오버레이)
-            HorizontalFilterTags(
-                selectedTags = mapViewModel.selectedTags,
-                onTagClick = { tagId ->
-                    mapViewModel.toggleFilterTag(tagId)
-                },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 64.dp)
-            )
-
-            // 애니메이션 툴팁 오버레이
-            AnimatedMapTooltip(
-                visible = tooltipState.isVisible,
-                content = tooltipState.content?.title ?: "",
-                position = tooltipState.position,
-                type = tooltipState.type
-            )
-
-
-
-        // 날짜 선택 다이얼로그
-        if (showDatePicker) {
-            DatePickerDialog(
-                selectedDate = mapViewModel.selectedDate,
-                onDateSelected = { newDate ->
-                    mapViewModel.updateSelectedDate(newDate)
-                },
-                onDismiss = {
-                    showDatePicker = false
+                // 새로운 바텀시트 컴포넌트 사용
+                MapDraggableBottomSheet(
+                    state = bottomSheetState,
+                    screenHeight = screenHeight,
+                    availableHeight = availableHeight,
+                    contentHeight = dynamicContentHeight,
+                    dragHandleHeight = dragHandleHeight
+                ) {
+                    // 바텀시트 콘텐츠
+                    MapBottomSheetContent(
+                        contents = bottomSheetContents,
+                        isLoading = isLoading,
+                        isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
+                        navigationBarHeight = with(density) { navigationBarHeight.toDp() },
+                        statusBarHeight = with(density) { statusBarHeight.toDp() },
+                        onContentClick = { content ->
+                            // TODO: 컨텐츠 상세 화면으로 이동
+                        }
+                    )
                 }
-            )
+
+                // 상단 헤더 (오버레이)
+                MapTopHeader(
+                    selectedDate = mapViewModel.selectedDate,
+                    onBackClick = { navController.popBackStack() },
+                    onDateClick = {
+                        showDatePicker = true
+                    },
+                    onFriendClick = {
+                        navController.navigate(Route.FRIEND)
+                    },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+
+                // 필터 태그 (오버레이)
+                HorizontalFilterTags(
+                    selectedTags = mapViewModel.selectedTags,
+                    onTagClick = { tagId ->
+                        mapViewModel.toggleFilterTag(tagId)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 64.dp)
+                )
+
+                // 애니메이션 툴팁 오버레이
+                AnimatedMapTooltip(
+                    visible = tooltipState.isVisible,
+                    content = tooltipState.content?.title ?: "",
+                    position = tooltipState.position,
+                    type = tooltipState.type
+                )
+
+
+                // 날짜 선택 다이얼로그
+                if (showDatePicker) {
+                    DatePickerDialog(
+                        selectedDate = mapViewModel.selectedDate,
+                        onDateSelected = { newDate ->
+                            mapViewModel.updateSelectedDate(newDate)
+                        },
+                        onDismiss = {
+                            showDatePicker = false
+                        }
+                    )
+                }
+            }
         }
     }
-}
 }

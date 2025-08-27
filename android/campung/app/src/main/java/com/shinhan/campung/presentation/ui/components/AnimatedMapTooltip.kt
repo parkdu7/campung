@@ -40,13 +40,13 @@ fun AnimatedMapTooltip(
     modifier: Modifier = Modifier
 ) {
     // 디버깅 로그 제거됨
-    
+
     Box(
         modifier = modifier
             .offset {
                 IntOffset(
                     x = (position.x - 100).roundToInt(), // 툴팁 중앙 정렬을 위한 오프셋
-                    y = (position.y - 200).roundToInt() // 마커 위쪽 140px (더 위로)
+                    y = (position.y - 250).roundToInt() // 마커 위쪽 140px (더 위로)
                 )
             }
     ) {
@@ -106,7 +106,7 @@ fun AnimatedMapTooltip(
                         maxLines = 1
                     )
                 }
-                
+
                 // 말풍선 꼬리 (삼각형)
                 Canvas(
                     modifier = Modifier.size(width = 16.dp, height = 8.dp)
@@ -117,7 +117,7 @@ fun AnimatedMapTooltip(
                         lineTo(size.width, 0f) // 오른쪽 위
                         close()
                     }
-                    
+
                     drawPath(
                         path = trianglePath,
                         color = when (type) {

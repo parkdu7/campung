@@ -25,13 +25,15 @@ import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import com.shinhan.campung.data.service.LocationSharingManager
 import javax.inject.Inject
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val mapContentRepository: MapContentRepository,
     private val mapRepository: MapRepository,
-    private val contentMapper: ContentMapper
+    private val contentMapper: ContentMapper,
+    val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
 
     // UI States
@@ -50,6 +52,10 @@ class MapViewModel @Inject constructor(
     // 툴팁 상태 관리
     private val _tooltipState = MutableStateFlow(TooltipState())
     val tooltipState: StateFlow<TooltipState> = _tooltipState.asStateFlow()
+    
+    // 위치 공유 상태를 LocationSharingManager에서 가져옴
+    val sharedLocations: StateFlow<List<com.shinhan.campung.data.model.SharedLocation>> = 
+        locationSharingManager.sharedLocations
 
     // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
@@ -143,9 +149,9 @@ class MapViewModel @Inject constructor(
             }
         }
 
-        // 500ms 디바운스 적용
+        // 100ms 디바운스 적용 (빠른 반응)
         debounceJob = viewModelScope.launch {
-            delay(500)
+            delay(100)
 
             _isLoading.value = true
             errorMessage = null
@@ -156,10 +162,15 @@ class MapViewModel @Inject constructor(
                 // 선택된 날짜를 문자열로 변환
                 val dateString = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
+                // 반경이 제공되지 않은 경우 기본값 사용 (이전 버전 호환성)
+                val requestRadius = radius ?: getDefaultRadius()
+                
+                Log.d(TAG, "📍 API 요청: lat=$latitude, lng=$longitude, radius=${requestRadius}m, postType=${postType ?: selectedPostType}")
+                
                 val response = mapRepository.getMapContents(
                     latitude = latitude,
                     longitude = longitude,
-                    radius = radius,
+                    radius = requestRadius,
                     postType = postType ?: selectedPostType,
                     date = dateString
                 ).getOrThrow()
@@ -385,6 +396,28 @@ class MapViewModel @Inject constructor(
         return earthRadius * c
     }
 
+    /**
+     * 반경이 제공되지 않은 경우 사용할 기본 반경 (이전 버전 호환성)
+     */
+    private fun getDefaultRadius(): Int {
+        return 2000 // 기본 2km
+    }
+    
+    /**
+     * 화면 영역 기반으로 맵 데이터를 로드하는 새로운 함수
+     * @param latitude 중심점 위도
+     * @param longitude 중심점 경도  
+     * @param radius 화면 영역 기반 계산된 반경
+     */
+    fun loadMapContentsWithCalculatedRadius(
+        latitude: Double,
+        longitude: Double,
+        radius: Int
+    ) {
+        Log.d(TAG, "🎯 화면 영역 기반 데이터 로드 시작 - 반경: ${radius}m")
+        loadMapContents(latitude, longitude, radius)
+    }
+
     // 툴팁 관리 함수들
     fun showTooltip(content: MapContent, naverMap: NaverMap, type: TooltipType) {
         val latLng = com.naver.maps.geometry.LatLng(content.location.latitude, content.location.longitude)
@@ -417,5 +450,24 @@ class MapViewModel @Inject constructor(
             // Log.d(TAG, "📍 툴팁 위치 업데이트: $newPosition") // 너무 많이 호출되서 주석
             _tooltipState.value = _tooltipState.value.copy(position = newPosition)
         }
+    }
+    
+    // 위치 공유 관련 함수들을 LocationSharingManager로 위임
+    fun addSharedLocation(
+        userName: String,
+        latitude: Double,
+        longitude: Double,
+        displayUntilString: String,
+        shareId: String
+    ) {
+        locationSharingManager.addSharedLocation(userName, latitude, longitude, displayUntilString, shareId)
+    }
+    
+    fun removeSharedLocation(shareId: String) {
+        locationSharingManager.removeSharedLocation(shareId)
+    }
+    
+    fun cleanupExpiredLocations() {
+        locationSharingManager.cleanupExpiredLocations()
     }
 }
