@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -45,6 +46,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.shinhan.campung.data.service.LocationSharingManager
 import com.shinhan.campung.presentation.ui.map.SharedLocationMarkerManager
+import com.shinhan.campung.presentation.ui.map.POIMarkerManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -55,6 +57,7 @@ import com.naver.maps.map.NaverMap
 import com.naver.maps.map.widget.LocationButtonView
 import com.naver.maps.map.overlay.Marker
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
+import com.shinhan.campung.presentation.ui.components.WeatherTemperatureDisplay
 import com.shinhan.campung.presentation.ui.map.MapClusterManager
 import com.shinhan.campung.presentation.ui.map.LocationPermissionManager
 import com.shinhan.campung.presentation.ui.map.LocationProvider
@@ -64,6 +67,8 @@ import com.shinhan.campung.presentation.ui.map.ClusterManagerInitializer
 import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.presentation.ui.components.DatePickerDialog
+import com.shinhan.campung.presentation.ui.components.POIFilterTags
+import com.shinhan.campung.presentation.ui.components.POIDetailDialog
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.model.MapRecord
 import com.shinhan.campung.presentation.ui.components.AudioPlayer
@@ -127,7 +132,28 @@ fun FullMapScreen(
     val isBottomSheetExpanded by mapViewModel.isBottomSheetExpanded.collectAsState()
     val isLoading by mapViewModel.isLoading.collectAsState()
     val tooltipState by mapViewModel.tooltipState.collectAsState()
+    val serverWeather by mapViewModel.serverWeather.collectAsState()
+    val serverTemperature by mapViewModel.serverTemperature.collectAsState()
+
+    val calculated = remember(mapViewModel.mapContents) {
+        calculateWeatherInfo(mapViewModel.mapContents)
+    }
+    // ✅ 서버값이 있으면 우선 사용, 없으면 계산된 값 사용
+    val uiWeather = normalizeWeather(serverWeather) ?: normalizeWeather(calculated.weather)
+    val uiTemperature = serverTemperature ?: calculated.temperature
+
+    Log.d("FullMapScreen", "🎯 최종 UI 데이터 - serverWeather: '$serverWeather'(${serverTemperature}°) → uiWeather: '$uiWeather'($uiTemperature°)")
+
+
     val sharedLocations by locationSharingManager.sharedLocations.collectAsState()
+
+    // POI 관련 상태
+    val poiData by mapViewModel.poiData.collectAsState()
+    val isPOIVisible by mapViewModel.isPOIVisible.collectAsState()
+    val selectedPOICategory by mapViewModel.selectedPOICategory.collectAsState()
+    val isPOILoading by mapViewModel.isPOILoading.collectAsState()
+    val selectedPOI by mapViewModel.selectedPOI.collectAsState()
+    val showPOIDialog by mapViewModel.showPOIDialog.collectAsState()
     val currentPlayingRecord by mapViewModel.currentPlayingRecord.collectAsState()
 
     // 위치 공유 브로드캐스트 수신
@@ -295,6 +321,9 @@ fun FullMapScreen(
     // 위치 공유 마커 매니저 (모듈화됨)
     val sharedLocationMarkerManager = remember { SharedLocationMarkerManager() }
 
+    // POI 마커 매니저 (모듈화됨)
+    var poiMarkerManager by remember { mutableStateOf<POIMarkerManager?>(null) }
+
     // 위치 공유 데이터 변경 시 마커 업데이트
     LaunchedEffect(sharedLocations) {
         android.util.Log.d("FullMapScreen", "sharedLocations 업데이트됨 - 크기: ${sharedLocations.size}")
@@ -307,6 +336,25 @@ fun FullMapScreen(
             sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
             android.util.Log.d("FullMapScreen", "지도 마커 업데이트 완료")
         } ?: android.util.Log.w("FullMapScreen", "naverMapRef가 null - 마커 업데이트 건너뜀")
+    }
+
+    // POI 데이터 변경 시 마커 업데이트
+    LaunchedEffect(poiData, isPOIVisible) {
+        android.util.Log.d("FullMapScreen", "🏪 POI 데이터 변경 감지 - 크기: ${poiData.size}, 표시상태: $isPOIVisible")
+
+        naverMapRef?.let { map ->
+            poiMarkerManager?.let { manager ->
+                if (isPOIVisible && poiData.isNotEmpty()) {
+                    android.util.Log.d("FullMapScreen", "🏪 POI 마커 표시 시작 - ${poiData.size}개")
+                    manager.showPOIMarkers(poiData)
+                } else if (isPOIVisible && poiData.isEmpty()) {
+                    android.util.Log.d("FullMapScreen", "🏪 POI 활성화 상태이지만 데이터 없음")
+                } else {
+                    android.util.Log.d("FullMapScreen", "🏪 POI 마커 숨기기")
+                    manager.clearPOIMarkers()
+                }
+            } ?: android.util.Log.w("FullMapScreen", "🏪 POI 마커 매니저가 null")
+        } ?: android.util.Log.w("FullMapScreen", "🏪 NaverMap이 null")
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -327,13 +375,13 @@ fun FullMapScreen(
     LaunchedEffect(refreshId, naverMapRef) {
         val id = refreshId ?: return@LaunchedEffect
         Log.d("FullMapScreen", "🎯 글 작성 후 리프레시 처리 시작 - ID: $id")
-        
+
         // NaverMap이 준비될 때까지 기다림
         if (naverMapRef == null) {
             Log.w("FullMapScreen", "⚠️ NaverMap이 아직 준비되지 않음 - 리프레시 지연")
             return@LaunchedEffect
         }
-        
+
         // 현재 화면 중심/반경으로 강제 리로드
         val center = naverMapRef?.cameraPosition?.target
         val lat = center?.latitude ?: mapViewModel.getLastKnownLocation()?.first ?: 0.0
@@ -343,11 +391,11 @@ fun FullMapScreen(
         } ?: 2000
 
         Log.d("FullMapScreen", "📍 리프레시 위치: ($lat, $lng), 반경: ${radius}m")
-        
+
         // 하이라이트 예약과 강제 리로드
         mapViewModel.requestHighlight(id)
         Log.d("FullMapScreen", "🔍 하이라이트 예약 완료 - ID: $id")
-        
+
         // 서버 동기화 대기 후 한 번만 리로드
         kotlinx.coroutines.delay(1000)
         mapViewModel.loadMapContents(lat, lng, radius = radius, force = true)
@@ -607,6 +655,15 @@ fun FullMapScreen(
                                         highlightedContent = centerContent
                                     }
 
+                                // POI 마커 매니저 초기화
+                                poiMarkerManager = POIMarkerManager(context, map, coroutineScope).apply {
+                                    onPOIClick = { poi ->
+                                        android.util.Log.d("FullMapScreen", "🏪 POI 마커 클릭됨: ${poi.name}")
+                                        mapViewModel.onPOIClick(poi)
+                                    }
+                                }
+                                android.util.Log.d("FullMapScreen", "🏪 POI 마커 매니저 초기화 완료")
+
                             // 지도 상호작용 컨트롤러 생성
                             val interactionController = com.shinhan.campung.presentation.ui.map.MapInteractionController(mapViewModel).apply {
                                 setNaverMap(map)
@@ -699,6 +756,7 @@ fun FullMapScreen(
 
                 // 플로팅 버튼 상태 관리
                 var isFabExpanded by remember { mutableStateOf(false) }
+
 
                 // 확장 가능한 플로팅 액션 버튼 - 우측 하단
                 Box(
@@ -867,6 +925,16 @@ fun FullMapScreen(
                 )
 
 
+                // 날씨/온도 표시 (오른쪽 상단, 필터 태그 아래)
+                // 표시
+                WeatherTemperatureDisplay(
+                    weather = uiWeather,
+                    temperature = uiTemperature,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 110.dp, end = 8.dp)
+                )
+
                 // 애니메이션 툴팁 오버레이
                 AnimatedMapTooltip(
                     visible = tooltipState.isVisible,
@@ -950,5 +1018,70 @@ fun FullMapScreen(
                 }
             }
         }
+
+        // POI 상세 다이얼로그
+        selectedPOI?.let { poi ->
+            if (showPOIDialog) {
+                POIDetailDialog(
+                    poi = poi,
+                    onDismiss = { mapViewModel.dismissPOIDialog() }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 지도에 표시된 컨텐츠들로부터 날씨 정보를 계산
+ */
+private fun calculateWeatherInfo(mapContents: List<com.shinhan.campung.data.model.MapContent>): WeatherInfo {
+    if (mapContents.isEmpty()) {
+        return WeatherInfo(weather = null, temperature = null)
+    }
+
+    // 날씨 정보가 있는 컨텐츠들만 필터링
+    val contentsWithWeather = mapContents.filter {
+        !it.emotionWeather.isNullOrBlank() || it.emotionTemperature != null
+    }
+
+    if (contentsWithWeather.isEmpty()) {
+        return WeatherInfo(weather = null, temperature = null)
+    }
+
+    // 가장 많이 나타나는 날씨 찾기
+    val weatherCounts = contentsWithWeather
+        .mapNotNull { it.emotionWeather }
+        .groupingBy { it }
+        .eachCount()
+
+    val mostCommonWeather = weatherCounts.maxByOrNull { it.value }?.key
+
+    // 온도 평균 계산
+    val temperatures = contentsWithWeather.mapNotNull { it.emotionTemperature }
+    val averageTemperature = if (temperatures.isNotEmpty()) {
+        temperatures.average().toInt()
+    } else null
+
+    return WeatherInfo(
+        weather = mostCommonWeather,
+        temperature = averageTemperature
+    )
+}
+
+/**
+ * 날씨 정보 데이터 클래스
+ */
+private data class WeatherInfo(
+    val weather: String?,
+    val temperature: Int?
+)
+private fun normalizeWeather(raw: String?): String? {
+    val k = raw?.trim()?.lowercase() ?: return null
+    return when (k) {
+        "맑음","해","쾌청","sun","clear","fine","sunny" -> "sunny"
+        "구름","흐림","흐림많음","cloud","overcast","cloudy","clouds" -> "cloudy"
+        "비","소나기","drizzle","rain shower","rainy","rain" -> "rain"
+        "천둥","천둥번개","번개","뇌우","thunder","storm","thunderstorm","stormy" -> "thunderstorm"
+        else -> null
     }
 }

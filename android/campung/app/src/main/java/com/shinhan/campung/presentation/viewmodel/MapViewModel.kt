@@ -11,7 +11,9 @@ import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.model.MapRecord
 import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
+import com.shinhan.campung.data.repository.POIRepository
 import com.shinhan.campung.data.mapper.ContentMapper
+import com.shinhan.campung.data.model.POIData
 import com.shinhan.campung.data.model.ContentCategory
 import com.shinhan.campung.presentation.ui.components.TooltipState
 import com.shinhan.campung.presentation.ui.components.TooltipType
@@ -33,6 +35,7 @@ import javax.inject.Inject
 class MapViewModel @Inject constructor(
     private val mapContentRepository: MapContentRepository,
     private val mapRepository: MapRepository,
+    private val poiRepository: POIRepository,
     private val contentMapper: ContentMapper,
     val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
@@ -54,14 +57,40 @@ class MapViewModel @Inject constructor(
     // 툴팁 상태 관리
     private val _tooltipState = MutableStateFlow(TooltipState())
     val tooltipState: StateFlow<TooltipState> = _tooltipState.asStateFlow()
-    
+
     // 오디오 플레이어 상태 관리
     private val _currentPlayingRecord = MutableStateFlow<MapRecord?>(null)
     val currentPlayingRecord: StateFlow<MapRecord?> = _currentPlayingRecord.asStateFlow()
-    
+
     // 위치 공유 상태를 LocationSharingManager에서 가져옴
-    val sharedLocations: StateFlow<List<com.shinhan.campung.data.model.SharedLocation>> = 
+    val sharedLocations: StateFlow<List<com.shinhan.campung.data.model.SharedLocation>> =
         locationSharingManager.sharedLocations
+
+    // POI 관련 상태
+    private val _poiData = MutableStateFlow<List<POIData>>(emptyList())
+    val poiData: StateFlow<List<POIData>> = _poiData.asStateFlow()
+
+    private val _isPOIVisible = MutableStateFlow(true) // 테스트를 위해 기본값을 true로 변경
+    val isPOIVisible: StateFlow<Boolean> = _isPOIVisible.asStateFlow()
+
+    private val _selectedPOICategory = MutableStateFlow<String?>(null)
+    val selectedPOICategory: StateFlow<String?> = _selectedPOICategory.asStateFlow()
+
+    private val _isPOILoading = MutableStateFlow(false)
+    val isPOILoading: StateFlow<Boolean> = _isPOILoading.asStateFlow()
+
+    private val _selectedPOI = MutableStateFlow<POIData?>(null)
+    val selectedPOI: StateFlow<POIData?> = _selectedPOI.asStateFlow()
+
+    private val _showPOIDialog = MutableStateFlow(false)
+    val showPOIDialog: StateFlow<Boolean> = _showPOIDialog.asStateFlow()
+
+    // MapViewModel.kt - 상단 필드들 옆에 추가
+    private val _serverWeather = MutableStateFlow<String?>(null)
+    val serverWeather: StateFlow<String?> = _serverWeather
+
+    private val _serverTemperature = MutableStateFlow<Int?>(null)
+    val serverTemperature: StateFlow<Int?> = _serverTemperature
 
     // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
@@ -134,7 +163,7 @@ class MapViewModel @Inject constructor(
     fun requestHighlight(contentId: Long) {
         Log.d(TAG, "🎯 하이라이트 요청 등록: $contentId")
         pendingHighlightId = contentId
-        
+
         // 이미 로드된 데이터에서 해당 마커를 찾아서 즉시 하이라이트
         mapContents.firstOrNull { it.contentId == contentId }?.let { content ->
             Log.d(TAG, "✅ 기존 데이터에서 마커 발견 - 즉시 선택: ${content.title}")
@@ -201,7 +230,7 @@ class MapViewModel @Inject constructor(
         // 150ms 디바운스 적용 (안정성과 반응성 균형)
         debounceJob = viewModelScope.launch {
             delay(150)
-            
+
             Log.d(TAG, "🚀 데이터 로드 시작 - 위치: (${latitude}, ${longitude}), 반경: ${radius ?: getDefaultRadius()}m")
 
             _isLoading.value = true
@@ -222,15 +251,21 @@ class MapViewModel @Inject constructor(
                 ).getOrThrow()
 
                 if (response.success) {
-                    val newContents = response.data.contents
-                    val newRecords = response.data.records
-                    Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 Content 마커, ${newRecords.size}개 Record 마커")
+                    val rawContents = response.data.contents
+                    val newRecords = response.data.records ?: emptyList() // null일 경우 빈 리스트
                     
+                    // ContentData를 MapContent로 변환
+                    val newContents = rawContents.map { contentData ->
+                        contentMapper.toMapContent(contentData)
+                    }
+
+                    Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 Content 마커, ${newRecords.size}개 Record 마커")
+
                     // 데이터 업데이트
                     mapContents = newContents
                     mapRecords = newRecords
                     shouldUpdateClustering = true
-                    
+
                     // 로딩 상태 해제 (UI 반응성 개선)
                     _isLoading.value = false
 
@@ -238,19 +273,36 @@ class MapViewModel @Inject constructor(
                     pendingHighlightId?.let { id ->
                         Log.d(TAG, "🎯 pendingHighlightId 처리 시작: $id")
                         Log.d(TAG, "📋 로드된 컨텐츠 IDs: ${newContents.map { it.contentId }}")
-                        
+
                         newContents.firstOrNull { it.contentId == id }?.let { content ->
                             Log.d(TAG, "✅ 하이라이트 대상 마커 찾음: ${content.title} (${content.contentId})")
-                            
+
                             // 클러스터링 완료 후 마커 선택
                             selectMarker(content)
-                            
+
                         } ?: Log.w(TAG, "⚠️ 하이라이트 대상 마커를 찾지 못함: $id")
-                        
+
                         pendingHighlightId = null
                     }
 
                     // 선택된 마커가 새 데이터에 없으면 해제
+                    val rawWeather = response.data.emotionWeather
+                    val rawTemp = response.data.emotionTemperature
+
+                    Log.d("MapViewModel", "🌤️ 서버 원본 데이터 - rawWeather: '$rawWeather', rawTemp: $rawTemp")
+
+                    // 서버에서 날씨 데이터가 없다면 임시 테스트 데이터 사용
+                    val testWeather = if (rawWeather.isNullOrBlank()) "맑음" else rawWeather
+                    val testTemp = rawTemp ?: 25.0
+
+                    Log.d("MapViewModel", "🧪 테스트 데이터 적용 - testWeather: '$testWeather', testTemp: $testTemp")
+
+                    _serverWeather.value = normalizeWeather(testWeather)
+                    _serverTemperature.value = kotlin.math.round(testTemp).toInt()
+
+                    Log.d("MapViewModel", "🎯 최종 변환된 데이터 - serverWeather: '${_serverWeather.value}', serverTemperature: ${_serverTemperature.value}")
+
+                    // 새로운 데이터 로드 시 선택된 마커가 여전히 존재하는지 확인
                     selectedMarker?.let { selected ->
                         val stillExists = mapContents.any { it.contentId == selected.contentId }
                         if (!stillExists) {
@@ -259,7 +311,6 @@ class MapViewModel @Inject constructor(
                         }
                     }
                 } else {
-                    Log.e(TAG, "❌ 데이터 로드 실패: ${response.message}")
                     errorMessage = response.message
                     _isLoading.value = false
                 }
@@ -407,21 +458,20 @@ class MapViewModel @Inject constructor(
     }
 
     fun updateSelectedDate(date: LocalDate) {
-        Log.d(TAG, "📅 날짜 변경: $selectedDate → $date")
         selectedDate = date
-        
+
         // 기존 마커들 즉시 클리어
         mapContents = emptyList()
         mapRecords = emptyList()
         shouldUpdateClustering = true
-        
+
         // 선택된 마커도 클리어
         selectedMarker = null
         clearSelectedMarker()
-        
+
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
-        
+
         // 날짜가 변경되면 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             Log.d(TAG, "🔄 날짜 변경으로 인한 데이터 리로드")
@@ -447,14 +497,14 @@ class MapViewModel @Inject constructor(
         mapContents = emptyList()
         mapRecords = emptyList()
         shouldUpdateClustering = true
-        
+
         // 선택된 마커도 클리어
         selectedMarker = null
         clearSelectedMarker()
-        
+
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
-        
+
         // 필터가 변경되면 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
@@ -468,14 +518,14 @@ class MapViewModel @Inject constructor(
         mapContents = emptyList()
         mapRecords = emptyList()
         shouldUpdateClustering = true
-        
+
         // 선택된 마커도 클리어
         selectedMarker = null
         clearSelectedMarker()
-        
+
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
-        
+
         // postType 변경 시 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
@@ -491,14 +541,14 @@ class MapViewModel @Inject constructor(
         mapContents = emptyList()
         mapRecords = emptyList()
         shouldUpdateClustering = true
-        
+
         // 선택된 마커도 클리어
         selectedMarker = null
         clearSelectedMarker()
-        
+
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
-        
+
         // 필터 초기화 후 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
@@ -575,8 +625,18 @@ class MapViewModel @Inject constructor(
             // Log.d(TAG, "📍 툴팁 위치 업데이트: $newPosition") // 너무 많이 호출되서 주석
             _tooltipState.value = _tooltipState.value.copy(position = newPosition)
         }
+    }// MapViewModel.kt (파일 아무 하단 유틸 영역)
+    private fun normalizeWeather(raw: String?): String? {
+        val k = raw?.trim()?.lowercase() ?: return null
+        return when (k) {
+            "맑음", "해", "쾌청", "sun", "fine", "clear" -> "sunny"
+            "구름", "흐림", "흐림많음", "cloud", "overcast", "cloudy", "clouds" -> "clouds"
+            "비", "소나기", "drizzle", "rain shower", "rainy", "rain" -> "rain"
+            "천둥", "천둥번개", "번개", "뇌우", "thunder", "storm", "thunderstorm", "stormy" -> "thunderstorm"
+            else -> null
+        }
     }
-    
+
     // 위치 공유 관련 함수들을 LocationSharingManager로 위임
     fun addSharedLocation(
         userName: String,
@@ -587,36 +647,183 @@ class MapViewModel @Inject constructor(
     ) {
         locationSharingManager.addSharedLocation(userName, latitude, longitude, displayUntilString, shareId)
     }
-    
+
     fun removeSharedLocation(shareId: String) {
         locationSharingManager.removeSharedLocation(shareId)
     }
-    
+
     fun cleanupExpiredLocations() {
         locationSharingManager.cleanupExpiredLocations()
     }
-    
+
     // 오디오 플레이어 관련 함수들
     fun playRecord(record: MapRecord) {
         Log.d(TAG, "🎵 Record 재생 시작: ${record.recordUrl}")
-        
+
         // Content 마커 선택 해제
         selectedMarker = null
-        
+
         // Record 선택 상태 업데이트
         selectedRecord = record
         _currentPlayingRecord.value = record
     }
-    
+
     fun stopRecord() {
         Log.d(TAG, "⏹️ Record 재생 중지")
-        
+
         // Record 선택 해제
         selectedRecord = null
         _currentPlayingRecord.value = null
     }
-    
+
     fun isRecordSelected(record: MapRecord): Boolean {
         return selectedRecord?.recordId == record.recordId
+    }
+
+    // ===== POI 관련 함수들 =====
+
+    /**
+     * POI 표시 상태 토글
+     */
+    fun togglePOIVisibility() {
+        _isPOIVisible.value = !_isPOIVisible.value
+        Log.d(TAG, "🏪 POI 표시 상태 토글: ${_isPOIVisible.value}")
+
+        if (_isPOIVisible.value) {
+            // POI가 켜질 때 현재 위치 기반으로 로드
+            lastRequestLocation?.let { (lat, lng) ->
+                Log.d(TAG, "🏪 POI 토글 ON - 현재 위치로 데이터 로드: ($lat, $lng)")
+                loadPOIData(lat, lng)
+            } ?: Log.w(TAG, "🏪 POI 토글 ON - 현재 위치 정보 없음")
+        } else {
+            // POI가 꺼질 때 데이터 클리어
+            Log.d(TAG, "🏪 POI 토글 OFF - 데이터 클리어")
+            _poiData.value = emptyList()
+        }
+    }
+
+    /**
+     * POI 카테고리 선택
+     */
+    fun selectPOICategory(category: String?) {
+        _selectedPOICategory.value = category
+        Log.d(TAG, "🏪 POI 카테고리 선택: $category")
+
+        if (_isPOIVisible.value) {
+            lastRequestLocation?.let { (lat, lng) ->
+                Log.d(TAG, "🏪 카테고리 변경으로 POI 데이터 재로드: ($lat, $lng), 카테고리=$category")
+                loadPOIData(lat, lng, category)
+            } ?: Log.w(TAG, "🏪 카테고리 선택 - 현재 위치 정보 없음")
+        } else {
+            Log.d(TAG, "🏪 POI가 비활성화 상태 - 카테고리 선택만 저장")
+        }
+    }
+
+    /**
+     * 중심점과 반경 기반으로 POI 데이터 로드
+     */
+    fun loadPOIData(
+        latitude: Double,
+        longitude: Double,
+        category: String? = _selectedPOICategory.value,
+        radius: Int = 1000
+    ) {
+        if (!_isPOIVisible.value) {
+            Log.d(TAG, "🏪 POI가 비활성화 상태 - 데이터 로드 스킵")
+            return
+        }
+
+        viewModelScope.launch {
+            _isPOILoading.value = true
+            Log.d(TAG, "🏪 POI 데이터 로드 시작: 위치=($latitude, $longitude), 카테고리=$category, 반경=${radius}m")
+
+            try {
+                val result = poiRepository.getNearbyPOIs(
+                    latitude = latitude,
+                    longitude = longitude,
+                    radius = radius,
+                    category = category
+                )
+
+                result.onSuccess { pois ->
+                    val validPois = pois.filter { it.thumbnailUrl != null }
+                    _poiData.value = validPois
+                    Log.d(TAG, "🏪 POI 데이터 로드 성공: 전체 ${pois.size}개, 유효(썸네일 있음) ${validPois.size}개")
+
+                    validPois.forEachIndexed { index, poi ->
+                        Log.v(TAG, "🏪 POI[$index]: ${poi.name} (${poi.category}) - ${poi.thumbnailUrl}")
+                        Log.v(TAG, "🏪 POI[$index] Summary: ${poi.currentSummary}")
+                    }
+                }.onFailure { throwable ->
+                    Log.e(TAG, "🏪 POI 데이터 로드 실패 - 테스트 더미 데이터 사용", throwable)
+
+                    // 테스트용 더미 POI 데이터
+                    val dummyPois = listOf(
+                        POIData(
+                            id = 1L,
+                            name = "테스트 카페",
+                            category = "cafe",
+                            address = "서울시 강남구",
+                            latitude = latitude + 0.001,
+                            longitude = longitude + 0.001,
+                            thumbnailUrl = "https://picsum.photos/200/200?random=1",
+                            currentSummary = "아늑한 분위기의 카페입니다. 신선한 원두로 내린 커피와 다양한 디저트를 즐길 수 있어요."
+                        ),
+                        POIData(
+                            id = 2L,
+                            name = "테스트 음식점",
+                            category = "restaurant",
+                            address = "서울시 서초구",
+                            latitude = latitude - 0.001,
+                            longitude = longitude - 0.001,
+                            thumbnailUrl = "https://picsum.photos/200/200?random=2",
+                            currentSummary = "맛있는 한식을 제공하는 음식점입니다. 집밥 같은 따뜻한 음식과 정성스러운 서비스가 특징이에요."
+                        )
+                    )
+                    _poiData.value = dummyPois
+                    Log.d(TAG, "🏪 테스트 더미 POI ${dummyPois.size}개 로드됨")
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "🏪 POI 데이터 로드 예외", e)
+                _poiData.value = emptyList()
+            } finally {
+                _isPOILoading.value = false
+                Log.d(TAG, "🏪 POI 로딩 상태 종료")
+            }
+        }
+    }
+
+    /**
+     * POI 클릭 처리
+     */
+    fun onPOIClick(poi: POIData) {
+        Log.d(TAG, "🏪 POI 클릭: ${poi.name} (${poi.category}) at (${poi.latitude}, ${poi.longitude})")
+        Log.d(TAG, "🏪 POI 정보 - 주소: ${poi.address}, 전화: ${poi.phone}, 평점: ${poi.rating}")
+
+        _selectedPOI.value = poi
+        _showPOIDialog.value = true
+        Log.d(TAG, "🏪 POI 다이얼로그 표시")
+    }
+
+    /**
+     * POI 다이얼로그 닫기
+     */
+    fun dismissPOIDialog() {
+        _showPOIDialog.value = false
+        _selectedPOI.value = null
+        Log.d(TAG, "🏪 POI 다이얼로그 닫힘")
+    }
+
+    /**
+     * 화면 이동 시 POI 데이터 업데이트
+     */
+    fun updatePOIForLocation(latitude: Double, longitude: Double, radius: Int) {
+        if (_isPOIVisible.value) {
+            Log.d(TAG, "🏪 화면 이동으로 POI 업데이트: ($latitude, $longitude), 반경=${radius}m")
+            loadPOIData(latitude, longitude, radius = radius)
+        } else {
+            Log.v(TAG, "🏪 POI 비활성화 상태 - 화면 이동 업데이트 스킵")
+        }
     }
 }

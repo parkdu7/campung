@@ -20,6 +20,8 @@ data class MapContent(
     val body: String,
     val mediaFiles: List<MediaFile>?,
     val emotionTag: String,
+    val emotionWeather: String? = null,
+    val emotionTemperature: Int? = null,
     val reactions: Reactions,
     val createdAt: String,
     val expiresAt: String?
