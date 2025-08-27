@@ -232,7 +232,6 @@ fun FullMapScreen(
     }
 
     // 지도 설정
-    val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
     DisposableEffect(lifecycle, mapView) {
         val observer = object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) { mapView.onStart() }
@@ -292,6 +291,29 @@ fun FullMapScreen(
             hasPermission = true
             fetchMyLocationOnce()
         }
+    }
+
+    val refreshIdFlow = remember(navController) {
+        navController.currentBackStackEntry?.savedStateHandle
+            ?.getStateFlow<Long?>("map_refresh_content_id", null)
+    }
+    val refreshId by (refreshIdFlow?.collectAsState() ?: remember { mutableStateOf<Long?>(null) })
+
+    LaunchedEffect(refreshId, naverMapRef) {
+        val id = refreshId ?: return@LaunchedEffect
+        // 현재 화면 중심/반경으로 강제 리로드
+        val center = naverMapRef?.cameraPosition?.target
+        val lat = center?.latitude ?: mapViewModel.getLastKnownLocation()?.first ?: 0.0
+        val lng = center?.longitude ?: mapViewModel.getLastKnownLocation()?.second ?: 0.0
+        val radius = naverMapRef?.let {
+            com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(it)
+        } ?: 2000
+
+        mapViewModel.requestHighlight(id)                 // ✅ 하이라이트 예약
+        mapViewModel.loadMapContents(lat, lng, radius = radius, force = true) // ✅ 강제 리로드
+
+        // 원샷 처리
+        navController.currentBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", null)
     }
 
     LaunchedEffect(Unit) {
@@ -627,7 +649,10 @@ fun FullMapScreen(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
                                         ) {
-                                            // TODO: 펜/그리기 기능 구현
+                                            // 메뉴 닫기
+                                            isFabExpanded = false
+                                            // 글쓰기 화면으로 이동
+                                            navController.navigate(Route.WRITE_POST)
                                         }
                                 ) {
                                     Image(

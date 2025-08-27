@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import com.naver.maps.map.MapView
 import com.shinhan.campung.data.local.AuthDataStore
+import com.shinhan.campung.navigation.AppNav
 import com.shinhan.campung.presentation.ui.theme.CampungTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject

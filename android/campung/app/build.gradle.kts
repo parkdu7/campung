@@ -119,4 +119,9 @@ dependencies {
     implementation("com.github.bumptech.glide:compose:1.0.0-beta01") // Glide for Compose
     implementation("io.github.fornewid:naver-map-compose:1.7.0") // NaverMap Compose
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4") // Java 8 time API
+
+    // Coil (이미지 로딩 for Compose)
+    implementation(platform("io.coil-kt:coil-bom:2.7.0"))
+    implementation("io.coil-kt:coil-compose")
+    implementation("io.coil-kt:coil-video:2.6.0")
 }

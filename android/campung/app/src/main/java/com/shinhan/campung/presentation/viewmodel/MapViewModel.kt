@@ -35,6 +35,7 @@ class MapViewModel @Inject constructor(
     private val contentMapper: ContentMapper,
     val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
+    fun getLastKnownLocation(): Pair<Double, Double>? = lastRequestLocation
 
     // UI States
     private val _bottomSheetContents = MutableStateFlow<List<MapContent>>(emptyList())
@@ -116,11 +117,18 @@ class MapViewModel @Inject constructor(
         val postType: String
     )
 
+    private var pendingHighlightId: Long? = null
+
+    fun requestHighlight(contentId: Long) {
+        pendingHighlightId = contentId
+    }
+
     fun loadMapContents(
         latitude: Double,
         longitude: Double,
         radius: Int? = null,
-        postType: String? = null
+        postType: String? = null,
+        force: Boolean = false                 // ✅ 추가
     ) {
         // 이전 요청 취소
         debounceJob?.cancel()
@@ -133,19 +141,35 @@ class MapViewModel @Inject constructor(
             postType = postType ?: selectedPostType
         )
 
-        // 이전 요청과 비교해서 중복 요청 방지
-        lastRequestParams?.let { lastParams ->
-            val locationDistance = calculateDistance(
-                lastParams.location.first, lastParams.location.second,
-                latitude, longitude
-            )
+//        // 이전 요청과 비교해서 중복 요청 방지
+//        lastRequestParams?.let { lastParams ->
+//            val locationDistance = calculateDistance(
+//                lastParams.location.first, lastParams.location.second,
+//                latitude, longitude
+//            )
+//
+//            // 위치는 같고 (500m 이내), 다른 파라미터도 동일하면 스킵
+//            if (locationDistance < 500.0 &&
+//                lastParams.date == currentParams.date &&
+//                lastParams.tags == currentParams.tags &&
+//                lastParams.postType == currentParams.postType) {
+//                return
+//            }
+//        }
 
-            // 위치는 같고 (500m 이내), 다른 파라미터도 동일하면 스킵
-            if (locationDistance < 500.0 &&
-                lastParams.date == currentParams.date &&
-                lastParams.tags == currentParams.tags &&
-                lastParams.postType == currentParams.postType) {
-                return
+        // ✅ 중복 요청 스킵 로직 우회 (force=true이면 건너뜀)
+        if (!force) {
+            lastRequestParams?.let { lastParams ->
+                val locationDistance = calculateDistance(
+                    lastParams.location.first, lastParams.location.second,
+                    latitude, longitude
+                )
+                if (locationDistance < 500.0 &&
+                    lastParams.date == currentParams.date &&
+                    lastParams.tags == currentParams.tags &&
+                    lastParams.postType == currentParams.postType) {
+                    return
+                }
             }
         }
 
@@ -159,14 +183,9 @@ class MapViewModel @Inject constructor(
             lastRequestParams = currentParams
 
             try {
-                // 선택된 날짜를 문자열로 변환
                 val dateString = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
-
-                // 반경이 제공되지 않은 경우 기본값 사용 (이전 버전 호환성)
                 val requestRadius = radius ?: getDefaultRadius()
-                
-                Log.d(TAG, "📍 API 요청: lat=$latitude, lng=$longitude, radius=${requestRadius}m, postType=${postType ?: selectedPostType}")
-                
+
                 val response = mapRepository.getMapContents(
                     latitude = latitude,
                     longitude = longitude,
@@ -179,20 +198,23 @@ class MapViewModel @Inject constructor(
                     mapContents = response.data.contents
                     shouldUpdateClustering = true
 
-                    // 새로운 데이터 로드 시 선택된 마커가 여전히 존재하는지 확인
+                    // ✅ 방금 등록한 ID가 있으면 자동으로 선택/하이라이트
+                    pendingHighlightId?.let { id ->
+                        mapContents.firstOrNull { it.contentId == id }?.let { selectMarker(it) }
+                        pendingHighlightId = null
+                    }
+
                     selectedMarker?.let { selected ->
                         val stillExists = mapContents.any { it.contentId == selected.contentId }
-                        if (!stillExists) {
-                            selectedMarker = null // 더 이상 존재하지 않으면 선택 해제
-                        }
+                        if (!stillExists) selectedMarker = null
                     }
                 } else {
                     errorMessage = response.message
                 }
 
-            _isLoading.value = false
-            } catch (throwable: Throwable) {
-                errorMessage = throwable.message ?: "알 수 없는 오류가 발생했습니다"
+                _isLoading.value = false
+            } catch (t: Throwable) {
+                errorMessage = t.message ?: "알 수 없는 오류가 발생했습니다"
                 _isLoading.value = false
             }
         }
