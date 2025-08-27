@@ -19,6 +19,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
 
   # 파일 업로드 용량 설정
   servlet:

@@ -1,10 +1,16 @@
 package com.example.campung.content.dto;
 
 import com.example.campung.global.enums.PostType;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public class ContentListRequest {
+    @Schema(description = "조회할 날짜", example = "2024-01-01", required = true)
     private String date;
+    
+    @Schema(description = "위도", example = "36.0")
     private Double lat;
+    
+    @Schema(description = "경도", example = "127.0")
     private Double lng;
     private Integer radius;
     private PostType postType;

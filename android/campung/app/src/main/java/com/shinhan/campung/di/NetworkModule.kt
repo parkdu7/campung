@@ -14,13 +14,19 @@ import com.shinhan.campung.data.repository.NewPostRepository
 import com.shinhan.campung.data.websocket.WebSocketService
 import com.shinhan.campung.util.Constants
 import android.util.Log
+import com.shinhan.campung.data.remote.api.ContentsApiService
 import com.shinhan.campung.data.remote.api.FriendApi
 import com.shinhan.campung.data.remote.api.LocationApi
 import com.shinhan.campung.data.remote.api.NotificationApi
+import com.shinhan.campung.data.remote.api.RecordingApiService
+import com.shinhan.campung.data.repository.ContentsRepository
 import com.shinhan.campung.data.repository.FriendRepository
 import com.shinhan.campung.data.repository.LocationRepository
 import com.shinhan.campung.data.repository.NotificationRepository
+import com.shinhan.campung.data.repository.RecordingRepository
+import com.shinhan.campung.data.repository.RecordingRepositoryImpl
 import com.shinhan.campung.data.service.LocationService
+import com.shinhan.campung.data.service.LocationSharingManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -128,65 +134,26 @@ object NetworkModule {
         authDataStore: AuthDataStore,
         locationService: LocationService
     ) = LocationRepository(locationApi, authDataStore, locationService)
-}
 
-//import com.google.gson.Gson
-//import com.google.gson.GsonBuilder
-//import dagger.Module
-//import dagger.Provides
-//import dagger.hilt.InstallIn
-//import dagger.hilt.components.SingletonComponent
-//import okhttp3.OkHttpClient
-//import okhttp3.logging.HttpLoggingInterceptor
-//import retrofit2.Retrofit
-//import retrofit2.converter.gson.GsonConverterFactory
-//import java.util.concurrent.TimeUnit
-//import javax.inject.Singleton
-//
-//@Module
-//@InstallIn(SingletonComponent::class)
-//object NetworkModule {
-//
-//    private const val BASE_URL = "https://api.example.com/"
-//
-//    @Provides
-//    @Singleton
-//    fun provideGson(): Gson {
-//        return GsonBuilder()
-//            .create()
-//    }
-//
-//    @Provides
-//    @Singleton
-//    fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor {
-//        return HttpLoggingInterceptor().apply {
-//            level = HttpLoggingInterceptor.Level.BODY
-//        }
-//    }
-//
-//    @Provides
-//    @Singleton
-//    fun provideOkHttpClient(
-//        httpLoggingInterceptor: HttpLoggingInterceptor
-//    ): OkHttpClient {
-//        return OkHttpClient.Builder()
-//            .connectTimeout(30, TimeUnit.SECONDS)
-//            .readTimeout(30, TimeUnit.SECONDS)
-//            .writeTimeout(30, TimeUnit.SECONDS)
-//            .addInterceptor(httpLoggingInterceptor)
-//            .build()
-//    }
-//
-//    @Provides
-//    @Singleton
-//    fun provideRetrofit(
-//        okHttpClient: OkHttpClient,
-//        gson: Gson
-//    ): Retrofit {
-//        return Retrofit.Builder()
-//            .baseUrl(BASE_URL)
-//            .client(okHttpClient)
-//            .addConverterFactory(GsonConverterFactory.create(gson))
-//            .build()
-//    }
-//}
+    @Provides @Singleton
+    fun provideLocationSharingManager() = LocationSharingManager()
+
+    @Provides @Singleton
+    fun provideContentsApi(retrofit: Retrofit): ContentsApiService =
+        retrofit.create(ContentsApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideContentsRepository(
+        api: ContentsApiService,
+        @ApplicationContext context: Context              // ✅ 주입받고
+    ): ContentsRepository = ContentsRepository(api, context)  // ✅ 전달
+
+    @Provides @Singleton
+    fun provideRecordingApiService(retrofit: Retrofit): RecordingApiService =
+        retrofit.create(RecordingApiService::class.java)
+
+    @Provides @Singleton
+    fun provideRecordingRepository(api: RecordingApiService): RecordingRepository =
+        RecordingRepositoryImpl(api)
+}

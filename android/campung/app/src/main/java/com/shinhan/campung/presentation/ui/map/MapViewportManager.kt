@@ -50,9 +50,9 @@ class MapViewportManager(
         // 이전 Job 취소
         loadDataJob?.cancel()
         
-        // 새로운 Job 시작 (500ms 디바운스)
+        // 새로운 Job 시작 (150ms 디바운스로 ViewModel과 맞춤)
         loadDataJob = coroutineScope.launch {
-            delay(500)
+            delay(150)
             
             try {
                 loadMapContentsForCurrentView()
@@ -100,17 +100,23 @@ class MapViewportManager(
     }
     
     /**
-     * 중복 요청 체크
+     * 중복 요청 체크 - 더 관대하게 수정
      */
     private fun isDuplicateRequest(center: LatLng, radius: Int): Boolean {
         val lastCenter = lastRequestCenter ?: return false
         val lastRadius = lastRequestRadius ?: return false
         
-        // 중심점 이동 거리 계산 (100m 이내면 중복으로 간주)  
+        // 중심점 이동 거리 계산 (50m 이내면 중복으로 간주 - 더 짧게)  
         val distance = MapBoundsCalculator.calculateDistance(lastCenter, center)
         val radiusDiff = kotlin.math.abs(radius - lastRadius)
         
-        return distance < 100 && radiusDiff < radius * 0.1 // 반경 변화 10% 이내
+        val isDuplicate = distance < 50 && radiusDiff < radius * 0.05 // 반경 변화 5% 이내
+        
+        if (isDuplicate) {
+            Log.d(tag, "중복 요청 감지 - 거리: ${distance.toInt()}m, 반경차이: ${radiusDiff}m")
+        }
+        
+        return isDuplicate
     }
     
     /**

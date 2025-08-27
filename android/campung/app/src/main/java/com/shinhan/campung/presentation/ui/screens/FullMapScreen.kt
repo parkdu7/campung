@@ -10,6 +10,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +43,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.shinhan.campung.data.service.LocationSharingManager
+import com.shinhan.campung.presentation.ui.map.SharedLocationMarkerManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -59,6 +66,8 @@ import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.presentation.ui.components.DatePickerDialog
 import com.shinhan.campung.data.model.MapContent
+import com.shinhan.campung.data.model.MapRecord
+import com.shinhan.campung.presentation.ui.components.AudioPlayer
 import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
@@ -69,14 +78,17 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.shinhan.campung.R
+import com.shinhan.campung.presentation.ui.components.RecordUploadDialog
 
 // 새로운 바텀시트 컴포넌트 imports
 import com.shinhan.campung.presentation.ui.components.bottomsheet.*
+import com.shinhan.campung.presentation.viewmodel.RecordUploadViewModel
 
 @Composable
 fun FullMapScreen(
@@ -84,6 +96,27 @@ fun FullMapScreen(
     mapView: MapView, // 외부에서 주입받음
     mapViewModel: MapViewModel = hiltViewModel()
 ) {
+    // --- 녹음 다이얼로그 on/off
+    var showRecordDialog by remember { mutableStateOf(false) }
+
+    // --- 업로드용 VM
+    val recordUploadVm: RecordUploadViewModel = hiltViewModel()
+    val recordUi by recordUploadVm.ui.collectAsState()
+
+    // --- 오디오 권한 런처
+    var shouldStartAfterPermission by remember { mutableStateOf(false) }
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && shouldStartAfterPermission) {
+            // 다이얼로그 안에서 startRecording()을 다시 트리거할 수 있도록
+            // 플래그만 true로 두고 다이얼로그의 버튼 클릭 로직에서 처리되게 함
+        }
+        shouldStartAfterPermission = false
+    }
+
+    // LocationSharingManager는 MapViewModel에서 이미 주입받았으므로 거기서 가져옴
+    val locationSharingManager = mapViewModel.locationSharingManager
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val configuration = LocalConfiguration.current
@@ -104,10 +137,85 @@ fun FullMapScreen(
     // ✅ 서버값이 있으면 우선 사용, 없으면 계산된 값 사용
     val uiWeather = normalizeWeather(serverWeather) ?: normalizeWeather(calculated.weather)
     val uiTemperature = serverTemperature ?: calculated.temperature
-    
+
     Log.d("FullMapScreen", "🎯 최종 UI 데이터 - serverWeather: '$serverWeather'(${serverTemperature}°) → uiWeather: '$uiWeather'($uiTemperature°)")
 
 
+    val sharedLocations by locationSharingManager.sharedLocations.collectAsState()
+    val currentPlayingRecord by mapViewModel.currentPlayingRecord.collectAsState()
+
+    // 위치 공유 브로드캐스트 수신
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                android.util.Log.d("FullMapScreen", "브로드캐스트 수신됨 - action: ${intent?.action}")
+
+                if (intent?.action == "com.shinhan.campung.LOCATION_SHARED") {
+                    android.util.Log.d("FullMapScreen", "위치 공유 브로드캐스트 처리 시작")
+
+                    val userName = intent.getStringExtra("userName")
+                    val latitude = intent.getStringExtra("latitude")?.toDoubleOrNull()
+                    val longitude = intent.getStringExtra("longitude")?.toDoubleOrNull()
+                    val displayUntil = intent.getStringExtra("displayUntil")
+                    val shareId = intent.getStringExtra("shareId")
+
+                    android.util.Log.d("FullMapScreen", "브로드캐스트 데이터: userName=$userName, lat=$latitude, lng=$longitude, displayUntil=$displayUntil, shareId=$shareId")
+
+                    if (userName == null || latitude == null || longitude == null || displayUntil == null || shareId == null) {
+                        android.util.Log.e("FullMapScreen", "브로드캐스트 데이터 누락 - 처리 중단")
+                        return
+                    }
+
+                    android.util.Log.d("FullMapScreen", "LocationSharingManager.addSharedLocation 호출")
+                    locationSharingManager.addSharedLocation(
+                        userName, latitude, longitude, displayUntil, shareId
+                    )
+                } else {
+                    android.util.Log.d("FullMapScreen", "다른 액션의 브로드캐스트 무시")
+                }
+            }
+        }
+
+        val intentFilter = IntentFilter("com.shinhan.campung.LOCATION_SHARED")
+        android.util.Log.d("FullMapScreen", "브로드캐스트 수신기 등록 중 - action: com.shinhan.campung.LOCATION_SHARED")
+
+        // 전역 브로드캐스트 수신기 등록
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API 33+)")
+        } else {
+            context.registerReceiver(receiver, intentFilter)
+            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API <33)")
+        }
+
+        // LocalBroadcastManager도 등록 (더 안전함)
+        try {
+            androidx.localbroadcastmanager.content.LocalBroadcastManager
+                .getInstance(context)
+                .registerReceiver(receiver, intentFilter)
+            android.util.Log.d("FullMapScreen", "LocalBroadcast 수신기도 등록 완료")
+        } catch (e: Exception) {
+            android.util.Log.e("FullMapScreen", "LocalBroadcast 수신기 등록 실패", e)
+        }
+
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+                android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 해제 완료")
+            } catch (e: IllegalArgumentException) {
+                android.util.Log.w("FullMapScreen", "전역 브로드캐스트 수신기 해제 실패 (이미 해제됨)")
+            }
+
+            try {
+                androidx.localbroadcastmanager.content.LocalBroadcastManager
+                    .getInstance(context)
+                    .unregisterReceiver(receiver)
+                android.util.Log.d("FullMapScreen", "LocalBroadcast 수신기 해제 완료")
+            } catch (e: Exception) {
+                android.util.Log.w("FullMapScreen", "LocalBroadcast 수신기 해제 실패", e)
+            }
+        }
+    }
 
     // 화면 크기
     val screenHeight = configuration.screenHeightDp.dp
@@ -187,6 +295,7 @@ fun FullMapScreen(
     var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
     var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
     var mapViewportManager by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapViewportManager?>(null) }
+    var mapInteractionController by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapInteractionController?>(null) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -198,12 +307,81 @@ fun FullMapScreen(
         }
     }
 
+    // 위치 공유 마커 매니저 (모듈화됨)
+    val sharedLocationMarkerManager = remember { SharedLocationMarkerManager() }
+
+    // 위치 공유 데이터 변경 시 마커 업데이트
+    LaunchedEffect(sharedLocations) {
+        android.util.Log.d("FullMapScreen", "sharedLocations 업데이트됨 - 크기: ${sharedLocations.size}")
+        sharedLocations.forEachIndexed { index, location ->
+            android.util.Log.d("FullMapScreen", "[$index] ${location.userName} - (${location.latitude}, ${location.longitude}) - 만료: ${location.displayUntil}")
+        }
+
+        naverMapRef?.let { map ->
+            android.util.Log.d("FullMapScreen", "지도 마커 업데이트 시작")
+            sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
+            android.util.Log.d("FullMapScreen", "지도 마커 업데이트 완료")
+        } ?: android.util.Log.w("FullMapScreen", "naverMapRef가 null - 마커 업데이트 건너뜀")
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
         locationPermissionManager.handlePermissionResult(result) {
             hasPermission = true
             fetchMyLocationOnce()
+        }
+    }
+
+    val refreshIdFlow = remember(navController) {
+        navController.currentBackStackEntry?.savedStateHandle
+            ?.getStateFlow<Long?>("map_refresh_content_id", null)
+    }
+    val refreshId by (refreshIdFlow?.collectAsState() ?: remember { mutableStateOf<Long?>(null) })
+
+    LaunchedEffect(refreshId, naverMapRef) {
+        val id = refreshId ?: return@LaunchedEffect
+        Log.d("FullMapScreen", "🎯 글 작성 후 리프레시 처리 시작 - ID: $id")
+
+        // NaverMap이 준비될 때까지 기다림
+        if (naverMapRef == null) {
+            Log.w("FullMapScreen", "⚠️ NaverMap이 아직 준비되지 않음 - 리프레시 지연")
+            return@LaunchedEffect
+        }
+
+        // 현재 화면 중심/반경으로 강제 리로드
+        val center = naverMapRef?.cameraPosition?.target
+        val lat = center?.latitude ?: mapViewModel.getLastKnownLocation()?.first ?: 0.0
+        val lng = center?.longitude ?: mapViewModel.getLastKnownLocation()?.second ?: 0.0
+        val radius = naverMapRef?.let {
+            com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(it)
+        } ?: 2000
+
+        Log.d("FullMapScreen", "📍 리프레시 위치: ($lat, $lng), 반경: ${radius}m")
+
+        // 하이라이트 예약과 강제 리로드
+        mapViewModel.requestHighlight(id)
+        Log.d("FullMapScreen", "🔍 하이라이트 예약 완료 - ID: $id")
+
+        // 서버 동기화 대기 후 한 번만 리로드
+        kotlinx.coroutines.delay(1000)
+        mapViewModel.loadMapContents(lat, lng, radius = radius, force = true)
+
+        // 원샷 처리
+        navController.currentBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", null)
+        Log.d("FullMapScreen", "✅ 리프레시 ID 초기화 완료")
+    }
+
+    LaunchedEffect(recordUi.successMessage, recordUi.errorMessage) {
+        recordUi.successMessage?.let {
+            // 업로드 성공 → 다이얼로그 닫고 메시지 소비
+            showRecordDialog = false
+            recordUploadVm.consumeMessages()
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+        }
+        recordUi.errorMessage?.let {
+            recordUploadVm.consumeMessages()
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -225,19 +403,23 @@ fun FullMapScreen(
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
 
-            // 초기 로드시에도 화면 영역 기반 반경 계산 사용
+            // 초기 로드 - 강제로 데이터 로드하여 확실히 마커 표시
             naverMapRef?.let { map ->
                 val radius = com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(map)
-                mapViewModel.loadMapContentsWithCalculatedRadius(
-                    latitude = pos.latitude,
-                    longitude = pos.longitude,
-                    radius = radius
-                )
-            } ?: run {
-                // NaverMap이 아직 준비되지 않았으면 기본 방식 사용
+                Log.d("FullMapScreen", "🎯 초기 위치 기반 마커 로드: (${pos.latitude}, ${pos.longitude}), 반경: ${radius}m")
                 mapViewModel.loadMapContents(
                     latitude = pos.latitude,
-                    longitude = pos.longitude
+                    longitude = pos.longitude,
+                    radius = radius,
+                    force = true  // 초기 로드는 항상 강제 실행
+                )
+            } ?: run {
+                // NaverMap이 아직 준비되지 않았으면 기본 방식으로 강제 로드
+                Log.d("FullMapScreen", "🎯 NaverMap 준비 전 기본 마커 로드: (${pos.latitude}, ${pos.longitude})")
+                mapViewModel.loadMapContents(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude,
+                    force = true  // 초기 로드는 항상 강제 실행
                 )
             }
         }
@@ -259,12 +441,22 @@ fun FullMapScreen(
         }
     }
 
-    LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
+    // 클러스터링 업데이트 - 더 안정적으로 처리
+    LaunchedEffect(mapViewModel.shouldUpdateClustering, mapViewModel.mapContents.size, mapViewModel.mapRecords.size, naverMapRef) {
         val map = naverMapRef ?: return@LaunchedEffect
 
-        if (mapViewModel.shouldUpdateClustering) {
-            Log.d("FullMapScreen", "LaunchedEffect에서 클러스터링 업데이트: ${mapViewModel.mapContents.size}개")
-            clusterManager?.updateMarkers(mapViewModel.mapContents)
+        if (mapViewModel.shouldUpdateClustering && (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty())) {
+            Log.d("FullMapScreen", "🔄 클러스터링 업데이트: ${mapViewModel.mapContents.size}개 Content 마커, ${mapViewModel.mapRecords.size}개 Record 마커")
+            try {
+                clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords)
+                mapViewModel.clusteringUpdated()
+                Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
+            } catch (e: Exception) {
+                Log.e("FullMapScreen", "❌ 클러스터링 업데이트 실패", e)
+            }
+        } else if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isEmpty() && mapViewModel.mapRecords.isEmpty()) {
+            Log.d("FullMapScreen", "🧹 빈 데이터로 클러스터링 클리어")
+            clusterManager?.clearMarkers()
             mapViewModel.clusteringUpdated()
         }
     }
@@ -276,7 +468,22 @@ fun FullMapScreen(
         if (selectedMarker != null) {
             Log.d("FullMapScreen", "ClusterManager에 마커 선택 요청: ${selectedMarker.title}")
             clusterManager?.selectMarker(selectedMarker)
-        } else {
+        } else if (mapViewModel.selectedRecord == null) {
+            // Record도 선택되지 않은 경우에만 완전히 해제
+            Log.d("FullMapScreen", "ClusterManager 선택 해제")
+            clusterManager?.clearSelection()
+        }
+    }
+
+    // 선택된 Record가 변경될 때마다 ClusterManager에 반영
+    LaunchedEffect(mapViewModel.selectedRecord) {
+        val selectedRecord = mapViewModel.selectedRecord
+        Log.d("FullMapScreen", "LaunchedEffect: selectedRecord 변경됨 - ${selectedRecord?.recordUrl}")
+        if (selectedRecord != null) {
+            Log.d("FullMapScreen", "ClusterManager에 Record 선택 요청: ${selectedRecord.recordUrl}")
+            clusterManager?.selectRecordMarker(selectedRecord)
+        } else if (mapViewModel.selectedMarker == null) {
+            // 일반 마커도 선택되지 않은 경우에만 완전히 해제
             Log.d("FullMapScreen", "ClusterManager 선택 해제")
             clusterManager?.clearSelection()
         }
@@ -287,13 +494,21 @@ fun FullMapScreen(
 
     // 뒤로가기 버튼 처리
     BackHandler {
-        if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
-            // 마커나 클러스터가 선택되어 있으면 선택 해제
-            mapViewModel.clearSelectedMarker()
-            clusterManager?.clearSelection()
-        } else {
-            // 아무것도 선택되어 있지 않으면 화면 나가기
-            navController.popBackStack()
+        when {
+            mapViewModel.selectedRecord != null -> {
+                // Record가 선택되어 있으면 Record 선택 해제 (오디오 플레이어 닫기)
+                mapViewModel.stopRecord()
+                clusterManager?.clearSelection()
+            }
+            mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null -> {
+                // 마커나 클러스터가 선택되어 있으면 선택 해제
+                mapViewModel.clearSelectedMarker()
+                clusterManager?.clearSelection()
+            }
+            else -> {
+                // 아무것도 선택되어 있지 않으면 화면 나가기
+                navController.popBackStack()
+            }
         }
     }
 
@@ -407,8 +622,13 @@ fun FullMapScreen(
                                         highlightedContent = centerContent
                                     }
 
+                            // 지도 상호작용 컨트롤러 생성
+                            val interactionController = com.shinhan.campung.presentation.ui.map.MapInteractionController(mapViewModel).apply {
+                                setNaverMap(map)
+                            }
+
                             // 기존 카메라 리스너 (마커 중심점 관리)
-                                mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
+                                mapCameraListener = MapCameraListener(mapViewModel, clusterManager, interactionController)
                                 map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
 
                             // 새로운 뷰포트 관리자 (화면 영역 기반 데이터 로드)
@@ -421,15 +641,26 @@ fun FullMapScreen(
 
                                 // 지도 클릭 시 마커 및 클러스터 선택 해제
                                 map.setOnMapClickListener { _, _ ->
-                                    if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
-                                        mapViewModel.clearSelectedMarker()
-                                        clusterManager?.clearSelection()
+                                    when {
+                                        mapViewModel.selectedRecord != null -> {
+                                            // Record 선택 해제 (오디오 플레이어 닫기)
+                                            mapViewModel.stopRecord()
+                                            clusterManager?.clearSelection()
+                                        }
+                                        mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null -> {
+                                            // Content 마커나 클러스터 선택 해제
+                                            mapViewModel.clearSelectedMarker()
+                                            clusterManager?.clearSelection()
+                                        }
                                     }
                                 }
                             }
                         } else {
                             naverMapRef?.let { map ->
                                 mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
+
+                                // 위치 공유 마커 업데이트 (모듈화된 매니저 사용)
+                                sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
                             }
                         }
                     },
@@ -532,12 +763,34 @@ fun FullMapScreen(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
                                         ) {
-                                            // TODO: 펜/그리기 기능 구현
+                                            // 메뉴 닫기
+                                            isFabExpanded = false
+                                            // 글쓰기 화면으로 이동
+                                            navController.navigate(Route.WRITE_POST)
                                         }
                                 ) {
                                     Image(
                                         painter = painterResource(R.drawable.btn_post),
                                         contentDescription = "글쓰기",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                // 녹음등록 버튼
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) {
+                                            // 다이얼로그 열기
+                                            showRecordDialog = true
+                                        }
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.btn_record),
+                                        contentDescription = "녹음 이동",
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -607,35 +860,38 @@ fun FullMapScreen(
                         navigationBarHeight = with(density) { navigationBarHeight.toDp() },
                         statusBarHeight = with(density) { statusBarHeight.toDp() },
                         onContentClick = { content ->
-                            // TODO: 컨텐츠 상세 화면으로 이동
+                            navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
                         }
                     )
                 }
 
-                // 상단 헤더 (오버레이)
-                MapTopHeader(
-                    selectedDate = mapViewModel.selectedDate,
-                    onBackClick = { navController.popBackStack() },
-                    onDateClick = {
-                        showDatePicker = true
-                    },
-                    onFriendClick = {
-                        navController.navigate(Route.FRIEND)
-                    },
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp, start = 12.dp, end = 12.dp)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                ) {
+                    MapTopHeader(
+                        selectedDate = mapViewModel.selectedDate,
+                        onBackClick = { navController.popBackStack() },
+                        onDateClick = { showDatePicker = true },
+                        onFriendClick = { navController.navigate(Route.FRIEND) }
+                    )
+                }
+
 
                 // 필터 태그 (오버레이)
                 HorizontalFilterTags(
                     selectedTags = mapViewModel.selectedTags,
-                    onTagClick = { tagId ->
-                        mapViewModel.toggleFilterTag(tagId)
-                    },
+                    onTagClick = { tagId -> mapViewModel.toggleFilterTag(tagId) },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 64.dp)
+                        .padding(top = 80.dp)   // 헤더 카드 아래 공간 확보
                 )
-                
+
+
                 // 날씨/온도 표시 (오른쪽 상단, 필터 태그 아래)
                 // 표시
                 WeatherTemperatureDisplay(
@@ -667,6 +923,66 @@ fun FullMapScreen(
                         }
                     )
                 }
+
+                if (showRecordDialog) {
+                    RecordUploadDialog(
+                        isUploading = recordUi.isUploading,
+                        onRequestAudioPermission = {
+                            shouldStartAfterPermission = true
+                            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        onCancel = { showRecordDialog = false },
+                        onRegister = { recordedFile ->
+                            val pos = myLatLng
+                                ?: run {
+                                    // 위치 모를 때 한 번 시도 후 안내
+                                    fetchMyLocationOnce()
+                                    android.widget.Toast.makeText(context, "현재 위치 확인 중입니다. 잠시 후 다시 시도해주세요.", android.widget.Toast.LENGTH_SHORT).show()
+                                    return@RecordUploadDialog
+                                }
+
+                            recordUploadVm.upload(
+                                file = recordedFile,
+                                latitude = pos.latitude,
+                                longitude = pos.longitude
+                            )
+                        }
+                    )
+                }
+
+
+                // 오디오 플레이어 오버레이 - 애니메이션 추가
+                AnimatedVisibility(
+                    visible = currentPlayingRecord != null,
+                    enter = slideInVertically(
+                        initialOffsetY = { it }, // 아래에서 위로 슬라이드
+                        animationSpec = tween(400, easing = FastOutSlowInEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(300)
+                    ),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it }, // 위에서 아래로 슬라이드
+                        animationSpec = tween(300, easing = FastOutLinearInEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(200)
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 120.dp) // 바텀시트 위에 표시
+                        .zIndex(1000f) // 최상위에 표시
+                ) {
+                    currentPlayingRecord?.let { record ->
+                        AudioPlayer(
+                            recordUrl = record.recordUrl,
+                            recordId = record.recordId,
+                            authorName = record.author.nickname,
+                            createdAt = record.createdAt,
+                            onClose = {
+                                mapViewModel.stopRecord()
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -679,30 +995,30 @@ private fun calculateWeatherInfo(mapContents: List<com.shinhan.campung.data.mode
     if (mapContents.isEmpty()) {
         return WeatherInfo(weather = null, temperature = null)
     }
-    
+
     // 날씨 정보가 있는 컨텐츠들만 필터링
-    val contentsWithWeather = mapContents.filter { 
-        !it.emotionWeather.isNullOrBlank() || it.emotionTemperature != null 
+    val contentsWithWeather = mapContents.filter {
+        !it.emotionWeather.isNullOrBlank() || it.emotionTemperature != null
     }
-    
+
     if (contentsWithWeather.isEmpty()) {
         return WeatherInfo(weather = null, temperature = null)
     }
-    
+
     // 가장 많이 나타나는 날씨 찾기
     val weatherCounts = contentsWithWeather
         .mapNotNull { it.emotionWeather }
         .groupingBy { it }
         .eachCount()
-    
+
     val mostCommonWeather = weatherCounts.maxByOrNull { it.value }?.key
-    
+
     // 온도 평균 계산
     val temperatures = contentsWithWeather.mapNotNull { it.emotionTemperature }
     val averageTemperature = if (temperatures.isNotEmpty()) {
         temperatures.average().toInt()
     } else null
-    
+
     return WeatherInfo(
         weather = mostCommonWeather,
         temperature = averageTemperature

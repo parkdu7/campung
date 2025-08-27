@@ -154,7 +154,7 @@ fun CampusMapCard(
         val map = naverMapRef ?: return@LaunchedEffect
         
         if (mapViewModel.shouldUpdateClustering) {
-            clusterManager?.updateMarkers(mapViewModel.mapContents)
+            clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords)
             mapViewModel.clusteringUpdated()
         }
     }
