@@ -18,9 +18,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.shinhan.campung.data.model.Comment
 import com.shinhan.campung.presentation.ui.theme.CampusSecondary
-import java.time.LocalDateTime
-import java.time.ZonedDateTime
-import java.time.ZoneId
+import com.shinhan.campung.presentation.utils.TimeFormatter
 
 @Composable
 fun CommentItem(
@@ -66,7 +64,7 @@ fun CommentItem(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = formatTimeAgo(parseDateTime(comment.createdAt)),
+                        text = TimeFormatter.formatRelativeTime(comment.createdAtDateTime),
                         fontSize = 12.sp,
                         color = Color(0xFF999999)
                     )
@@ -123,7 +121,7 @@ fun CommentItem(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = formatTimeAgo(parseDateTime(reply.createdAt)),
+                            text = TimeFormatter.formatRelativeTime(reply.createdAtDateTime),
                             fontSize = 12.sp,
                             color = Color(0xFF999999)
                         )
@@ -140,33 +138,5 @@ fun CommentItem(
                 }
             }
         }
-    }
-}
-
-private fun formatTimeAgo(dateTime: LocalDateTime): String {
-    // 한국 시간으로 변환
-    val koreaZone = ZoneId.of("Asia/Seoul")
-    val now = ZonedDateTime.now(koreaZone).toLocalDateTime()
-    val minutes = java.time.temporal.ChronoUnit.MINUTES.between(dateTime, now)
-    
-    return when {
-        minutes < 1 -> "방금 전"
-        minutes < 60 -> "${minutes}분 전"
-        minutes < 1440 -> "${minutes / 60}시간 전"
-        minutes < 10080 -> "${minutes / 1440}일 전"
-        else -> dateTime.format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"))
-    }
-}
-
-private fun parseDateTime(dateStr: String): LocalDateTime {
-    return try {
-        // Z가 없는 경우 UTC로 간주하고 Z 추가
-        val normalizedDateStr = if (dateStr.endsWith("Z")) dateStr else "${dateStr}Z"
-        // UTC 시간을 한국 시간으로 변환
-        val zonedDateTime = ZonedDateTime.parse(normalizedDateStr)
-        zonedDateTime.withZoneSameInstant(ZoneId.of("Asia/Seoul")).toLocalDateTime()
-    } catch (e: Exception) {
-        // 한국 현재 시간으로 fallback
-        ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toLocalDateTime()
     }
 }

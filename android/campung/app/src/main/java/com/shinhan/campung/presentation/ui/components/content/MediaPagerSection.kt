@@ -10,6 +10,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
@@ -22,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -37,6 +40,8 @@ fun MediaPagerSection(
     val pagerState = rememberPagerState(
         pageCount = { mediaFiles.size }
     )
+    var showFullScreenImage by remember { mutableStateOf(false) }
+    var fullScreenImageUrl by remember { mutableStateOf("") }
 
     Box(
         modifier = modifier
@@ -54,7 +59,12 @@ fun MediaPagerSection(
                     AsyncImage(
                         model = mediaFile.fileUrl,
                         contentDescription = "이미지",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable {
+                                fullScreenImageUrl = mediaFile.fileUrl
+                                showFullScreenImage = true
+                            },
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -82,6 +92,60 @@ fun MediaPagerSection(
                 color = Color.White,
                 fontSize = 12.sp
             )
+        }
+    }
+    
+    // 전체화면 이미지 다이얼로그
+    if (showFullScreenImage) {
+        FullScreenImageDialog(
+            imageUrl = fullScreenImageUrl,
+            onDismiss = { showFullScreenImage = false }
+        )
+    }
+}
+
+@Composable
+private fun FullScreenImageDialog(
+    imageUrl: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable { onDismiss() }
+        ) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "전체화면 이미지",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+            
+            // 닫기 버튼
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.5f),
+                        CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "닫기",
+                    tint = Color.White
+                )
+            }
         }
     }
 }
@@ -131,7 +195,7 @@ private fun VideoPlayerView(
                 PlayerView(context).apply {
                     player = exoPlayer
                     useController = false
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                 }
             },
             modifier = Modifier.fillMaxSize()
