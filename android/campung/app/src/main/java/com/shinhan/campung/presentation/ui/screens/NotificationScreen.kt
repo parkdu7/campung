@@ -98,45 +98,65 @@ fun NotificationScreen(
             }
         }
 
-        // 알림 목록
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
-            items(notifications) { notification ->
-                NotificationListItem(
-                    notification = notification,
-                    onAcceptClick = { notificationId ->
-                        when (notification.type) {
-                            "friendRequest" -> {
-                                // 친구 요청 수락
-                                viewModel.acceptFriendRequest(notificationId)
+        // 응답 가능한 알림 필터링
+        val actionableNotifications = notifications.filter { notification ->
+            notification.type in listOf("friend_request", "friendRequest", "location_share_request")
+        }
+        
+        // 알림 목록 또는 빈 상태 표시
+        if (actionableNotifications.isEmpty() && !uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "알림이 없습니다",
+                    fontSize = 16.sp,
+                    color = Color.Gray
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(actionableNotifications) { notification ->
+                    NotificationListItem(
+                        notification = notification,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        onAcceptClick = { notificationId ->
+                            when (notification.type) {
+                                "friend_request", "friendRequest" -> {
+                                    // 친구 요청 수락
+                                    viewModel.acceptFriendRequest(notificationId)
+                                }
+                                "location_share_request" -> {
+                                    // 위치 공유 요청 수락
+                                    viewModel.acceptLocationShareRequest(notificationId)
+                                }
                             }
-                            "location_share_request" -> {
-                                // 위치 공유 요청 수락
-                                viewModel.acceptLocationShareRequest(notificationId)
+                        },
+                        onRejectClick = { notificationId ->
+                            when (notification.type) {
+                                "friend_request", "friendRequest" -> {
+                                    // 친구 요청 거절
+                                    viewModel.rejectFriendRequest(notificationId)
+                                }
+                                "location_share_request" -> {
+                                    // 위치 공유 요청 거절
+                                    viewModel.rejectLocationShareRequest(notificationId)
+                                }
                             }
                         }
-                    },
-                    onRejectClick = { notificationId ->
-                        when (notification.type) {
-                            "friendRequest" -> {
-                                // 친구 요청 거절
-                                viewModel.rejectFriendRequest(notificationId)
-                            }
-                            "location_share_request" -> {
-                                // 위치 공유 요청 거절
-                                viewModel.rejectLocationShareRequest(notificationId)
-                            }
-                        }
-                    }
-                )
-                Divider(
-                    color = Color.Gray.copy(alpha = 0.2f),
-                    thickness = 0.5.dp
-                )
+                    )
+                    Divider(
+                        color = Color.Gray.copy(alpha = 0.2f),
+                        thickness = 0.5.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }
@@ -145,11 +165,12 @@ fun NotificationScreen(
 @Composable
 fun NotificationListItem(
     notification: NotificationItem,
+    modifier: Modifier = Modifier,
     onAcceptClick: (Long) -> Unit,
     onRejectClick: (Long) -> Unit
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -175,30 +196,30 @@ fun NotificationListItem(
                         color = Color.Gray
                     )
                 }
-                "friendRequest" -> {
+                "friend_request", "friendRequest" -> {
                     Text(
-                        text = "친구 요청",
+                        text = notification.title,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.Black
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${notification.requesterId}님이 친구를 요청하셨습니다.",
+                        text = notification.message,
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
                 }
                 "location_share_request" -> {
                     Text(
-                        text = "위치 공유 요청",
+                        text = notification.title,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.Black
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${notification.requesterId}님이 위치공유를 요청하셨습니다.",
+                        text = notification.message,
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
@@ -211,7 +232,7 @@ fun NotificationListItem(
             "normal" -> {
                 // 일반 알림은 버튼 없음
             }
-            "friendRequest", "location_share_request" -> {
+            "friend_request", "friendRequest", "location_share_request" -> {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {

@@ -150,37 +150,42 @@ fun FriendScreen(
             )
         )
 
-        // 로딩 상태 표시
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color(0xFF788CF7))
-            }
-        }
-
-        // 친구 목록
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 8.dp)
+        // 친구 목록과 로딩 오버레이를 Box로 묶어서 위치 고정
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            items(filteredFriends) { friend ->
-                FriendListItem(
-                    friend = friend,
-                    onInviteClick = {
-                        // 위치공유요청 버튼 클릭 처리
-                        // TODO: 위치 공유 요청 기능 구현
-                    }
-                )
-                Divider(
-                    color = Color.Gray.copy(alpha = 0.2f),
-                    thickness = 0.5.dp
-                )
+            // 친구 목록
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(filteredFriends) { friend ->
+                    FriendListItem(
+                        friend = friend,
+                        onInviteClick = {
+                            // 위치공유요청 버튼 클릭 처리
+                            viewModel.sendLocationShareRequest(friend.email) // email이 userId
+                        }
+                    )
+                    Divider(
+                        color = Color.Gray.copy(alpha = 0.2f),
+                        thickness = 0.5.dp
+                    )
+                }
+            }
+            
+            // 로딩 상태를 오버레이로 표시 (리스트 위에 겹침)
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = 0.8f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFF788CF7))
+                }
             }
         }
     }
