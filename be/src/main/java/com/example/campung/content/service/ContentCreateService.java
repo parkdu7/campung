@@ -158,7 +158,19 @@ public class ContentCreateService {
         
         String thumbnailUrl = null;
         if (thumbnailService.canGenerateThumbnail(file)) {
-            log.warn("썸네일 생성은 현재 비활성화되어 있습니다: {}", fileName);
+            try {
+                // 썸네일 생성 (이미지/비디오 자동 판별)
+                byte[] thumbnailBytes = thumbnailService.generateThumbnail(file);
+                
+                // S3에 썸네일 업로드
+                try (java.io.ByteArrayInputStream thumbnailStream = new java.io.ByteArrayInputStream(thumbnailBytes)) {
+                    thumbnailUrl = s3Service.uploadThumbnail(thumbnailStream, thumbnailBytes.length, fileName);
+                    log.info("썸네일 업로드 완료: {} -> {}", fileName, thumbnailUrl);
+                }
+            } catch (Exception e) {
+                log.error("썸네일 생성/업로드 실패: {} - {}", fileName, e.getMessage(), e);
+                // 썸네일 생성 실패해도 원본 업로드는 계속 진행
+            }
         }
         
         return thumbnailUrl;

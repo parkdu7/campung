@@ -1,9 +1,13 @@
 package com.example.campung.main.dto;
 
 import com.example.campung.global.enums.PostType;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public class MapContentRequest {
+    @Schema(description = "위도", example = "36.0", required = true)
     private Double lat;
+    
+    @Schema(description = "경도", example = "127.0", required = true)
     private Double lng;
     private Integer radius = 500; // 기본값: 500미터
     private PostType postType;

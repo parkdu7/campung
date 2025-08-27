@@ -40,6 +40,6 @@ public class SwaggerConfig {
                                 new SecurityScheme()
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
-                                        .description("Bearer token using userId as access token (e.g. Bearer user123)")));
+                                        .description("Bearer token using userId as access token (e.g. Bearer test)")));
     }
 }

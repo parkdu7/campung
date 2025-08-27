@@ -95,7 +95,77 @@ public class ThumbnailService {
         return contentType != null && contentType.startsWith("image/");
     }
     
+    public boolean isVideo(MultipartFile file) {
+        String contentType = file.getContentType();
+        return contentType != null && contentType.startsWith("video/");
+    }
+    
     public boolean canGenerateThumbnail(MultipartFile file) {
-        return isImage(file);
+        return isImage(file) || isVideo(file);
+    }
+    
+    public byte[] generateThumbnail(MultipartFile file) throws IOException {
+        if (isImage(file)) {
+            return generateImageThumbnail(file);
+        } else if (isVideo(file)) {
+            return generateVideoThumbnail(file);
+        } else {
+            throw new IllegalArgumentException("썸네일 생성을 지원하지 않는 파일 형식입니다");
+        }
+    }
+    
+    public byte[] generateVideoThumbnail(MultipartFile file) throws IOException {
+        if (!isVideo(file)) {
+            throw new IllegalArgumentException("비디오 파일만 비디오 썸네일 생성 가능합니다");
+        }
+        
+        // 실제 환경에서는 FFmpeg 등의 라이브러리를 사용해야 하지만,
+        // 현재는 기본 썸네일 이미지를 반환
+        return createDefaultVideoThumbnail();
+    }
+    
+    private byte[] createDefaultVideoThumbnail() throws IOException {
+        BufferedImage defaultImage = new BufferedImage(
+            THUMBNAIL_WIDTH, 
+            THUMBNAIL_HEIGHT, 
+            BufferedImage.TYPE_INT_RGB
+        );
+        
+        Graphics2D g2d = defaultImage.createGraphics();
+        
+        // 고품질 렌더링 설정
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        // 배경을 검은색으로 채우기
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(0, 0, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+        
+        // 비디오 아이콘 그리기
+        g2d.setColor(Color.WHITE);
+        int centerX = THUMBNAIL_WIDTH / 2;
+        int centerY = THUMBNAIL_HEIGHT / 2;
+        int triangleSize = 50;
+        
+        // 재생 버튼 모양의 삼각형 그리기
+        int[] xPoints = {
+            centerX - triangleSize/2,
+            centerX + triangleSize/2,
+            centerX - triangleSize/2
+        };
+        int[] yPoints = {
+            centerY - triangleSize/2,
+            centerY,
+            centerY + triangleSize/2
+        };
+        g2d.fillPolygon(xPoints, yPoints, 3);
+        
+        g2d.dispose();
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(defaultImage, THUMBNAIL_FORMAT, baos);
+        
+        return baos.toByteArray();
     }
 }
