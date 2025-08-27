@@ -11,6 +11,6 @@ import java.util.List;
 @Builder
 public class LocationShareRequestDto {
     
-    private List<Long> friendIds;
+    private List<String> friendUserIds; // Long friendIds -> String friendUserIds로 변경
     private String purpose;
 }

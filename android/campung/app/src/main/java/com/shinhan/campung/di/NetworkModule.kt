@@ -22,6 +22,7 @@ import com.shinhan.campung.data.repository.ContentsRepository
 import com.shinhan.campung.data.repository.FriendRepository
 import com.shinhan.campung.data.repository.LocationRepository
 import com.shinhan.campung.data.repository.NotificationRepository
+import com.shinhan.campung.data.service.LocationService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -57,7 +58,7 @@ object NetworkModule {
     fun provideRetrofit(gson: Gson, client: OkHttpClient): Retrofit {
         Log.d("NetworkModule", "BASE_URL: ${Constants.BASE_URL}")
         return Retrofit.Builder()
-            .baseUrl("https://campung.my/api/")
+            .baseUrl(Constants.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .client(client)
             .build()
@@ -118,10 +119,14 @@ object NetworkModule {
     ) = FriendRepository(friendApi, authDataStore)
     
     @Provides @Singleton
+    fun provideLocationService(@ApplicationContext context: Context) = LocationService(context)
+    
+    @Provides @Singleton
     fun provideLocationRepository(
         locationApi: LocationApi,
-        authDataStore: AuthDataStore
-    ) = LocationRepository(locationApi, authDataStore)
+        authDataStore: AuthDataStore,
+        locationService: LocationService
+    ) = LocationRepository(locationApi, authDataStore, locationService)
 
     @Provides @Singleton
     fun provideContentsApi(retrofit: Retrofit): ContentsApiService =

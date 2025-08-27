@@ -35,8 +35,9 @@ public class NotificationService {
         
         Pageable pageable = PageRequest.of(page, size);
         
-        var notificationPage = notificationRepository.findByUser_UserIdOrderByCreatedAtDesc(userId, pageable);
-        long unreadCount = notificationRepository.countByUser_UserIdAndIsReadFalse(userId);
+        // 읽지 않은 알림만 조회하도록 변경
+        var notificationPage = notificationRepository.findByUser_UserIdAndIsReadFalseOrderByCreatedAtDesc(userId, pageable);
+        long unreadCount = notificationPage.getTotalElements(); // 모든 결과가 읽지 않은 것이므로 totalElements 사용
         
         List<NotificationResponse> notifications = notificationPage.getContent()
                 .stream()

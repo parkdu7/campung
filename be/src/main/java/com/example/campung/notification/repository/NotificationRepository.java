@@ -18,4 +18,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     long countByUser_UserIdAndIsReadFalse(String userId);
     
     Optional<Notification> findByNotificationIdAndUser_UserId(Long notificationId, String userId);
+    
+    // JPA 메서드 이름으로 자동 쿼리 생성
+    java.util.List<Notification> findByUser_UserIdAndTypeAndDataContaining(String userId, String type, String data);
+    
+    // 읽지 않은 알림만 조회
+    Page<Notification> findByUser_UserIdAndIsReadFalseOrderByCreatedAtDesc(String userId, Pageable pageable);
 }
