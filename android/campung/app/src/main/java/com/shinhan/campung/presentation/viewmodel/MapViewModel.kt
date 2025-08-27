@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naver.maps.map.NaverMap
 import com.shinhan.campung.data.model.MapContent
+import com.shinhan.campung.data.model.MapRecord
 import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
 import com.shinhan.campung.data.mapper.ContentMapper
@@ -54,6 +55,10 @@ class MapViewModel @Inject constructor(
     private val _tooltipState = MutableStateFlow(TooltipState())
     val tooltipState: StateFlow<TooltipState> = _tooltipState.asStateFlow()
     
+    // 오디오 플레이어 상태 관리
+    private val _currentPlayingRecord = MutableStateFlow<MapRecord?>(null)
+    val currentPlayingRecord: StateFlow<MapRecord?> = _currentPlayingRecord.asStateFlow()
+    
     // 위치 공유 상태를 LocationSharingManager에서 가져옴
     val sharedLocations: StateFlow<List<com.shinhan.campung.data.model.SharedLocation>> = 
         locationSharingManager.sharedLocations
@@ -86,6 +91,9 @@ class MapViewModel @Inject constructor(
     var mapContents by mutableStateOf<List<MapContent>>(emptyList())
         private set
 
+    var mapRecords by mutableStateOf<List<MapRecord>>(emptyList())
+        private set
+
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
@@ -94,6 +102,10 @@ class MapViewModel @Inject constructor(
 
     // 선택된 마커 상태 추가
     var selectedMarker by mutableStateOf<MapContent?>(null)
+        private set
+
+    // 선택된 Record 상태 추가
+    var selectedRecord by mutableStateOf<MapRecord?>(null)
         private set
 
     // 필터 상태
@@ -211,10 +223,12 @@ class MapViewModel @Inject constructor(
 
                 if (response.success) {
                     val newContents = response.data.contents
-                    Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 마커")
+                    val newRecords = response.data.records
+                    Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 Content 마커, ${newRecords.size}개 Record 마커")
                     
                     // 데이터 업데이트
                     mapContents = newContents
+                    mapRecords = newRecords
                     shouldUpdateClustering = true
                     
                     // 로딩 상태 해제 (UI 반응성 개선)
@@ -398,6 +412,7 @@ class MapViewModel @Inject constructor(
         
         // 기존 마커들 즉시 클리어
         mapContents = emptyList()
+        mapRecords = emptyList()
         shouldUpdateClustering = true
         
         // 선택된 마커도 클리어
@@ -430,6 +445,7 @@ class MapViewModel @Inject constructor(
 
         // 기존 마커들 즉시 클리어
         mapContents = emptyList()
+        mapRecords = emptyList()
         shouldUpdateClustering = true
         
         // 선택된 마커도 클리어
@@ -450,6 +466,7 @@ class MapViewModel @Inject constructor(
 
         // 기존 마커들 즉시 클리어
         mapContents = emptyList()
+        mapRecords = emptyList()
         shouldUpdateClustering = true
         
         // 선택된 마커도 클리어
@@ -472,6 +489,7 @@ class MapViewModel @Inject constructor(
 
         // 기존 마커들 즉시 클리어
         mapContents = emptyList()
+        mapRecords = emptyList()
         shouldUpdateClustering = true
         
         // 선택된 마커도 클리어
@@ -576,5 +594,29 @@ class MapViewModel @Inject constructor(
     
     fun cleanupExpiredLocations() {
         locationSharingManager.cleanupExpiredLocations()
+    }
+    
+    // 오디오 플레이어 관련 함수들
+    fun playRecord(record: MapRecord) {
+        Log.d(TAG, "🎵 Record 재생 시작: ${record.recordUrl}")
+        
+        // Content 마커 선택 해제
+        selectedMarker = null
+        
+        // Record 선택 상태 업데이트
+        selectedRecord = record
+        _currentPlayingRecord.value = record
+    }
+    
+    fun stopRecord() {
+        Log.d(TAG, "⏹️ Record 재생 중지")
+        
+        // Record 선택 해제
+        selectedRecord = null
+        _currentPlayingRecord.value = null
+    }
+    
+    fun isRecordSelected(record: MapRecord): Boolean {
+        return selectedRecord?.recordId == record.recordId
     }
 }
