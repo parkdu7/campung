@@ -21,6 +21,7 @@ import com.shinhan.campung.data.repository.FriendRepository
 import com.shinhan.campung.data.repository.LocationRepository
 import com.shinhan.campung.data.repository.NotificationRepository
 import com.shinhan.campung.data.service.LocationService
+import com.shinhan.campung.data.service.LocationSharingManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -125,6 +126,9 @@ object NetworkModule {
         authDataStore: AuthDataStore,
         locationService: LocationService
     ) = LocationRepository(locationApi, authDataStore, locationService)
+    
+    @Provides @Singleton
+    fun provideLocationSharingManager() = LocationSharingManager()
 }
 
 //import com.google.gson.Gson

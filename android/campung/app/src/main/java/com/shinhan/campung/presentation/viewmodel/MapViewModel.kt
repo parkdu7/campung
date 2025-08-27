@@ -25,13 +25,15 @@ import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import com.shinhan.campung.data.service.LocationSharingManager
 import javax.inject.Inject
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val mapContentRepository: MapContentRepository,
     private val mapRepository: MapRepository,
-    private val contentMapper: ContentMapper
+    private val contentMapper: ContentMapper,
+    val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
 
     // UI States
@@ -50,6 +52,10 @@ class MapViewModel @Inject constructor(
     // 툴팁 상태 관리
     private val _tooltipState = MutableStateFlow(TooltipState())
     val tooltipState: StateFlow<TooltipState> = _tooltipState.asStateFlow()
+    
+    // 위치 공유 상태를 LocationSharingManager에서 가져옴
+    val sharedLocations: StateFlow<List<com.shinhan.campung.data.model.SharedLocation>> = 
+        locationSharingManager.sharedLocations
 
     // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
@@ -444,5 +450,24 @@ class MapViewModel @Inject constructor(
             // Log.d(TAG, "📍 툴팁 위치 업데이트: $newPosition") // 너무 많이 호출되서 주석
             _tooltipState.value = _tooltipState.value.copy(position = newPosition)
         }
+    }
+    
+    // 위치 공유 관련 함수들을 LocationSharingManager로 위임
+    fun addSharedLocation(
+        userName: String,
+        latitude: Double,
+        longitude: Double,
+        displayUntilString: String,
+        shareId: String
+    ) {
+        locationSharingManager.addSharedLocation(userName, latitude, longitude, displayUntilString, shareId)
+    }
+    
+    fun removeSharedLocation(shareId: String) {
+        locationSharingManager.removeSharedLocation(shareId)
+    }
+    
+    fun cleanupExpiredLocations() {
+        locationSharingManager.cleanupExpiredLocations()
     }
 }
