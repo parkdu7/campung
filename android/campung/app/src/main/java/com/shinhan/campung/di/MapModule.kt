@@ -1,6 +1,6 @@
 package com.shinhan.campung.di
 
-import com.shinhan.campung.data.remote.api.ContentApiService
+import com.shinhan.campung.data.remote.api.ContentsApiService
 import com.shinhan.campung.data.remote.api.MapApiService
 import com.shinhan.campung.data.repository.ContentRepository
 import com.shinhan.campung.data.repository.ContentRepositoryImpl
@@ -40,9 +40,4 @@ object MapApiModule {
         return retrofit.create(MapApiService::class.java)
     }
     
-    @Provides
-    @Singleton
-    fun provideContentApiService(retrofit: Retrofit): ContentApiService {
-        return retrofit.create(ContentApiService::class.java)
-    }
 }

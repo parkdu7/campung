@@ -3,7 +3,6 @@ package com.shinhan.campung.data.remote.api
 import com.shinhan.campung.data.remote.response.ContentCreateResponse
 import okhttp3.MultipartBody
 import com.shinhan.campung.data.remote.dto.CommentListResponse
-import com.shinhan.campung.data.remote.dto.CommentRequest
 import com.shinhan.campung.data.remote.dto.CommentResponse
 import com.shinhan.campung.data.remote.dto.LikeResponse
 import okhttp3.RequestBody
@@ -15,7 +14,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 
-interface ContentApiService {
+interface ContentsApiService {
 
     @FormUrlEncoded
     @POST("contents")

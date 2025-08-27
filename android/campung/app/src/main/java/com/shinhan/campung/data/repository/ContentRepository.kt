@@ -5,8 +5,7 @@ import com.shinhan.campung.data.mapper.CommentMapper
 import com.shinhan.campung.data.model.Comment
 import com.shinhan.campung.data.model.LikeResponse
 import com.shinhan.campung.data.model.MapContent
-import com.shinhan.campung.data.remote.api.ContentApiService
-import com.shinhan.campung.data.remote.dto.CommentRequest
+import com.shinhan.campung.data.remote.api.ContentsApiService
 import kotlinx.coroutines.flow.first
 import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
@@ -24,7 +23,7 @@ interface ContentRepository {
 @Singleton
 class ContentRepositoryImpl @Inject constructor(
     private val mapContentRepository: MapContentRepository,
-    private val contentApiService: ContentApiService,
+    private val contentApiService: ContentsApiService,
     private val commentMapper: CommentMapper,
     private val authDataStore: AuthDataStore
 ) : ContentRepository {
