@@ -88,7 +88,7 @@ fun WritePostScreen(
         boards.firstOrNull { it.title == selectedBoardTitle }
     }
 
-    var isRealName by rememberSaveable { mutableStateOf(false) } // true=실명, false=익명
+    var isAnonymous by rememberSaveable { mutableStateOf(true) }   // true = 익명, false = 실명
     val displayName = "박승균"
     var nickname by rememberSaveable { mutableStateOf("") }
     var title by rememberSaveable { mutableStateOf("") }
@@ -185,17 +185,17 @@ fun WritePostScreen(
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .clickable { isRealName = !isRealName }
+                                .clickable { isAnonymous = !isAnonymous }
                                 .padding(horizontal = 8.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Check,
                                 contentDescription = null,
-                                tint = if (!isRealName) accent else Color(0xFFBDBDBD)
+                                tint = if (isAnonymous) accent else Color(0xFFBDBDBD)
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text(text = if (isRealName) "실명게시" else "익명게시")
+                            Text(text = if (isAnonymous) "익명게시" else "실명게시")
                         }
                     }
 
@@ -206,7 +206,7 @@ fun WritePostScreen(
                         value = nickname,
                         onValueChange = { nickname = it },
                         placeholder = {
-                            Text(text = if (!isRealName) displayName else "익명")
+                            Text(text = if (isAnonymous)  displayName else "익명")
                         },
                         singleLine = true,
                         shape = fieldShape,
@@ -227,13 +227,14 @@ fun WritePostScreen(
                         placeholder = { Text("제목을 입력해주세요.") },
                         singleLine = true,
                         shape = fieldShape,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color.White),
+                        modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = borderColor,
                             unfocusedBorderColor = borderColor,
-                            disabledBorderColor = borderColor
+                            disabledBorderColor = borderColor,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            disabledContainerColor = Color.White
                         )
                     )
 
@@ -324,7 +325,7 @@ fun WritePostScreen(
                             boardTitle = selectedBoardTitle,
                             title = title,
                             body = content,
-                            isRealName = isRealName,
+                            isRealName = isAnonymous,
                             emotionTag = null,
                             files = fileUris,
                             latitude = null,
@@ -374,36 +375,48 @@ fun WritePostScreen(
 
             // 게시판 선택 바텀시트
             if (showBoardSheet) {
+                val sheetBg = Color.White
+
                 ModalBottomSheet(
                     onDismissRequest = { showBoardSheet = false },
                     sheetState = sheetState,
-                    dragHandle = { BottomSheetDefaults.DragHandle() }
+                    dragHandle = { BottomSheetDefaults.DragHandle() },
+                    containerColor = sheetBg,      // ✅ 시트 배경
+                    tonalElevation = 0.dp          // ✅ 톤 올림 제거(색 틴트 방지)
                 ) {
                     Column(
                         Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 6.dp)
+                            .background(sheetBg)   // ✅ 내부도 동일 배경으로 통일
                     ) {
                         Text(
                             "게시판을 선택해 주세요.",
-                            style = MaterialTheme.typography.titleLarge,
+                            // ✅ 글자 크기 줄임 (titleLarge → titleMedium)
+                            style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            textAlign = TextAlign.Center
+                                .padding(bottom = 6.dp),
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Divider()
 
                         Spacer(Modifier.height(2.dp))
+
                         boards.forEachIndexed { idx, item ->
                             ListItem(
                                 headlineContent = {
+                                    Text(item.title, fontWeight = FontWeight.SemiBold)
+                                },
+                                supportingContent = {
                                     Text(
-                                        item.title,
-                                        fontWeight = FontWeight.SemiBold
+                                        item.description,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 },
-                                supportingContent = { Text(item.description, color = Color.Gray) },
+                                // ✅ 아이템 컨테이너 배경을 '투명'으로 → 시트 배경과 동일하게 보임
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
@@ -412,13 +425,14 @@ fun WritePostScreen(
                                     }
                                     .padding(vertical = 6.dp)
                             )
-                            if (idx != boards.lastIndex) Divider()
+                            if (idx != boards.lastIndex) Divider(color = borderColor)
                         }
 
-                        Spacer(Modifier.height(24.dp))
+                        Spacer(Modifier.height(20.dp))
                     }
                 }
             }
+
         }
     }
 }
