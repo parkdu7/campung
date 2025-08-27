@@ -33,6 +33,7 @@ public class FriendshipController {
     })
     @PostMapping("/requests")
     public ResponseEntity<FriendshipDto> sendFriendRequest(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @RequestBody FriendRequestDto requestDto) {
 
@@ -58,6 +59,7 @@ public class FriendshipController {
     })
     @PutMapping("/requests/{friendshipId}/accept")
     public ResponseEntity<FriendshipDto> acceptFriendRequest(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @Parameter(description = "친구 관계 ID") @PathVariable Long friendshipId) {
 
@@ -79,6 +81,7 @@ public class FriendshipController {
     })
     @PutMapping("/requests/{friendshipId}/reject")
     public ResponseEntity<String> rejectFriendRequest(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @Parameter(description = "친구 관계 ID") @PathVariable Long friendshipId) {
 
@@ -99,6 +102,7 @@ public class FriendshipController {
     })
     @GetMapping("/requests/received")
     public ResponseEntity<List<FriendshipDto>> getReceivedFriendRequests(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization) {
 
         if (authorization == null || !authorization.startsWith("Bearer ")) {
@@ -118,6 +122,7 @@ public class FriendshipController {
     })
     @GetMapping("/requests/sent")
     public ResponseEntity<List<FriendshipDto>> getSentFriendRequests(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization) {
 
         if (authorization == null || !authorization.startsWith("Bearer ")) {
@@ -137,6 +142,7 @@ public class FriendshipController {
     })
     @GetMapping
     public ResponseEntity<List<FriendshipDto>> getFriendsList(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization) {
 
         if (authorization == null || !authorization.startsWith("Bearer ")) {
@@ -157,6 +163,7 @@ public class FriendshipController {
     })
     @DeleteMapping("/{friendshipId}")
     public ResponseEntity<String> removeFriend(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @Parameter(description = "친구 관계 ID") @PathVariable Long friendshipId) {
 
