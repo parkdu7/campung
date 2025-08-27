@@ -156,10 +156,15 @@ class MapViewModel @Inject constructor(
                 // 선택된 날짜를 문자열로 변환
                 val dateString = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
+                // 반경이 제공되지 않은 경우 기본값 사용 (이전 버전 호환성)
+                val requestRadius = radius ?: getDefaultRadius()
+                
+                Log.d(TAG, "📍 API 요청: lat=$latitude, lng=$longitude, radius=${requestRadius}m, postType=${postType ?: selectedPostType}")
+                
                 val response = mapRepository.getMapContents(
                     latitude = latitude,
                     longitude = longitude,
-                    radius = radius,
+                    radius = requestRadius,
                     postType = postType ?: selectedPostType,
                     date = dateString
                 ).getOrThrow()
@@ -383,6 +388,28 @@ class MapViewModel @Inject constructor(
         val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
 
         return earthRadius * c
+    }
+
+    /**
+     * 반경이 제공되지 않은 경우 사용할 기본 반경 (이전 버전 호환성)
+     */
+    private fun getDefaultRadius(): Int {
+        return 2000 // 기본 2km
+    }
+    
+    /**
+     * 화면 영역 기반으로 맵 데이터를 로드하는 새로운 함수
+     * @param latitude 중심점 위도
+     * @param longitude 중심점 경도  
+     * @param radius 화면 영역 기반 계산된 반경
+     */
+    fun loadMapContentsWithCalculatedRadius(
+        latitude: Double,
+        longitude: Double,
+        radius: Int
+    ) {
+        Log.d(TAG, "🎯 화면 영역 기반 데이터 로드 시작 - 반경: ${radius}m")
+        loadMapContents(latitude, longitude, radius)
     }
 
     // 툴팁 관리 함수들

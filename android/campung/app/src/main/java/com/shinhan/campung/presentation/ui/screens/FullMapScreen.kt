@@ -171,6 +171,7 @@ fun FullMapScreen(
     var naverMapRef by remember { mutableStateOf<NaverMap?>(null) }
     var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
     var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
+    var mapViewportManager by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapViewportManager?>(null) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -209,10 +210,21 @@ fun FullMapScreen(
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
 
-            mapViewModel.loadMapContents(
-                latitude = pos.latitude,
-                longitude = pos.longitude
-            )
+            // 초기 로드시에도 화면 영역 기반 반경 계산 사용
+            naverMapRef?.let { map ->
+                val radius = com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(map)
+                mapViewModel.loadMapContentsWithCalculatedRadius(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude,
+                    radius = radius
+                )
+            } ?: run {
+                // NaverMap이 아직 준비되지 않았으면 기본 방식 사용
+                mapViewModel.loadMapContents(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude
+                )
+            }
         }
     }
 
@@ -379,8 +391,17 @@ fun FullMapScreen(
                                 highlightedContent = centerContent
                             }
 
+                            // 기존 카메라 리스너 (마커 중심점 관리)
                             mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
                             map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
+
+                            // 새로운 뷰포트 관리자 (화면 영역 기반 데이터 로드)
+                            mapViewportManager = com.shinhan.campung.presentation.ui.map.MapViewportManager(mapViewModel, coroutineScope).apply {
+                                setNaverMap(map) // NaverMap 참조 설정
+                            }
+                            
+                            // 뷰포트 매니저의 카메라 리스너 추가
+                            map.addOnCameraChangeListener(mapViewportManager!!.createCameraChangeListener())
 
                             // 지도 클릭 시 마커 및 클러스터 선택 해제
                             map.setOnMapClickListener { _, _ ->
