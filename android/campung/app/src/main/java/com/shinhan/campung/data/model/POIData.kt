@@ -37,7 +37,10 @@ data class POIData(
     val openHours: String? = null,
     
     @SerializedName("thumbnailUrl")
-    val thumbnailUrl: String? = null
+    val thumbnailUrl: String? = null,
+    
+    @SerializedName("currentSummary")
+    val currentSummary: String? = null
 ) {
     val location: LatLngData
         get() = LatLngData(latitude, longitude)

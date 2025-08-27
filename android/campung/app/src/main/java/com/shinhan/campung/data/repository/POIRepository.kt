@@ -41,7 +41,8 @@ class POIRepository @Inject constructor(
                         distance = null,
                         isOpen = null,
                         openHours = null,
-                        thumbnailUrl = item.thumbnailUrl
+                        thumbnailUrl = item.thumbnailUrl,
+                        currentSummary = item.currentSummary ?: generateDummySummary(item.name, item.category)
                     )
                 }
                 Result.success(poiDataList)
@@ -79,7 +80,8 @@ class POIRepository @Inject constructor(
                         distance = null,
                         isOpen = null,
                         openHours = null,
-                        thumbnailUrl = item.thumbnailUrl
+                        thumbnailUrl = item.thumbnailUrl,
+                        currentSummary = item.currentSummary ?: generateDummySummary(item.name, item.category)
                     )
                 }
                 Result.success(poiDataList)
@@ -110,6 +112,22 @@ class POIRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+    
+    /**
+     * currentSummary가 없을 때 카테고리와 이름을 기반으로 더미 요약 생성
+     */
+    private fun generateDummySummary(name: String, category: String): String {
+        return when(category.uppercase()) {
+            "LIBRARY" -> "$name 도서관입니다. 학습과 연구를 위한 다양한 자료와 편안한 공간을 제공합니다."
+            "RESTAURANT" -> "$name 식당입니다. 맛있고 정성스러운 음식을 제공하는 곳입니다."
+            "CAFE" -> "$name 카페입니다. 향긋한 커피와 아늑한 분위기를 즐길 수 있는 공간입니다."
+            "DORMITORY" -> "$name 기숙사입니다. 학생들의 편안한 생활과 학습을 지원하는 주거공간입니다."
+            "FOOD_TRUCK" -> "$name 푸드트럭입니다. 간편하고 맛있는 음식을 제공하는 이동식 매장입니다."
+            "EVENT" -> "$name 행사장입니다. 다양한 이벤트와 활동이 진행되는 공간입니다."
+            "UNIVERSITY_BUILDING" -> "$name 대학건물입니다. 학습과 연구활동이 이루어지는 교육시설입니다."
+            else -> "$name 입니다. 이 장소에 대한 자세한 정보를 준비 중입니다."
         }
     }
 }

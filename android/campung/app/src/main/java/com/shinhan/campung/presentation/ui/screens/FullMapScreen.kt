@@ -67,6 +67,7 @@ import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.presentation.ui.components.DatePickerDialog
 import com.shinhan.campung.presentation.ui.components.POIFilterTags
+import com.shinhan.campung.presentation.ui.components.POIDetailDialog
 import com.shinhan.campung.data.model.MapContent
 import android.util.Log
 import com.shinhan.campung.navigation.Route
@@ -114,6 +115,8 @@ fun FullMapScreen(
     val isPOIVisible by mapViewModel.isPOIVisible.collectAsState()
     val selectedPOICategory by mapViewModel.selectedPOICategory.collectAsState()
     val isPOILoading by mapViewModel.isPOILoading.collectAsState()
+    val selectedPOI by mapViewModel.selectedPOI.collectAsState()
+    val showPOIDialog by mapViewModel.showPOIDialog.collectAsState()
 
     // 위치 공유 브로드캐스트 수신
     DisposableEffect(context) {
@@ -860,6 +863,16 @@ fun FullMapScreen(
                         }
                     )
                 }
+            }
+        }
+        
+        // POI 상세 다이얼로그
+        selectedPOI?.let { poi ->
+            if (showPOIDialog) {
+                POIDetailDialog(
+                    poi = poi,
+                    onDismiss = { mapViewModel.dismissPOIDialog() }
+                )
             }
         }
     }

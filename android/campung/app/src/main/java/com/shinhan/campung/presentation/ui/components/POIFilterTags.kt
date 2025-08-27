@@ -24,15 +24,13 @@ fun POIFilterTags(
 ) {
     val poiCategories = listOf(
         POICategory("전체", null, "🏛️"),
-        POICategory("음식점", "restaurant", "🍽️"),
-        POICategory("카페", "cafe", "☕"),
-        POICategory("편의점", "convenience", "🏪"),
-        POICategory("ATM", "atm", "🏧"),
-        POICategory("병원", "hospital", "🏥"),
-        POICategory("약국", "pharmacy", "💊"),
-        POICategory("주유소", "gas_station", "⛽"),
-        POICategory("주차장", "parking", "🅿️"),
-        POICategory("은행", "bank", "🏦")
+        POICategory("도서관", "LIBRARY", "📚"),
+        POICategory("식당", "RESTAURANT", "🍽️"),
+        POICategory("카페", "CAFE", "☕"),
+        POICategory("기숙사", "DORMITORY", "🏠"),
+        POICategory("푸드트럭", "FOOD_TRUCK", "🚚"),
+        POICategory("행사", "EVENT", "🎉"),
+        POICategory("대학건물", "UNIVERSITY_BUILDING", "🏫")
     )
     
     LazyRow(

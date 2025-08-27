@@ -30,5 +30,8 @@ data class POIItem(
     val thumbnailUrl: String?,
     
     @SerializedName("category")
-    val category: String
+    val category: String,
+    
+    @SerializedName("currentSummary")
+    val currentSummary: String? = null
 )

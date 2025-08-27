@@ -73,6 +73,12 @@ class MapViewModel @Inject constructor(
     
     private val _isPOILoading = MutableStateFlow(false)
     val isPOILoading: StateFlow<Boolean> = _isPOILoading.asStateFlow()
+    
+    private val _selectedPOI = MutableStateFlow<POIData?>(null)
+    val selectedPOI: StateFlow<POIData?> = _selectedPOI.asStateFlow()
+    
+    private val _showPOIDialog = MutableStateFlow(false)
+    val showPOIDialog: StateFlow<Boolean> = _showPOIDialog.asStateFlow()
 
     // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
@@ -666,6 +672,7 @@ class MapViewModel @Inject constructor(
                     
                     validPois.forEachIndexed { index, poi ->
                         Log.v(TAG, "🏪 POI[$index]: ${poi.name} (${poi.category}) - ${poi.thumbnailUrl}")
+                        Log.v(TAG, "🏪 POI[$index] Summary: ${poi.currentSummary}")
                     }
                 }.onFailure { throwable ->
                     Log.e(TAG, "🏪 POI 데이터 로드 실패 - 테스트 더미 데이터 사용", throwable)
@@ -679,7 +686,8 @@ class MapViewModel @Inject constructor(
                             address = "서울시 강남구",
                             latitude = latitude + 0.001,
                             longitude = longitude + 0.001,
-                            thumbnailUrl = "https://picsum.photos/200/200?random=1"
+                            thumbnailUrl = "https://picsum.photos/200/200?random=1",
+                            currentSummary = "아늑한 분위기의 카페입니다. 신선한 원두로 내린 커피와 다양한 디저트를 즐길 수 있어요."
                         ),
                         POIData(
                             id = 2L, 
@@ -688,7 +696,8 @@ class MapViewModel @Inject constructor(
                             address = "서울시 서초구",
                             latitude = latitude - 0.001,
                             longitude = longitude - 0.001,
-                            thumbnailUrl = "https://picsum.photos/200/200?random=2"
+                            thumbnailUrl = "https://picsum.photos/200/200?random=2",
+                            currentSummary = "맛있는 한식을 제공하는 음식점입니다. 집밥 같은 따뜻한 음식과 정성스러운 서비스가 특징이에요."
                         )
                     )
                     _poiData.value = dummyPois
@@ -711,8 +720,19 @@ class MapViewModel @Inject constructor(
     fun onPOIClick(poi: POIData) {
         Log.d(TAG, "🏪 POI 클릭: ${poi.name} (${poi.category}) at (${poi.latitude}, ${poi.longitude})")
         Log.d(TAG, "🏪 POI 정보 - 주소: ${poi.address}, 전화: ${poi.phone}, 평점: ${poi.rating}")
-        // TODO: POI 상세정보 표시 또는 다른 액션 수행
-        // 예: 네이버 맵으로 길찾기, 전화걸기 등
+        
+        _selectedPOI.value = poi
+        _showPOIDialog.value = true
+        Log.d(TAG, "🏪 POI 다이얼로그 표시")
+    }
+    
+    /**
+     * POI 다이얼로그 닫기
+     */
+    fun dismissPOIDialog() {
+        _showPOIDialog.value = false
+        _selectedPOI.value = null
+        Log.d(TAG, "🏪 POI 다이얼로그 닫힘")
     }
     
     /**
