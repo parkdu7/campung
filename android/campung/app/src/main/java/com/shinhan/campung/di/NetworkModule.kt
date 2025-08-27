@@ -8,8 +8,10 @@ import com.shinhan.campung.data.location.LocationTracker
 import com.shinhan.campung.data.remote.interceptor.AuthInterceptor
 import com.shinhan.campung.data.remote.api.AuthApi
 import com.shinhan.campung.data.remote.api.MapApi
+import com.shinhan.campung.data.remote.api.POIApi
 import com.shinhan.campung.data.repository.AuthRepository
 import com.shinhan.campung.data.repository.MapRepository
+import com.shinhan.campung.data.repository.POIRepository
 import com.shinhan.campung.data.repository.NewPostRepository
 import com.shinhan.campung.data.websocket.WebSocketService
 import com.shinhan.campung.util.Constants
@@ -18,10 +20,13 @@ import com.shinhan.campung.data.remote.api.ContentsApiService
 import com.shinhan.campung.data.remote.api.FriendApi
 import com.shinhan.campung.data.remote.api.LocationApi
 import com.shinhan.campung.data.remote.api.NotificationApi
+import com.shinhan.campung.data.remote.api.RecordingApiService
 import com.shinhan.campung.data.repository.ContentsRepository
 import com.shinhan.campung.data.repository.FriendRepository
 import com.shinhan.campung.data.repository.LocationRepository
 import com.shinhan.campung.data.repository.NotificationRepository
+import com.shinhan.campung.data.repository.RecordingRepository
+import com.shinhan.campung.data.repository.RecordingRepositoryImpl
 import com.shinhan.campung.data.service.LocationService
 import com.shinhan.campung.data.service.LocationSharingManager
 import dagger.Module
@@ -53,6 +58,9 @@ object NetworkModule {
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
             .build()
 
     @Provides @Singleton
@@ -74,6 +82,10 @@ object NetworkModule {
         retrofit.create(MapApi::class.java)
 
     @Provides @Singleton
+    fun providePOIApi(retrofit: Retrofit): POIApi =
+        retrofit.create(POIApi::class.java)
+
+    @Provides @Singleton
     fun provideFriendApi(retrofit: Retrofit): FriendApi =
         retrofit.create(FriendApi::class.java)
 
@@ -93,6 +105,9 @@ object NetworkModule {
 
     @Provides @Singleton
     fun provideMapRepository(api: MapApi) = MapRepository(api)
+
+    @Provides @Singleton
+    fun providePOIRepository(api: POIApi) = POIRepository(api)
     
     @Provides @Singleton
     fun provideWebSocketService(gson: Gson) = WebSocketService(gson)
@@ -142,4 +157,12 @@ object NetworkModule {
         api: ContentsApiService,
         @ApplicationContext context: Context              // ✅ 주입받고
     ): ContentsRepository = ContentsRepository(api, context)  // ✅ 전달
+
+    @Provides @Singleton
+    fun provideRecordingApiService(retrofit: Retrofit): RecordingApiService =
+        retrofit.create(RecordingApiService::class.java)
+
+    @Provides @Singleton
+    fun provideRecordingRepository(api: RecordingApiService): RecordingRepository =
+        RecordingRepositoryImpl(api)
 }

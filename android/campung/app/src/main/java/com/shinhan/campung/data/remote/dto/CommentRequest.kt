@@ -2,8 +2,13 @@ package com.shinhan.campung.data.remote.dto
 
 data class CommentRequest(
     val body: String,
+    val isAnonymous: Boolean
+)
+
+data class ReplyRequest(
+    val body: String,
     val isAnonymous: Boolean,
-    val parentCommentId: Long? = null
+    val parentCommentId: Long
 )
 
 data class CommentResponse(
