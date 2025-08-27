@@ -231,8 +231,14 @@ class MapViewModel @Inject constructor(
                 ).getOrThrow()
 
                 if (response.success) {
-                    val newContents = response.data.contents
-                    val newRecords = response.data.records
+                    val rawContents = response.data.contents
+                    val newRecords = response.data.records ?: emptyList() // null일 경우 빈 리스트
+                    
+                    // ContentData를 MapContent로 변환
+                    val newContents = rawContents.map { contentData ->
+                        contentMapper.toMapContent(contentData)
+                    }
+                    
                     Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 Content 마커, ${newRecords.size}개 Record 마커")
 
                     // 데이터 업데이트
@@ -242,10 +248,6 @@ class MapViewModel @Inject constructor(
 
                     // 로딩 상태 해제 (UI 반응성 개선)
                     _isLoading.value = false
-                    // 임시로 콘텐츠 매핑 비활성화 (날씨 데이터만 처리)
-                    Log.d("MapViewModel", "⚠️ 콘텐츠 매핑 임시 비활성화 - 날씨 데이터만 처리")
-                    mapContents = emptyList()
-                    shouldUpdateClustering = false
 
                     // ✅ 방금 등록한 ID가 있으면 자동으로 선택/하이라이트
                     pendingHighlightId?.let { id ->
