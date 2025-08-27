@@ -1,6 +1,7 @@
 package com.example.campung.main.service;
 
 import com.example.campung.content.repository.ContentRepository;
+import com.example.campung.emotion.service.CampusEmotionService;
 import com.example.campung.entity.Content;
 import com.example.campung.entity.Record;
 import com.example.campung.global.enums.PostType;
@@ -32,6 +33,9 @@ public class MapContentService {
     
     @Autowired
     private RecordRepository recordRepository;
+    
+    @Autowired
+    private CampusEmotionService campusEmotionService;
 
     public MapContentResponse getMapContents(MapContentRequest request) {
         System.out.println("=== 지도 콘텐츠 조회 시작 ===");
@@ -61,6 +65,14 @@ public class MapContentService {
                 .collect(Collectors.toList());
 
         MapContentData data = new MapContentData(contentItems, recordItems);
+        
+        // 감정 날씨와 온도 데이터 추가
+        String emotionWeather = campusEmotionService.getCurrentEmotionWeather();
+        Double emotionTemperature = campusEmotionService.getCurrentEmotionTemperature();
+        
+        data.setEmotionWeather(emotionWeather);
+        data.setEmotionTemperature(emotionTemperature);
+        
         return new MapContentResponse(true, "지도 콘텐츠 조회 성공", data);
     }
 

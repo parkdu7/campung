@@ -57,8 +57,12 @@ class MapCameraListener(
             longitude = center.longitude
         )
         
-        // 중앙 마커 찾기
-        Log.d("MapCameraListener", "카메라 변경 - 중앙 마커 찾기 호출")
-        clusterManager?.findCenterMarker()
+        // 중앙 마커 찾기 (클러스터 이동 중이 아닐 때만)
+        if (clusterManager?.isClusterMoving == false) {
+            Log.d("MapCameraListener", "카메라 변경 - 중앙 마커 찾기 호출")
+            clusterManager?.findCenterMarker()
+        } else {
+            Log.d("MapCameraListener", "클러스터 이동 중 - 중앙 마커 찾기 건너뜀")
+        }
     }
 }

@@ -71,4 +71,9 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
         @Param("longitude") Double longitude,
         @Param("radiusMeters") Integer radiusMeters
     );
+    
+    /**
+     * 감정 분석용 시간 범위 게시글 조회
+     */
+    List<Content> findByCreatedAtBetweenOrderByCreatedAtDesc(LocalDateTime startDate, LocalDateTime endDate);
 }
