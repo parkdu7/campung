@@ -17,13 +17,13 @@ data class ContentData(
     val title: String,
     val body: String,
     val mediaFiles: List<MediaFile>?,
-    val likeInfo: LikeInfo,
+    val likeInfo: LikeInfo?,
     val hotContent: Boolean
 ) {
     // 호환성을 위한 computed properties - 기존 코드와의 호환성
-    val likeCount: Int get() = likeInfo.totalLikes
+    val likeCount: Int get() = likeInfo?.totalLikes ?: 0
     val commentCount: Int get() = 0 // 현재 API에서 제공하지 않음
-    val reactions: Reactions get() = Reactions(likeInfo.totalLikes, 0)
+    val reactions: Reactions get() = Reactions(likeInfo?.totalLikes ?: 0, 0)
     val createdAt: String get() = "" // 현재 API에서 제공하지 않음
     val expiresAt: String? get() = null
     val postTypeName: String get() = when(postType) {

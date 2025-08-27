@@ -48,6 +48,7 @@ import com.naver.maps.map.NaverMap
 import com.naver.maps.map.widget.LocationButtonView
 import com.naver.maps.map.overlay.Marker
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
+import com.shinhan.campung.presentation.ui.components.WeatherTemperatureDisplay
 import com.shinhan.campung.presentation.ui.map.MapClusterManager
 import com.shinhan.campung.presentation.ui.map.LocationPermissionManager
 import com.shinhan.campung.presentation.ui.map.LocationProvider
@@ -94,6 +95,19 @@ fun FullMapScreen(
     val isBottomSheetExpanded by mapViewModel.isBottomSheetExpanded.collectAsState()
     val isLoading by mapViewModel.isLoading.collectAsState()
     val tooltipState by mapViewModel.tooltipState.collectAsState()
+    val serverWeather by mapViewModel.serverWeather.collectAsState()
+    val serverTemperature by mapViewModel.serverTemperature.collectAsState()
+
+    val calculated = remember(mapViewModel.mapContents) {
+        calculateWeatherInfo(mapViewModel.mapContents)
+    }
+    // ✅ 서버값이 있으면 우선 사용, 없으면 계산된 값 사용
+    val uiWeather = normalizeWeather(serverWeather) ?: normalizeWeather(calculated.weather)
+    val uiTemperature = serverTemperature ?: calculated.temperature
+    
+    Log.d("FullMapScreen", "🎯 최종 UI 데이터 - serverWeather: '$serverWeather'(${serverTemperature}°) → uiWeather: '$uiWeather'($uiTemperature°)")
+
+
 
     // 화면 크기
     val screenHeight = configuration.screenHeightDp.dp
@@ -621,6 +635,16 @@ fun FullMapScreen(
                         .align(Alignment.TopCenter)
                         .padding(top = 64.dp)
                 )
+                
+                // 날씨/온도 표시 (오른쪽 상단, 필터 태그 아래)
+                // 표시
+                WeatherTemperatureDisplay(
+                    weather = uiWeather,
+                    temperature = uiTemperature,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 110.dp, end = 8.dp)
+                )
 
                 // 애니메이션 툴팁 오버레이
                 AnimatedMapTooltip(
@@ -645,5 +669,60 @@ fun FullMapScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * 지도에 표시된 컨텐츠들로부터 날씨 정보를 계산
+ */
+private fun calculateWeatherInfo(mapContents: List<com.shinhan.campung.data.model.MapContent>): WeatherInfo {
+    if (mapContents.isEmpty()) {
+        return WeatherInfo(weather = null, temperature = null)
+    }
+    
+    // 날씨 정보가 있는 컨텐츠들만 필터링
+    val contentsWithWeather = mapContents.filter { 
+        !it.emotionWeather.isNullOrBlank() || it.emotionTemperature != null 
+    }
+    
+    if (contentsWithWeather.isEmpty()) {
+        return WeatherInfo(weather = null, temperature = null)
+    }
+    
+    // 가장 많이 나타나는 날씨 찾기
+    val weatherCounts = contentsWithWeather
+        .mapNotNull { it.emotionWeather }
+        .groupingBy { it }
+        .eachCount()
+    
+    val mostCommonWeather = weatherCounts.maxByOrNull { it.value }?.key
+    
+    // 온도 평균 계산
+    val temperatures = contentsWithWeather.mapNotNull { it.emotionTemperature }
+    val averageTemperature = if (temperatures.isNotEmpty()) {
+        temperatures.average().toInt()
+    } else null
+    
+    return WeatherInfo(
+        weather = mostCommonWeather,
+        temperature = averageTemperature
+    )
+}
+
+/**
+ * 날씨 정보 데이터 클래스
+ */
+private data class WeatherInfo(
+    val weather: String?,
+    val temperature: Int?
+)
+private fun normalizeWeather(raw: String?): String? {
+    val k = raw?.trim()?.lowercase() ?: return null
+    return when (k) {
+        "맑음","해","쾌청","sun","clear","fine","sunny" -> "sunny"
+        "구름","흐림","흐림많음","cloud","overcast","cloudy","clouds" -> "cloudy"
+        "비","소나기","drizzle","rain shower","rainy","rain" -> "rain"
+        "천둥","천둥번개","번개","뇌우","thunder","storm","thunderstorm","stormy" -> "thunderstorm"
+        else -> null
     }
 }

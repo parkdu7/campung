@@ -51,6 +51,13 @@ class MapViewModel @Inject constructor(
     private val _tooltipState = MutableStateFlow(TooltipState())
     val tooltipState: StateFlow<TooltipState> = _tooltipState.asStateFlow()
 
+    // MapViewModel.kt - 상단 필드들 옆에 추가
+    private val _serverWeather = MutableStateFlow<String?>(null)
+    val serverWeather: StateFlow<String?> = _serverWeather
+
+    private val _serverTemperature = MutableStateFlow<Int?>(null)
+    val serverTemperature: StateFlow<Int?> = _serverTemperature
+
     // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
         _selectedMarkerId.value = contentId
@@ -116,8 +123,10 @@ class MapViewModel @Inject constructor(
         radius: Int? = null,
         postType: String? = null
     ) {
+        Log.d("MapViewModel", "🚀 loadMapContents 호출됨 - lat: $latitude, lng: $longitude")
         // 이전 요청 취소
         debounceJob?.cancel()
+        Log.d("MapViewModel", "🔄 이전 요청 취소됨")
 
         val currentLocation = Pair(latitude, longitude)
         val currentParams = RequestParams(
@@ -143,10 +152,11 @@ class MapViewModel @Inject constructor(
             }
         }
 
-        // 500ms 디바운스 적용
+        // 1500ms 디바운스 적용 (지도 이동이 멈춘 후 1.5초 후 요청)
         debounceJob = viewModelScope.launch {
-            delay(500)
+            delay(1500) // 더 긴 디바운스로 요청 안정화
 
+            Log.d("MapViewModel", "🚀 API 호출 시작 - 디바운스 완료 후 실행")
             _isLoading.value = true
             errorMessage = null
             lastRequestLocation = currentLocation
@@ -161,18 +171,53 @@ class MapViewModel @Inject constructor(
                 
                 Log.d(TAG, "📍 API 요청: lat=$latitude, lng=$longitude, radius=${requestRadius}m, postType=${postType ?: selectedPostType}")
                 
-                val response = mapRepository.getMapContents(
+                val result = mapRepository.getMapContents(
                     latitude = latitude,
                     longitude = longitude,
                     radius = requestRadius,
                     postType = postType ?: selectedPostType,
                     date = dateString
-                ).getOrThrow()
+                )
+                
+                if (result.isFailure) {
+                    val exception = result.exceptionOrNull()
+                    if (exception !is kotlinx.coroutines.CancellationException) {
+                        Log.e("MapViewModel", "❌ API 요청 실패", exception)
+                    }
+                    return@launch
+                }
+                
+                val response = result.getOrThrow()
+                Log.d("MapViewModel", "✅ API 응답 성공 - success: ${response.success}, totalCount: ${response.data.totalCount}")
 
                 if (response.success) {
-                    mapContents = response.data.contents
-                    shouldUpdateClustering = true
+                    // 임시로 콘텐츠 매핑 비활성화 (날씨 데이터만 처리)
+                    Log.d("MapViewModel", "⚠️ 콘텐츠 매핑 임시 비활성화 - 날씨 데이터만 처리")
+                    mapContents = emptyList()
+                    shouldUpdateClustering = false
 
+                    // ✅ 서버 공통 날씨/온도 주입 (Double → Int 반올림)
+                    Log.d("MapViewModel", "🔍 응답 데이터 타입 확인:")
+                    Log.d("MapViewModel", "  - response.data 클래스: ${response.data.javaClass}")
+                    Log.d("MapViewModel", "  - emotionWeather 타입: ${response.data.emotionWeather?.javaClass}")
+                    Log.d("MapViewModel", "  - emotionTemperature 타입: ${response.data.emotionTemperature?.javaClass}")
+                    
+                    val rawWeather = response.data.emotionWeather
+                    val rawTemp = response.data.emotionTemperature
+                    
+                    Log.d("MapViewModel", "🌤️ 서버 원본 데이터 - rawWeather: '$rawWeather', rawTemp: $rawTemp")
+
+                    // 서버에서 날씨 데이터가 없다면 임시 테스트 데이터 사용
+                    val testWeather = if (rawWeather.isNullOrBlank()) "맑음" else rawWeather
+                    val testTemp = rawTemp ?: 25.0
+                    
+                    Log.d("MapViewModel", "🧪 테스트 데이터 적용 - testWeather: '$testWeather', testTemp: $testTemp")
+
+                    _serverWeather.value = normalizeWeather(testWeather)
+                    _serverTemperature.value = kotlin.math.round(testTemp).toInt()
+                    
+                    Log.d("MapViewModel", "🎯 최종 변환된 데이터 - serverWeather: '${_serverWeather.value}', serverTemperature: ${_serverTemperature.value}")
+                    
                     // 새로운 데이터 로드 시 선택된 마커가 여전히 존재하는지 확인
                     selectedMarker?.let { selected ->
                         val stillExists = mapContents.any { it.contentId == selected.contentId }
@@ -181,11 +226,13 @@ class MapViewModel @Inject constructor(
                         }
                     }
                 } else {
+                    Log.w("MapViewModel", "⚠️ API 응답 실패 - message: '${response.message}'")
                     errorMessage = response.message
                 }
 
             _isLoading.value = false
             } catch (throwable: Throwable) {
+                Log.e("MapViewModel", "❌ loadMapContents 오류 발생", throwable)
                 errorMessage = throwable.message ?: "알 수 없는 오류가 발생했습니다"
                 _isLoading.value = false
             }
@@ -409,6 +456,7 @@ class MapViewModel @Inject constructor(
         radius: Int
     ) {
         Log.d(TAG, "🎯 화면 영역 기반 데이터 로드 시작 - 반경: ${radius}m")
+        Log.d("MapViewModel", "🚀 loadMapContentsWithCalculatedRadius 호출됨 - lat: $latitude, lng: $longitude, radius: $radius")
         loadMapContents(latitude, longitude, radius)
     }
 
@@ -443,6 +491,16 @@ class MapViewModel @Inject constructor(
         if (_tooltipState.value.isVisible) {
             // Log.d(TAG, "📍 툴팁 위치 업데이트: $newPosition") // 너무 많이 호출되서 주석
             _tooltipState.value = _tooltipState.value.copy(position = newPosition)
+        }
+    }// MapViewModel.kt (파일 아무 하단 유틸 영역)
+    private fun normalizeWeather(raw: String?): String? {
+        val k = raw?.trim()?.lowercase() ?: return null
+        return when (k) {
+            "맑음", "해", "쾌청", "sun", "fine", "clear" -> "sunny"
+            "구름", "흐림", "흐림많음", "cloud", "overcast", "cloudy", "clouds" -> "clouds"
+            "비", "소나기", "drizzle", "rain shower", "rainy", "rain" -> "rain"
+            "천둥", "천둥번개", "번개", "뇌우", "thunder", "storm", "thunderstorm", "stormy" -> "thunderstorm"
+            else -> null
         }
     }
 }
