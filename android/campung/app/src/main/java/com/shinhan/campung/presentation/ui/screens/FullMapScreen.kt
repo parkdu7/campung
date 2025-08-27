@@ -173,6 +173,7 @@ fun FullMapScreen(
     var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
     var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
     var mapViewportManager by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapViewportManager?>(null) }
+    var mapInteractionController by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapInteractionController?>(null) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -393,8 +394,13 @@ fun FullMapScreen(
                                         highlightedContent = centerContent
                                     }
 
+                            // 지도 상호작용 컨트롤러 생성
+                            val interactionController = com.shinhan.campung.presentation.ui.map.MapInteractionController(mapViewModel).apply {
+                                setNaverMap(map)
+                            }
+
                             // 기존 카메라 리스너 (마커 중심점 관리)
-                                mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
+                                mapCameraListener = MapCameraListener(mapViewModel, clusterManager, interactionController)
                                 map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
 
                             // 새로운 뷰포트 관리자 (화면 영역 기반 데이터 로드)
@@ -412,15 +418,15 @@ fun FullMapScreen(
                                         clusterManager?.clearSelection()
                                     }
                                 }
-                            }
-                        } else {
-                            naverMapRef?.let { map ->
-                                mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
-                            }
                         }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                    } else {
+                        naverMapRef?.let { map ->
+                            mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
 
                 // 뒤로가기 버튼
                 IconButton(

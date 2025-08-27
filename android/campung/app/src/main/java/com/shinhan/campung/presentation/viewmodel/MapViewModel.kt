@@ -143,9 +143,9 @@ class MapViewModel @Inject constructor(
             }
         }
 
-        // 500ms 디바운스 적용
+        // 100ms 디바운스 적용 (빠른 반응)
         debounceJob = viewModelScope.launch {
-            delay(500)
+            delay(100)
 
             _isLoading.value = true
             errorMessage = null
