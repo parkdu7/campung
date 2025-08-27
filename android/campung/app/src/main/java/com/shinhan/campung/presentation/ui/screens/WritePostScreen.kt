@@ -317,14 +317,14 @@ fun WritePostScreen(
             Button(
                 onClick = {
                     // files: 현재는 Uri를 문자열로만 보냄 (서버가 파일키/URL 요구 시 이 부분 교체)
-                    val fileStrings = images.map { it.toString() }
+                    val fileUris = images.toList()          // 현재 images: MutableList<Uri>
                     viewModel.submit(
                         boardTitle = selectedBoardTitle,
                         title = title,
                         body = content,
                         isRealName = isRealName,
                         emotionTag = null,            // UI 생기면 연결
-                        files = fileStrings,
+                        files = fileUris,                    // ✅ 문자열 변환하지 말고 Uri 전달
                         latitude = null,              // TODO: 실제 위경도 연결 시 값 전달
                         longitude = null
                     )

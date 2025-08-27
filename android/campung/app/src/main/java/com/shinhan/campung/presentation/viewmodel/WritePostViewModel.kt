@@ -1,5 +1,6 @@
 package com.shinhan.campung.presentation.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shinhan.campung.data.location.LocationTracker
@@ -66,7 +67,7 @@ class WritePostViewModel @Inject constructor(
         body: String,
         isRealName: Boolean,
         emotionTag: String? = null,
-        files: List<String>? = null,
+        files: List<Uri>? = null,          // ✅ Uri
         latitude: Double? = null,
         longitude: Double? = null
     ) {
@@ -75,23 +76,36 @@ class WritePostViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = UiState(isLoading = true)
+            val (lat, lng) = resolveCoords(latitude, longitude)
 
-            val (lat, lng) = resolveCoords(latitude, longitude) // ✅ 좌표 확정
-
-            val result = contentsRepository.createContentFormUrlEncoded(
-                title = title,
-                body = body,
-                latitude = lat,
-                longitude = lng,
-                postType = postType,
-                isAnonymous = isAnonymous,
-                contentScope = "MAP",
-                emotionTag = emotionTag,
-                files = files
-            )
+            val result = if (files.isNullOrEmpty()) {
+                contentsRepository.createContentFormUrlEncoded(
+                    title = title,
+                    body = body,
+                    latitude = lat,
+                    longitude = lng,
+                    postType = postType,
+                    isAnonymous = isAnonymous,
+                    contentScope = "MAP",
+                    emotionTag = emotionTag,
+                    files = null // 문자열 URL/키를 보내는 경우에만 사용
+                )
+            } else {
+                contentsRepository.createContentMultipart(
+                    title = title,
+                    body = body,
+                    latitude = lat,
+                    longitude = lng,
+                    postType = postType,
+                    isAnonymous = isAnonymous,
+                    contentScope = "MAP",
+                    emotionTag = emotionTag,
+                    fileUris = files,                 // ✅ Uri 그대로 전달
+                    useBracketForFiles = false        // 서버 스펙에 따라 true로
+                )
+            }
 
             _uiState.value = UiState(isLoading = false)
-
             result.onSuccess { res ->
                 _events.emit(Event.Success(res.contentId, res.message))
             }.onFailure { e ->

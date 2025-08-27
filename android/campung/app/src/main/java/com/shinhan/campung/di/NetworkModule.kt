@@ -132,8 +132,10 @@ object NetworkModule {
     fun provideContentsApi(retrofit: Retrofit): ContentsApiService =
         retrofit.create(ContentsApiService::class.java)
 
-    @Provides @Singleton
+    @Provides
+    @Singleton
     fun provideContentsRepository(
-        api: ContentsApiService
-    ) = ContentsRepository(api)
+        api: ContentsApiService,
+        @ApplicationContext context: Context              // ✅ 주입받고
+    ): ContentsRepository = ContentsRepository(api, context)  // ✅ 전달
 }
