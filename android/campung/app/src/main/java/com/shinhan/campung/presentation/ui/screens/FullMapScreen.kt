@@ -104,29 +104,29 @@ fun FullMapScreen(
     val isLoading by mapViewModel.isLoading.collectAsState()
     val tooltipState by mapViewModel.tooltipState.collectAsState()
     val sharedLocations by locationSharingManager.sharedLocations.collectAsState()
-    
+
     // 위치 공유 브로드캐스트 수신
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 android.util.Log.d("FullMapScreen", "브로드캐스트 수신됨 - action: ${intent?.action}")
-                
+
                 if (intent?.action == "com.shinhan.campung.LOCATION_SHARED") {
                     android.util.Log.d("FullMapScreen", "위치 공유 브로드캐스트 처리 시작")
-                    
+
                     val userName = intent.getStringExtra("userName")
                     val latitude = intent.getStringExtra("latitude")?.toDoubleOrNull()
                     val longitude = intent.getStringExtra("longitude")?.toDoubleOrNull()
                     val displayUntil = intent.getStringExtra("displayUntil")
                     val shareId = intent.getStringExtra("shareId")
-                    
+
                     android.util.Log.d("FullMapScreen", "브로드캐스트 데이터: userName=$userName, lat=$latitude, lng=$longitude, displayUntil=$displayUntil, shareId=$shareId")
-                    
+
                     if (userName == null || latitude == null || longitude == null || displayUntil == null || shareId == null) {
                         android.util.Log.e("FullMapScreen", "브로드캐스트 데이터 누락 - 처리 중단")
                         return
                     }
-                    
+
                     android.util.Log.d("FullMapScreen", "LocationSharingManager.addSharedLocation 호출")
                     locationSharingManager.addSharedLocation(
                         userName, latitude, longitude, displayUntil, shareId
@@ -136,10 +136,10 @@ fun FullMapScreen(
                 }
             }
         }
-        
+
         val intentFilter = IntentFilter("com.shinhan.campung.LOCATION_SHARED")
         android.util.Log.d("FullMapScreen", "브로드캐스트 수신기 등록 중 - action: com.shinhan.campung.LOCATION_SHARED")
-        
+
         // 전역 브로드캐스트 수신기 등록
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
@@ -148,7 +148,7 @@ fun FullMapScreen(
             context.registerReceiver(receiver, intentFilter)
             android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API <33)")
         }
-        
+
         // LocalBroadcastManager도 등록 (더 안전함)
         try {
             androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -158,7 +158,7 @@ fun FullMapScreen(
         } catch (e: Exception) {
             android.util.Log.e("FullMapScreen", "LocalBroadcast 수신기 등록 실패", e)
         }
-        
+
         onDispose {
             try {
                 context.unregisterReceiver(receiver)
@@ -166,7 +166,7 @@ fun FullMapScreen(
             } catch (e: IllegalArgumentException) {
                 android.util.Log.w("FullMapScreen", "전역 브로드캐스트 수신기 해제 실패 (이미 해제됨)")
             }
-            
+
             try {
                 androidx.localbroadcastmanager.content.LocalBroadcastManager
                     .getInstance(context)
@@ -256,6 +256,7 @@ fun FullMapScreen(
     var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
     var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
     var mapViewportManager by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapViewportManager?>(null) }
+    var mapInteractionController by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapInteractionController?>(null) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -266,17 +267,17 @@ fun FullMapScreen(
             }
         }
     }
-    
+
     // 위치 공유 마커 매니저 (모듈화됨)
     val sharedLocationMarkerManager = remember { SharedLocationMarkerManager() }
-    
+
     // 위치 공유 데이터 변경 시 마커 업데이트
     LaunchedEffect(sharedLocations) {
         android.util.Log.d("FullMapScreen", "sharedLocations 업데이트됨 - 크기: ${sharedLocations.size}")
         sharedLocations.forEachIndexed { index, location ->
             android.util.Log.d("FullMapScreen", "[$index] ${location.userName} - (${location.latitude}, ${location.longitude}) - 만료: ${location.displayUntil}")
         }
-        
+
         naverMapRef?.let { map ->
             android.util.Log.d("FullMapScreen", "지도 마커 업데이트 시작")
             sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
@@ -493,8 +494,13 @@ fun FullMapScreen(
                                         highlightedContent = centerContent
                                     }
 
+                            // 지도 상호작용 컨트롤러 생성
+                            val interactionController = com.shinhan.campung.presentation.ui.map.MapInteractionController(mapViewModel).apply {
+                                setNaverMap(map)
+                            }
+
                             // 기존 카메라 리스너 (마커 중심점 관리)
-                                mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
+                                mapCameraListener = MapCameraListener(mapViewModel, clusterManager, interactionController)
                                 map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
 
                             // 새로운 뷰포트 관리자 (화면 영역 기반 데이터 로드)
@@ -516,7 +522,7 @@ fun FullMapScreen(
                         } else {
                             naverMapRef?.let { map ->
                                 mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
-                                
+
                                 // 위치 공유 마커 업데이트 (모듈화된 매니저 사용)
                                 sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
                             }
