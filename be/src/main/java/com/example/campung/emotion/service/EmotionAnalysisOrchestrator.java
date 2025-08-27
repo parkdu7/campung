@@ -29,23 +29,31 @@ public class EmotionAnalysisOrchestrator {
     /**
      * 스케줄러용 매시간 감정 분석 실행
      */
-    public void executeHourlyEmotionAnalysis() {
+    public Map<String, Integer> executeHourlyEmotionAnalysis() {
         AnalysisTimeRange timeRange = timeRangeAnalysisService.calculateScheduledTimeRange();
-        executeEmotionAnalysis(timeRange);
+        return executeEmotionAnalysis(timeRange);
     }
 
     /**
      * 수동 감정 분석 실행
      */
-    public void executeManualEmotionAnalysis() {
+    public Map<String, Integer> executeManualEmotionAnalysis() {
         AnalysisTimeRange timeRange = timeRangeAnalysisService.calculateManualTimeRange();
-        executeEmotionAnalysis(timeRange);
+        return executeEmotionAnalysis(timeRange);
+    }
+
+    /**
+     * 오늘 하루 전체 감정 분석 실행
+     */
+    public Map<String, Integer> executeAllTodaysAnalysis() {
+        AnalysisTimeRange timeRange = timeRangeAnalysisService.calculateTodaysAllDayRange();
+        return executeEmotionAnalysis(timeRange);
     }
 
     /**
      * 감정 분석 프로세스 실행 (공통 로직)
      */
-    private void executeEmotionAnalysis(AnalysisTimeRange timeRange) {
+    private Map<String, Integer> executeEmotionAnalysis(AnalysisTimeRange timeRange) {
         log.info("감정 분석 프로세스 시작 ({}): {} ~ {}", 
                 timeRange.isScheduled() ? "스케줄러" : "수동",
                 timeRange.getStartTime(), timeRange.getEndTime());
@@ -56,7 +64,7 @@ public class EmotionAnalysisOrchestrator {
         if (contents.isEmpty()) {
             log.info("분석할 게시글이 없습니다. 시간 범위: {} ~ {}", 
                     timeRange.getStartTime(), timeRange.getEndTime());
-            return;
+            return new java.util.HashMap<>();
         }
 
         // 2. 게시글을 PostData로 변환
@@ -72,6 +80,8 @@ public class EmotionAnalysisOrchestrator {
 
         log.info("감정 분석 프로세스 완료. 분석 게시글 수: {}, 감정 점수: {}", 
                 contents.size(), emotionScores);
+        
+        return emotionScores; // 분석된 최근 점수 반환
     }
 
     /**

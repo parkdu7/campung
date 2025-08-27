@@ -44,9 +44,6 @@ public class EmotionStatisticsResponse {
         @JsonProperty("totalAnalyzedPosts")
         private Integer totalAnalyzedPosts;
         
-        @JsonProperty("cumulativeScores")
-        private Map<String, Integer> cumulativeScores;
-        
         @JsonProperty("hourlyPostsCount")
         private Map<String, Integer> hourlyPostsCount;
     }
