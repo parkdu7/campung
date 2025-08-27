@@ -50,9 +50,9 @@ class MapViewportManager(
         // 이전 Job 취소
         loadDataJob?.cancel()
         
-        // 새로운 Job 시작 (500ms 디바운스)
+        // 새로운 Job 시작 (100ms 디바운스로 빠른 반응)
         loadDataJob = coroutineScope.launch {
-            delay(500)
+            delay(100)
             
             try {
                 loadMapContentsForCurrentView()
