@@ -35,12 +35,14 @@ interface ContentsApiService {
         @Path("contentId") contentId: Long
     ): Response<CommentListResponse>
 
-    // 댓글 작성
+    // 댓글 작성 - multipart/form-data (최신 스웨거 스펙)
+    @Multipart
     @POST("/api/contents/{contentId}/comments")
     suspend fun postComment(
         @Path("contentId") contentId: Long,
-        @Query("body") body: String,
-        @Query("isAnonymous") isAnonymous: Boolean
+        @Part("body") body: RequestBody,
+        @Part("isAnonymous") isAnonymous: RequestBody,
+        @Part("parentCommentId") parentCommentId: RequestBody
     ): Response<CommentResponse>
 
     @Multipart
@@ -57,7 +59,7 @@ interface ContentsApiService {
         @Part files: List<MultipartBody.Part>?,    // ✅ 파일은 Part로!
     ): ContentCreateResponse
 
-    // 대댓글 작성
+    // 대댓글 작성 - multipart/form-data (최신 스웨거 스펙)
     @Multipart
     @POST("/api/contents/{contentId}/comments/{commentId}/replies")
     suspend fun postReply(
