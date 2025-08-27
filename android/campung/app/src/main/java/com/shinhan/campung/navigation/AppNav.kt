@@ -138,9 +138,16 @@ fun AppNav(authDataStore: AuthDataStore, sharedMapView: MapView) {
 
             // 글쓰기 화면
             composable(Route.WRITE_POST) {
+//                WritePostScreen(
+//                    onBack = { navController.popBackStack() },
+//                    onSubmitted = { navController.popBackStack() } // 등록 → 맵으로 복귀
+//                )
                 WritePostScreen(
                     onBack = { navController.popBackStack() },
-                    onSubmitted = { navController.popBackStack() } // 등록 → 맵으로 복귀
+                    onSubmitted = { newId ->
+                        navController.previousBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", newId)
+                        navController.popBackStack()  // 맵으로 복귀
+                    }
                 )
             }
         }

@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun WritePostScreen(
     onBack: () -> Unit = {},
-    onSubmitted: () -> Unit = {}
+    onSubmitted: (Long) -> Unit = {}   // ✅ Long 전달
 ) {
     val viewModel: WritePostViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -92,7 +92,7 @@ fun WritePostScreen(
             when (event) {
                 is WritePostViewModel.Event.Success -> {
                     scope.launch { snackbarHostState.showSnackbar("등록 완료! #${event.contentId}") }
-                    onSubmitted()
+                    onSubmitted(event.contentId)      // ✅ contentId 전달
                 }
                 is WritePostViewModel.Event.Error -> {
                     scope.launch { snackbarHostState.showSnackbar(event.message) }

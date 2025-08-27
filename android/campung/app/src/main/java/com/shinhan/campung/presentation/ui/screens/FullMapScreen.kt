@@ -192,6 +192,29 @@ fun FullMapScreen(
         }
     }
 
+    val refreshIdFlow = remember(navController) {
+        navController.currentBackStackEntry?.savedStateHandle
+            ?.getStateFlow<Long?>("map_refresh_content_id", null)
+    }
+    val refreshId by (refreshIdFlow?.collectAsState() ?: remember { mutableStateOf<Long?>(null) })
+
+    LaunchedEffect(refreshId, naverMapRef) {
+        val id = refreshId ?: return@LaunchedEffect
+        // 현재 화면 중심/반경으로 강제 리로드
+        val center = naverMapRef?.cameraPosition?.target
+        val lat = center?.latitude ?: mapViewModel.getLastKnownLocation()?.first ?: 0.0
+        val lng = center?.longitude ?: mapViewModel.getLastKnownLocation()?.second ?: 0.0
+        val radius = naverMapRef?.let {
+            com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(it)
+        } ?: 2000
+
+        mapViewModel.requestHighlight(id)                 // ✅ 하이라이트 예약
+        mapViewModel.loadMapContents(lat, lng, radius = radius, force = true) // ✅ 강제 리로드
+
+        // 원샷 처리
+        navController.currentBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", null)
+    }
+
     LaunchedEffect(Unit) {
         if (locationPermissionManager.hasLocationPermission()) {
             hasPermission = true
