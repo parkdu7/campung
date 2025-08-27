@@ -1,18 +1,22 @@
 package com.shinhan.campung.data.remote.api
 
 import com.shinhan.campung.data.remote.request.LocationShareRespondRequest
+import com.shinhan.campung.data.remote.request.LocationShareRequestRequest
 import com.shinhan.campung.data.remote.response.LocationShareRespondResponse
 import retrofit2.http.*
 
 interface LocationApi {
 
     // 위치 공유 요청에 응답 (수락/거절)
-    @POST("location/share/respond")
-    suspend fun respondToLocationShareRequest(@Body request: LocationShareRespondRequest): LocationShareRespondResponse
+    @PUT("location/share/request/{shareRequestId}/respond")
+    suspend fun respondToLocationShareRequest(
+        @Path("shareRequestId") shareRequestId: Long,
+        @Body request: LocationShareRespondRequest
+    ): LocationShareRespondResponse
 
     // 위치 공유 요청 보내기
     @POST("location/share/request")
-    suspend fun sendLocationShareRequest(@Body request: Map<String, String>): LocationShareRespondResponse
+    suspend fun sendLocationShareRequest(@Body request: LocationShareRequestRequest): LocationShareRespondResponse
 
     // 현재 위치 공유 상태 조회
     @GET("location/share/status")

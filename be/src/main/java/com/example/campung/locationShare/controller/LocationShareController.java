@@ -21,10 +21,28 @@ public class LocationShareController {
     @PostMapping("/share/request")
     @Operation(summary = "위치 공유 요청", description = "친구들에게 위치 공유를 요청합니다")
     public ResponseEntity<LocationShareResponseDto> requestLocationShare(
-            @RequestHeader("Authorization") String userId,
+            @RequestHeader("Authorization") String authorization,
             @RequestBody LocationShareRequestDto request) {
         
-        log.info("Location share request from user: {}, to {} friends", userId, request.getFriendIds().size());
+        log.info("Raw Authorization header: {}", authorization);
+        
+        // Bearer 토큰에서 userId 추출
+        String userId;
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            userId = authorization.substring(7);
+        } else {
+            log.error("Invalid Authorization header: {}", authorization);
+            return ResponseEntity.badRequest()
+                    .body(LocationShareResponseDto.builder()
+                            .message("인증 헤더가 올바르지 않습니다")
+                            .successCount(0)
+                            .totalCount(0)
+                            .build());
+        }
+        
+        log.info("Location share request from user: {}, to {} friends", userId, 
+                request.getFriendUserIds() != null ? request.getFriendUserIds().size() : 0);
+        log.info("Request data - friendUserIds: {}, purpose: {}", request.getFriendUserIds(), request.getPurpose());
         
         try {
             LocationShareResponseDto response = locationShareService.requestLocationShare(userId, request);
@@ -36,7 +54,7 @@ public class LocationShareController {
                     .body(LocationShareResponseDto.builder()
                             .message("위치 공유 요청에 실패했습니다: " + e.getMessage())
                             .successCount(0)
-                            .totalCount(request.getFriendIds().size())
+                            .totalCount(request.getFriendUserIds() != null ? request.getFriendUserIds().size() : 0)
                             .build());
         }
     }
@@ -44,9 +62,24 @@ public class LocationShareController {
     @PutMapping("/share/request/{shareRequestId}/respond")
     @Operation(summary = "위치 공유 응답", description = "위치 공유 요청에 수락 또는 거절로 응답합니다")
     public ResponseEntity<LocationShareRespondResponseDto> respondToLocationShare(
-            @RequestHeader("Authorization") String userId,
+            @RequestHeader("Authorization") String authorization,
             @PathVariable Long shareRequestId,
             @RequestBody LocationShareRespondDto response) {
+        
+        log.info("Raw Authorization header: {}", authorization);
+        
+        // Bearer 토큰에서 userId 추출
+        String userId;
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            userId = authorization.substring(7);
+        } else {
+            log.error("Invalid Authorization header: {}", authorization);
+            return ResponseEntity.badRequest()
+                    .body(LocationShareRespondResponseDto.builder()
+                            .message("인증 헤더가 올바르지 않습니다")
+                            .status("error")
+                            .build());
+        }
         
         log.info("Location share response from user: {}, requestId: {}, action: {}", 
                 userId, shareRequestId, response.getAction());

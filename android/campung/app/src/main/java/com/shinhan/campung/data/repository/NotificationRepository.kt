@@ -23,11 +23,7 @@ class NotificationRepository @Inject constructor(
     // 알림 목록 조회
     suspend fun getNotifications(): List<NotificationResponse> {
         val response = notificationApi.getNotifications()
-        return if (response.success && response.data != null) {
-            response.data
-        } else {
-            emptyList()
-        }
+        return response.notifications ?: emptyList()
     }
 
     // 읽지 않은 알림 개수 조회

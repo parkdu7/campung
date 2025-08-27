@@ -90,12 +90,31 @@ public class FriendshipService {
 
         // 요청 상태 확인
         if (!"pending".equals(friendship.getStatus())) {
-            throw new IllegalStateException("이미 처리된 요청입니다.");
+            if ("accepted".equals(friendship.getStatus())) {
+                // 이미 수락된 경우, 현재 상태를 반환
+                return FriendshipDto.builder()
+                        .friendshipId(friendship.getFriendshipId())
+                        .userId(friendship.getRequester().getUserId())
+                        .nickname(friendship.getRequester().getNickname())
+                        .status(friendship.getStatus())
+                        .createdAt(friendship.getCreatedAt())
+                        .build();
+            } else {
+                throw new IllegalStateException("이미 처리된 요청입니다.");
+            }
         }
 
         // 상태 업데이트
         friendship.setStatus("accepted");
         friendshipRepository.save(friendship);
+
+        // 기존 friend_request 알림을 읽음 처리
+        notificationRepository.findByUser_UserIdAndTypeAndDataContaining(
+                userId, "friend_request", "\"friendshipId\":" + friendshipId)
+                .forEach(existingNotification -> {
+                    existingNotification.setIsRead(true);
+                    notificationRepository.save(existingNotification);
+                });
 
         return FriendshipDto.builder()
                 .friendshipId(friendship.getFriendshipId())
@@ -125,6 +144,14 @@ public class FriendshipService {
         }
 
         friendshipRepository.delete(friendship);
+
+        // 기존 friend_request 알림을 읽음 처리
+        notificationRepository.findByUser_UserIdAndTypeAndDataContaining(
+                userId, "friend_request", "\"friendshipId\":" + friendshipId)
+                .forEach(existingNotification -> {
+                    existingNotification.setIsRead(true);
+                    notificationRepository.save(existingNotification);
+                });
     }
 
     @Transactional(readOnly = true)
