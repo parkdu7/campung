@@ -61,7 +61,7 @@ public class UserService {
 
         // 기존 형식 유지: accessToken은 일단 userId 사용(추후 JWT로 교체 권장)
         String accessToken = user.getUserId();
-        return new LoginResponse(true, "로그인에 성공했습니다", accessToken);
+        return new LoginResponse(true, "로그인에 성공했습니다", accessToken, user.getNickname());
     }
 
     // 회원가입

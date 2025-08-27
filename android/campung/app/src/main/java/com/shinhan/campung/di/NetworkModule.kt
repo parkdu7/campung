@@ -18,10 +18,13 @@ import com.shinhan.campung.data.remote.api.ContentsApiService
 import com.shinhan.campung.data.remote.api.FriendApi
 import com.shinhan.campung.data.remote.api.LocationApi
 import com.shinhan.campung.data.remote.api.NotificationApi
+import com.shinhan.campung.data.remote.api.RecordingApiService
 import com.shinhan.campung.data.repository.ContentsRepository
 import com.shinhan.campung.data.repository.FriendRepository
 import com.shinhan.campung.data.repository.LocationRepository
 import com.shinhan.campung.data.repository.NotificationRepository
+import com.shinhan.campung.data.repository.RecordingRepository
+import com.shinhan.campung.data.repository.RecordingRepositoryImpl
 import com.shinhan.campung.data.service.LocationService
 import com.shinhan.campung.data.service.LocationSharingManager
 import dagger.Module
@@ -142,4 +145,12 @@ object NetworkModule {
         api: ContentsApiService,
         @ApplicationContext context: Context              // ✅ 주입받고
     ): ContentsRepository = ContentsRepository(api, context)  // ✅ 전달
+
+    @Provides @Singleton
+    fun provideRecordingApiService(retrofit: Retrofit): RecordingApiService =
+        retrofit.create(RecordingApiService::class.java)
+
+    @Provides @Singleton
+    fun provideRecordingRepository(api: RecordingApiService): RecordingRepository =
+        RecordingRepositoryImpl(api)
 }
