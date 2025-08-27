@@ -6,4 +6,5 @@ object Route {
     const val HOME  = "home"
     const val FRIEND = "friend"
     const val NOTIFICATION = "notification"
+    const val CONTENT_DETAIL = "content_detail"
 }

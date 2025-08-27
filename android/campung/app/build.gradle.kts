@@ -119,4 +119,10 @@ dependencies {
     implementation("com.github.bumptech.glide:compose:1.0.0-beta01") // Glide for Compose
     implementation("io.github.fornewid:naver-map-compose:1.7.0") // NaverMap Compose
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4") // Java 8 time API
+    
+    // ContentDetailScreen 추가 의존성
+    implementation("io.coil-kt:coil-compose:2.6.0") // Coil for Compose
+    implementation("androidx.media3:media3-exoplayer:1.4.1") // ExoPlayer
+    implementation("androidx.media3:media3-ui:1.4.1") // ExoPlayer UI
+    implementation("androidx.compose.material:material-icons-extended:1.7.5") // Extended Material Icons
 }
