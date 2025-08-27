@@ -38,6 +38,11 @@ public class RecordService {
             return new RecordCreateResponse(false, "녹음 파일이 필요합니다");
         }
 
+        // 음성 파일 용량 제한 검사 (10MB)
+        if (request.getAudioFile().getSize() > 10 * 1024 * 1024) {
+            return new RecordCreateResponse(false, "음성 파일은 10MB를 초과할 수 없습니다.");
+        }
+
         // 오디오 파일 형식 검증
         String contentType = request.getAudioFile().getContentType();
         if (contentType == null || !contentType.startsWith("audio/")) {
