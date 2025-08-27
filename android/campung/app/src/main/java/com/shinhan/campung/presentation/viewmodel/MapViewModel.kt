@@ -3,13 +3,17 @@ package com.shinhan.campung.presentation.viewmodel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.naver.maps.map.NaverMap
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
 import com.shinhan.campung.data.mapper.ContentMapper
 import com.shinhan.campung.data.model.ContentCategory
+import com.shinhan.campung.presentation.ui.components.TooltipState
+import com.shinhan.campung.presentation.ui.components.TooltipType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,6 +46,10 @@ class MapViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // 툴팁 상태 관리
+    private val _tooltipState = MutableStateFlow(TooltipState())
+    val tooltipState: StateFlow<TooltipState> = _tooltipState.asStateFlow()
 
     // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
@@ -148,10 +156,15 @@ class MapViewModel @Inject constructor(
                 // 선택된 날짜를 문자열로 변환
                 val dateString = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
+                // 반경이 제공되지 않은 경우 기본값 사용 (이전 버전 호환성)
+                val requestRadius = radius ?: getDefaultRadius()
+                
+                Log.d(TAG, "📍 API 요청: lat=$latitude, lng=$longitude, radius=${requestRadius}m, postType=${postType ?: selectedPostType}")
+                
                 val response = mapRepository.getMapContents(
                     latitude = latitude,
                     longitude = longitude,
-                    radius = radius,
+                    radius = requestRadius,
                     postType = postType ?: selectedPostType,
                     date = dateString
                 ).getOrThrow()
@@ -375,5 +388,61 @@ class MapViewModel @Inject constructor(
         val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
 
         return earthRadius * c
+    }
+
+    /**
+     * 반경이 제공되지 않은 경우 사용할 기본 반경 (이전 버전 호환성)
+     */
+    private fun getDefaultRadius(): Int {
+        return 2000 // 기본 2km
+    }
+    
+    /**
+     * 화면 영역 기반으로 맵 데이터를 로드하는 새로운 함수
+     * @param latitude 중심점 위도
+     * @param longitude 중심점 경도  
+     * @param radius 화면 영역 기반 계산된 반경
+     */
+    fun loadMapContentsWithCalculatedRadius(
+        latitude: Double,
+        longitude: Double,
+        radius: Int
+    ) {
+        Log.d(TAG, "🎯 화면 영역 기반 데이터 로드 시작 - 반경: ${radius}m")
+        loadMapContents(latitude, longitude, radius)
+    }
+
+    // 툴팁 관리 함수들
+    fun showTooltip(content: MapContent, naverMap: NaverMap, type: TooltipType) {
+        val latLng = com.naver.maps.geometry.LatLng(content.location.latitude, content.location.longitude)
+        val screenPoint = naverMap.projection.toScreenLocation(latLng)
+        val position = Offset(screenPoint.x.toFloat(), screenPoint.y.toFloat())
+        
+        Log.d(TAG, "🎯 showTooltip 호출됨: ${content.title}")
+        Log.d(TAG, "📍 마커 위치: lat=${content.location.latitude}, lng=${content.location.longitude}")
+        Log.d(TAG, "📱 화면 좌표: x=${screenPoint.x}, y=${screenPoint.y}")
+        Log.d(TAG, "🎨 툴팁 타입: $type")
+        
+        _tooltipState.value = TooltipState(
+            isVisible = true,
+            content = content,
+            position = position,
+            type = type
+        )
+        
+        Log.d(TAG, "✅ 툴팁 상태 업데이트 완료: ${_tooltipState.value}")
+    }
+
+    fun hideTooltip() {
+        Log.d(TAG, "🫥 hideTooltip 호출됨")
+        _tooltipState.value = _tooltipState.value.copy(isVisible = false)
+        Log.d(TAG, "❌ 툴팁 숨김 완료")
+    }
+
+    fun updateTooltipPosition(newPosition: Offset) {
+        if (_tooltipState.value.isVisible) {
+            // Log.d(TAG, "📍 툴팁 위치 업데이트: $newPosition") // 너무 많이 호출되서 주석
+            _tooltipState.value = _tooltipState.value.copy(position = newPosition)
+        }
     }
 }

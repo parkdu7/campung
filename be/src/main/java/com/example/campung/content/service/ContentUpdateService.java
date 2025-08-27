@@ -85,6 +85,20 @@ public class ContentUpdateService {
                 int nextIndex = currentAttachments.size() + 1;
                 for (MultipartFile file : request.getNewFiles()) {
                     if (!file.isEmpty()) {
+                        // 파일 타입별 용량 제한 검사
+                        String contentType = file.getContentType();
+                        if (contentType != null) {
+                            if (contentType.startsWith("image/")) {
+                                if (file.getSize() > 5 * 1024 * 1024) { // 5MB
+                                    throw new IllegalArgumentException("이미지 파일은 5MB를 초과할 수 없습니다: " + file.getOriginalFilename());
+                                }
+                            } else if (contentType.startsWith("video/")) {
+                                if (file.getSize() > 100 * 1024 * 1024) { // 100MB
+                                    throw new IllegalArgumentException("영상 파일은 100MB를 초과할 수 없습니다: " + file.getOriginalFilename());
+                                }
+                            }
+                        }
+
                         String fileUrl = s3Service.uploadFile(file);
                         
                         Attachment attachment = Attachment.builder()

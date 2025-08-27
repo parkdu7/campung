@@ -28,20 +28,19 @@ public class RecordService {
     @Autowired
     private S3Service s3Service;
 
+    @Autowired
+    private com.example.campung.content.service.FileSizeValidationService fileSizeValidationService;
+
     @Transactional
     public RecordCreateResponse createRecord(RecordCreateRequest request, String accessToken) throws IOException {
         System.out.println("=== 녹음파일 등록 시작 ===");
         System.out.println("accessToken: " + accessToken);
 
-        // 입력 검증
-        if (request.getAudioFile() == null || request.getAudioFile().isEmpty()) {
-            return new RecordCreateResponse(false, "녹음 파일이 필요합니다");
-        }
-
-        // 오디오 파일 형식 검증
-        String contentType = request.getAudioFile().getContentType();
-        if (contentType == null || !contentType.startsWith("audio/")) {
-            return new RecordCreateResponse(false, "오디오 파일만 업로드 가능합니다");
+        // 음성 파일 검증 및 용량 제한 검사
+        try {
+            fileSizeValidationService.validateAudioFileSize(request.getAudioFile());
+        } catch (IllegalArgumentException e) {
+            return new RecordCreateResponse(false, e.getMessage());
         }
 
         try {

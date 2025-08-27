@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]  # develop과 main 브랜치만 배포
   pull_request:
-    branches: [ backend-dev, android-dev, main ]  # PR 생성/업데이트 시에도 실행
+    branches: [ dev, main ]  # PR 생성/업데이트 시에도 실행
   workflow_dispatch:
 
 jobs:

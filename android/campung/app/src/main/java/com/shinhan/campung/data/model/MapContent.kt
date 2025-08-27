@@ -72,6 +72,17 @@ data class MediaFile(
     val url: String get() = fileUrl
     val type: String get() = fileType
     val thumbnail: String? get() = thumbnailUrl
+    
+    override fun hashCode(): Int {
+        var result = fileId.hashCode()
+        result = 31 * result + (fileType?.hashCode() ?: 0)
+        result = 31 * result + (fileUrl?.hashCode() ?: 0)
+        result = 31 * result + (thumbnailUrl?.hashCode() ?: 0)
+        result = 31 * result + (fileName?.hashCode() ?: 0)
+        result = 31 * result + (fileSize?.hashCode() ?: 0)
+        result = 31 * result + (order?.hashCode() ?: 0)
+        return result
+    }
 }
 
 data class Reactions(

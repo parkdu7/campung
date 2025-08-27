@@ -61,6 +61,8 @@ import com.shinhan.campung.data.model.MapContent
 import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
+import com.shinhan.campung.presentation.ui.components.AnimatedMapTooltip
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Arrangement
@@ -90,6 +92,7 @@ fun FullMapScreen(
     val bottomSheetContents by mapViewModel.bottomSheetContents.collectAsState()
     val isBottomSheetExpanded by mapViewModel.isBottomSheetExpanded.collectAsState()
     val isLoading by mapViewModel.isLoading.collectAsState()
+    val tooltipState by mapViewModel.tooltipState.collectAsState()
 
     // 화면 크기
     val screenHeight = configuration.screenHeightDp.dp
@@ -167,6 +170,7 @@ fun FullMapScreen(
     var naverMapRef by remember { mutableStateOf<NaverMap?>(null) }
     var clusterManager by remember { mutableStateOf<MapClusterManager?>(null) }
     var mapCameraListener by remember { mutableStateOf<MapCameraListener?>(null) }
+    var mapViewportManager by remember { mutableStateOf<com.shinhan.campung.presentation.ui.map.MapViewportManager?>(null) }
     var highlightedContent by remember { mutableStateOf<MapContent?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -205,10 +209,37 @@ fun FullMapScreen(
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
 
-            mapViewModel.loadMapContents(
-                latitude = pos.latitude,
-                longitude = pos.longitude
-            )
+            // 초기 로드시에도 화면 영역 기반 반경 계산 사용
+            naverMapRef?.let { map ->
+                val radius = com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(map)
+                mapViewModel.loadMapContentsWithCalculatedRadius(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude,
+                    radius = radius
+                )
+            } ?: run {
+                // NaverMap이 아직 준비되지 않았으면 기본 방식 사용
+                mapViewModel.loadMapContents(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude
+                )
+            }
+        }
+    }
+
+    // 카메라 이동시 툴팁 위치 업데이트
+    LaunchedEffect(naverMapRef) {
+        naverMapRef?.let { map ->
+            map.addOnCameraChangeListener { reason, animated ->
+                // 툴팁이 표시 중일 때만 위치 업데이트
+                if (tooltipState.isVisible && tooltipState.content != null) {
+                    val content = tooltipState.content!!
+                    val latLng = com.naver.maps.geometry.LatLng(content.location.latitude, content.location.longitude)
+                    val screenPoint = map.projection.toScreenLocation(latLng)
+                    val newPosition = androidx.compose.ui.geometry.Offset(screenPoint.x.toFloat(), screenPoint.y.toFloat())
+                    mapViewModel.updateTooltipPosition(newPosition)
+                }
+            }
         }
     }
 
@@ -238,7 +269,17 @@ fun FullMapScreen(
     // 툴팁 표시/숨기기 처리 - 더 이상 자동으로 사라지지 않음
     // selectedMarker가 있을 때만 툴팁 표시
 
-    BackHandler { navController.popBackStack() }
+    // 뒤로가기 버튼 처리
+    BackHandler {
+        if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
+            // 마커나 클러스터가 선택되어 있으면 선택 해제
+            mapViewModel.clearSelectedMarker()
+            clusterManager?.clearSelection()
+        } else {
+            // 아무것도 선택되어 있지 않으면 화면 나가기
+            navController.popBackStack()
+        }
+    }
 
     // 디버깅: 초기 상태 확인
     LaunchedEffect(Unit) {
@@ -254,7 +295,7 @@ fun FullMapScreen(
             .collect { currentValue ->
                 Log.d("BottomSheetDebug", "바텀시트 상태 변화 감지: $currentValue")
                 val isExpanded = currentValue == BottomSheetValue.Expanded
-                
+
                 // ViewModel의 상태와 실제 바텀시트 상태가 다를 때만 업데이트
                 if (isBottomSheetExpanded != isExpanded) {
                     Log.d("BottomSheetDebug", "ViewModel 상태 업데이트: $isBottomSheetExpanded -> $isExpanded")
@@ -349,8 +390,25 @@ fun FullMapScreen(
                                 highlightedContent = centerContent
                             }
 
+                            // 기존 카메라 리스너 (마커 중심점 관리)
                             mapCameraListener = MapCameraListener(mapViewModel, clusterManager)
                             map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
+
+                            // 새로운 뷰포트 관리자 (화면 영역 기반 데이터 로드)
+                            mapViewportManager = com.shinhan.campung.presentation.ui.map.MapViewportManager(mapViewModel, coroutineScope).apply {
+                                setNaverMap(map) // NaverMap 참조 설정
+                            }
+                            
+                            // 뷰포트 매니저의 카메라 리스너 추가
+                            map.addOnCameraChangeListener(mapViewportManager!!.createCameraChangeListener())
+
+                            // 지도 클릭 시 마커 및 클러스터 선택 해제
+                            map.setOnMapClickListener { _, _ ->
+                                if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
+                                    mapViewModel.clearSelectedMarker()
+                                    clusterManager?.clearSelection()
+                                }
+                            }
                         }
                     } else {
                         naverMapRef?.let { map ->
@@ -582,7 +640,16 @@ fun FullMapScreen(
                     .align(Alignment.TopCenter)
                     .padding(top = 64.dp)
             )
-        }
+
+            // 애니메이션 툴팁 오버레이
+            AnimatedMapTooltip(
+                visible = tooltipState.isVisible,
+                content = tooltipState.content?.title ?: "",
+                position = tooltipState.position,
+                type = tooltipState.type
+            )
+
+
 
         // 날짜 선택 다이얼로그
         if (showDatePicker) {
@@ -597,4 +664,5 @@ fun FullMapScreen(
             )
         }
     }
+}
 }

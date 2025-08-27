@@ -71,4 +71,20 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
         @Param("longitude") Double longitude,
         @Param("radiusMeters") Integer radiusMeters
     );
+    
+    /**
+     * 감정 분석용 시간 범위 게시글 조회
+     */
+    List<Content> findByCreatedAtBetweenOrderByCreatedAtDesc(LocalDateTime startDate, LocalDateTime endDate);
+    
+    /**
+     * 시간 범위 내 게시글 수 계산
+     */
+    int countByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
+    
+    /**
+     * 일별 게시글 수 통계 조회
+     */
+    @Query("SELECT DATE(c.createdAt), COUNT(c) FROM Content c WHERE c.createdAt BETWEEN :startTime AND :endTime GROUP BY DATE(c.createdAt)")
+    List<Object[]> findDailyPostCounts(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 }
