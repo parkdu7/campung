@@ -3,6 +3,8 @@ package com.shinhan.campung.data.model
 import com.google.gson.annotations.SerializedName
 import com.shinhan.campung.R
 import java.time.LocalDateTime
+import java.time.ZonedDateTime
+import java.time.ZoneId
 
 data class MapContent(
     val contentId: Long,
@@ -37,12 +39,17 @@ data class MapContent(
     
     private fun parseDateTime(dateStr: String): LocalDateTime {
         return try {
-            LocalDateTime.parse(dateStr.replace("Z", ""))
+            // Z가 없는 경우 UTC로 간주하고 Z 추가
+            val normalizedDateStr = if (dateStr.endsWith("Z")) dateStr else "${dateStr}Z"
+            // UTC 시간을 한국 시간으로 변환
+            val zonedDateTime = ZonedDateTime.parse(normalizedDateStr)
+            zonedDateTime.withZoneSameInstant(ZoneId.of("Asia/Seoul")).toLocalDateTime()
         } catch (e: Exception) {
-            LocalDateTime.now()
+            // 한국 현재 시간으로 fallback
+            ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toLocalDateTime()
         }
     }
-    
+
     override fun hashCode(): Int {
         var result = contentId.hashCode()
         result = 31 * result + (userId?.hashCode() ?: 0)
@@ -63,6 +70,8 @@ data class MapContent(
         return result
     }
 }
+
+
 
 data class Author(
     val nickname: String,
@@ -107,7 +116,33 @@ data class MediaFile(
 
 data class Reactions(
     val likes: Int,
-    val comments: Int
+    val comments: Int,
+    val isLiked: Boolean = false // 현재 사용자의 좋아요 여부
+)
+
+data class Comment(
+    val commentId: Long,
+    val userId: String,
+    val author: Author,
+    val body: String,
+    val mediaFiles: List<MediaFile>?,
+    val createdAt: String,
+    val replies: List<Reply>?,
+    val replyCount: Int
+)
+
+data class Reply(
+    val replyId: Long,
+    val userId: String,
+    val author: Author,
+    val body: String,
+    val mediaFiles: List<MediaFile>?,
+    val createdAt: String
+)
+
+data class LikeResponse(
+    val isLiked: Boolean,
+    val totalLikes: Int
 )
 
 enum class ContentCategory(val value: String, val iconRes: Int, val displayName: String) {

@@ -21,33 +21,60 @@ data class Bounds(
 
 class QuadTreeNode(
     val bounds: Bounds,
-    val maxCapacity: Int = 10
+    val maxCapacity: Int = 10,
+    val depth: Int = 0
 ) {
     private val points = mutableListOf<MapContent>()
     private var children: Array<QuadTreeNode>? = null
     private var isDivided = false
+    
+    companion object {
+        private const val MAX_DEPTH = 8 // 최대 깊이 제한
+        private const val MIN_BOUNDS_SIZE = 0.0001 // 최소 경계 크기 (약 10m)
+    }
     
     fun insert(point: MapContent): Boolean {
         if (!bounds.contains(point.location.latitude, point.location.longitude)) {
             return false
         }
         
+        // 최대 용량에 도달하지 않았거나 분할되지 않은 경우 현재 노드에 추가
         if (points.size < maxCapacity && !isDivided) {
             points.add(point)
             return true
         }
         
-        if (!isDivided) {
+        // 분할 제한 조건 체크
+        if (!isDivided && canSubdivide()) {
             subdivide()
         }
         
-        children?.forEach { child ->
-            if (child.insert(point)) {
-                return true
+        // 분할되었다면 자식 노드에 삽입 시도
+        if (isDivided) {
+            children?.forEach { child ->
+                if (child.insert(point)) {
+                    return true
+                }
             }
         }
         
-        return false
+        // 자식 노드에 삽입할 수 없으면 현재 노드에 강제로 추가
+        // (최대 깊이 도달 또는 경계가 너무 작은 경우)
+        points.add(point)
+        return true
+    }
+    
+    private fun canSubdivide(): Boolean {
+        // 최대 깊이 체크
+        if (depth >= MAX_DEPTH) {
+            return false
+        }
+        
+        // 경계 크기 체크 (너무 작으면 분할하지 않음)
+        val latSize = bounds.maxLat - bounds.minLat
+        val lngSize = bounds.maxLng - bounds.minLng
+        
+        return latSize > MIN_BOUNDS_SIZE && lngSize > MIN_BOUNDS_SIZE
     }
     
     private fun subdivide() {
@@ -56,13 +83,13 @@ class QuadTreeNode(
         
         children = arrayOf(
             // 북서
-            QuadTreeNode(Bounds(centerLat, bounds.minLng, bounds.maxLat, centerLng), maxCapacity),
+            QuadTreeNode(Bounds(centerLat, bounds.minLng, bounds.maxLat, centerLng), maxCapacity, depth + 1),
             // 북동
-            QuadTreeNode(Bounds(centerLat, centerLng, bounds.maxLat, bounds.maxLng), maxCapacity),
+            QuadTreeNode(Bounds(centerLat, centerLng, bounds.maxLat, bounds.maxLng), maxCapacity, depth + 1),
             // 남서
-            QuadTreeNode(Bounds(bounds.minLat, bounds.minLng, centerLat, centerLng), maxCapacity),
+            QuadTreeNode(Bounds(bounds.minLat, bounds.minLng, centerLat, centerLng), maxCapacity, depth + 1),
             // 남동
-            QuadTreeNode(Bounds(bounds.minLat, centerLng, centerLat, bounds.maxLng), maxCapacity)
+            QuadTreeNode(Bounds(bounds.minLat, centerLng, centerLat, bounds.maxLng), maxCapacity, depth + 1)
         )
         
         // 기존 포인트들을 자식 노드로 재배치
@@ -70,10 +97,15 @@ class QuadTreeNode(
         points.clear()
         
         pointsToRelocate.forEach { point ->
+            var inserted = false
             children?.forEach { child ->
-                if (child.insert(point)) {
-                    return@forEach
+                if (!inserted && child.insert(point)) {
+                    inserted = true
                 }
+            }
+            // 자식 노드에 삽입할 수 없으면 현재 노드에 다시 추가
+            if (!inserted) {
+                points.add(point)
             }
         }
         
@@ -169,7 +201,8 @@ class QuadTree(bounds: Bounds) {
     companion object {
         fun fromMapContents(mapContents: List<MapContent>): QuadTree {
             if (mapContents.isEmpty()) {
-                return QuadTree(Bounds(0.0, 0.0, 0.0, 0.0))
+                // 기본 한국 영역 사용
+                return QuadTree(Bounds(33.0, 124.0, 39.0, 132.0))
             }
             
             // 전체 데이터의 경계 계산
@@ -178,9 +211,9 @@ class QuadTree(bounds: Bounds) {
             val minLng = mapContents.minOf { it.location.longitude }
             val maxLng = mapContents.maxOf { it.location.longitude }
             
-            // 약간의 여백 추가
-            val latMargin = (maxLat - minLat) * 0.1
-            val lngMargin = (maxLng - minLng) * 0.1
+            // 약간의 여백 추가 (최소 여백 보장)
+            val latMargin = maxOf((maxLat - minLat) * 0.1, 0.01) // 최소 0.01도 (약 1km)
+            val lngMargin = maxOf((maxLng - minLng) * 0.1, 0.01)
             
             val bounds = Bounds(
                 minLat - latMargin,

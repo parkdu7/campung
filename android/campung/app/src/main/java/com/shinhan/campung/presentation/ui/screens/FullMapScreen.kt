@@ -75,6 +75,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.rotate
@@ -232,7 +233,6 @@ fun FullMapScreen(
     }
 
     // 지도 설정
-    val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
     DisposableEffect(lifecycle, mapView) {
         val observer = object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) { mapView.onStart() }
@@ -294,6 +294,45 @@ fun FullMapScreen(
         }
     }
 
+    val refreshIdFlow = remember(navController) {
+        navController.currentBackStackEntry?.savedStateHandle
+            ?.getStateFlow<Long?>("map_refresh_content_id", null)
+    }
+    val refreshId by (refreshIdFlow?.collectAsState() ?: remember { mutableStateOf<Long?>(null) })
+
+    LaunchedEffect(refreshId, naverMapRef) {
+        val id = refreshId ?: return@LaunchedEffect
+        Log.d("FullMapScreen", "🎯 글 작성 후 리프레시 처리 시작 - ID: $id")
+        
+        // NaverMap이 준비될 때까지 기다림
+        if (naverMapRef == null) {
+            Log.w("FullMapScreen", "⚠️ NaverMap이 아직 준비되지 않음 - 리프레시 지연")
+            return@LaunchedEffect
+        }
+        
+        // 현재 화면 중심/반경으로 강제 리로드
+        val center = naverMapRef?.cameraPosition?.target
+        val lat = center?.latitude ?: mapViewModel.getLastKnownLocation()?.first ?: 0.0
+        val lng = center?.longitude ?: mapViewModel.getLastKnownLocation()?.second ?: 0.0
+        val radius = naverMapRef?.let {
+            com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(it)
+        } ?: 2000
+
+        Log.d("FullMapScreen", "📍 리프레시 위치: ($lat, $lng), 반경: ${radius}m")
+        
+        // 하이라이트 예약과 강제 리로드
+        mapViewModel.requestHighlight(id)
+        Log.d("FullMapScreen", "🔍 하이라이트 예약 완료 - ID: $id")
+        
+        // 서버 동기화 대기 후 한 번만 리로드
+        kotlinx.coroutines.delay(1000)
+        mapViewModel.loadMapContents(lat, lng, radius = radius, force = true)
+
+        // 원샷 처리
+        navController.currentBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", null)
+        Log.d("FullMapScreen", "✅ 리프레시 ID 초기화 완료")
+    }
+
     LaunchedEffect(Unit) {
         if (locationPermissionManager.hasLocationPermission()) {
             hasPermission = true
@@ -312,19 +351,23 @@ fun FullMapScreen(
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
 
-            // 초기 로드시에도 화면 영역 기반 반경 계산 사용
+            // 초기 로드 - 강제로 데이터 로드하여 확실히 마커 표시
             naverMapRef?.let { map ->
                 val radius = com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(map)
-                mapViewModel.loadMapContentsWithCalculatedRadius(
-                    latitude = pos.latitude,
-                    longitude = pos.longitude,
-                    radius = radius
-                )
-            } ?: run {
-                // NaverMap이 아직 준비되지 않았으면 기본 방식 사용
+                Log.d("FullMapScreen", "🎯 초기 위치 기반 마커 로드: (${pos.latitude}, ${pos.longitude}), 반경: ${radius}m")
                 mapViewModel.loadMapContents(
                     latitude = pos.latitude,
-                    longitude = pos.longitude
+                    longitude = pos.longitude,
+                    radius = radius,
+                    force = true  // 초기 로드는 항상 강제 실행
+                )
+            } ?: run {
+                // NaverMap이 아직 준비되지 않았으면 기본 방식으로 강제 로드
+                Log.d("FullMapScreen", "🎯 NaverMap 준비 전 기본 마커 로드: (${pos.latitude}, ${pos.longitude})")
+                mapViewModel.loadMapContents(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude,
+                    force = true  // 초기 로드는 항상 강제 실행
                 )
             }
         }
@@ -346,12 +389,22 @@ fun FullMapScreen(
         }
     }
 
-    LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
+    // 클러스터링 업데이트 - 더 안정적으로 처리
+    LaunchedEffect(mapViewModel.shouldUpdateClustering, mapViewModel.mapContents.size, naverMapRef) {
         val map = naverMapRef ?: return@LaunchedEffect
 
-        if (mapViewModel.shouldUpdateClustering) {
-            Log.d("FullMapScreen", "LaunchedEffect에서 클러스터링 업데이트: ${mapViewModel.mapContents.size}개")
-            clusterManager?.updateMarkers(mapViewModel.mapContents)
+        if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isNotEmpty()) {
+            Log.d("FullMapScreen", "🔄 클러스터링 업데이트: ${mapViewModel.mapContents.size}개 마커")
+            try {
+                clusterManager?.updateMarkers(mapViewModel.mapContents)
+                mapViewModel.clusteringUpdated()
+                Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
+            } catch (e: Exception) {
+                Log.e("FullMapScreen", "❌ 클러스터링 업데이트 실패", e)
+            }
+        } else if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isEmpty()) {
+            Log.d("FullMapScreen", "🧹 빈 데이터로 클러스터링 클리어")
+            clusterManager?.clearMarkers()
             mapViewModel.clusteringUpdated()
         }
     }
@@ -531,16 +584,6 @@ fun FullMapScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // 뒤로가기 버튼
-                IconButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .align(Alignment.TopStart)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
-                }
-
                 // LocationButton - 바텀시트와 함께 움직임
                 Box(
                     modifier = Modifier
@@ -627,12 +670,33 @@ fun FullMapScreen(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
                                         ) {
-                                            // TODO: 펜/그리기 기능 구현
+                                            // 메뉴 닫기
+                                            isFabExpanded = false
+                                            // 글쓰기 화면으로 이동
+                                            navController.navigate(Route.WRITE_POST)
                                         }
                                 ) {
                                     Image(
                                         painter = painterResource(R.drawable.btn_post),
                                         contentDescription = "글쓰기",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                // 녹음등록 버튼
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) {
+                                            // TODO: 녹음 기능 구현
+                                        }
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.btn_record),
+                                        contentDescription = "녹음 이동",
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -702,34 +766,37 @@ fun FullMapScreen(
                         navigationBarHeight = with(density) { navigationBarHeight.toDp() },
                         statusBarHeight = with(density) { statusBarHeight.toDp() },
                         onContentClick = { content ->
-                            // TODO: 컨텐츠 상세 화면으로 이동
+                            navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
                         }
                     )
                 }
 
-                // 상단 헤더 (오버레이)
-                MapTopHeader(
-                    selectedDate = mapViewModel.selectedDate,
-                    onBackClick = { navController.popBackStack() },
-                    onDateClick = {
-                        showDatePicker = true
-                    },
-                    onFriendClick = {
-                        navController.navigate(Route.FRIEND)
-                    },
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp, start = 12.dp, end = 12.dp)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                ) {
+                    MapTopHeader(
+                        selectedDate = mapViewModel.selectedDate,
+                        onBackClick = { navController.popBackStack() },
+                        onDateClick = { showDatePicker = true },
+                        onFriendClick = { navController.navigate(Route.FRIEND) }
+                    )
+                }
+
 
                 // 필터 태그 (오버레이)
                 HorizontalFilterTags(
                     selectedTags = mapViewModel.selectedTags,
-                    onTagClick = { tagId ->
-                        mapViewModel.toggleFilterTag(tagId)
-                    },
+                    onTagClick = { tagId -> mapViewModel.toggleFilterTag(tagId) },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 64.dp)
+                        .padding(top = 80.dp)   // 헤더 카드 아래 공간 확보
                 )
+
 
                 // 애니메이션 툴팁 오버레이
                 AnimatedMapTooltip(

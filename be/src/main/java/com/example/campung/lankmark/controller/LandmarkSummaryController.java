@@ -23,7 +23,7 @@ import java.util.List;
 @RequestMapping("/api/landmark")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Landmark Summary", description = "랜드마크 요약 생성 API")
+@Tag(name = "Landmark", description = "랜드마크 관리 API")
 public class LandmarkSummaryController {
 
     private final LandmarkRepository landmarkRepository;

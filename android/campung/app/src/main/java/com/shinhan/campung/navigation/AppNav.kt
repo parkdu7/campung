@@ -1,4 +1,4 @@
-package com.shinhan.campung
+package com.shinhan.campung.navigation
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -20,18 +20,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.naver.maps.map.MapView
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.navigation.Route
+import com.shinhan.campung.presentation.ui.screens.contentdetail.ContentDetailScreen
 import com.shinhan.campung.presentation.ui.screens.FriendScreen
 import com.shinhan.campung.presentation.ui.screens.FullMapScreen
 import com.shinhan.campung.presentation.ui.screens.HomeScreen
 import com.shinhan.campung.presentation.ui.screens.LoginScreen
 import com.shinhan.campung.presentation.ui.screens.NotificationScreen
 import com.shinhan.campung.presentation.ui.screens.SignupScreen
+import com.shinhan.campung.presentation.ui.screens.WritePostScreen
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -133,6 +137,33 @@ fun AppNav(authDataStore: AuthDataStore, sharedMapView: MapView) {
             composable(Route.NOTIFICATION) {
                 NotificationScreen(
                     onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            // 글쓰기 화면
+            composable(Route.WRITE_POST) {
+//                WritePostScreen(
+//                    onBack = { navController.popBackStack() },
+//                    onSubmitted = { navController.popBackStack() } // 등록 → 맵으로 복귀
+//                )
+                WritePostScreen(
+                    onBack = { navController.popBackStack() },
+                    onSubmitted = { newId ->
+                        navController.previousBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", newId)
+                        navController.popBackStack()  // 맵으로 복귀
+                    }
+                )
+            }
+
+            // 컨텐츠 상세 화면
+            composable(
+                route = "${Route.CONTENT_DETAIL}/{contentId}",
+                arguments = listOf(navArgument("contentId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val contentId = backStackEntry.arguments?.getLong("contentId") ?: 0L
+                ContentDetailScreen(
+                    contentId = contentId,
+                    navController = navController
                 )
             }
         }

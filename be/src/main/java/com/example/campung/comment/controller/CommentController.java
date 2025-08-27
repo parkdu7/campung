@@ -5,16 +5,23 @@ import com.example.campung.comment.dto.CommentCreateResponse;
 import com.example.campung.comment.dto.CommentListResponse;
 import com.example.campung.comment.service.CommentService;
 import com.example.campung.comment.service.CommentListService;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/contents")
+@Tag(name = "Comment", description = "댓글 관련 API")
 public class CommentController {
     
     @Autowired
@@ -23,10 +30,20 @@ public class CommentController {
     @Autowired
     private CommentListService commentListService;
     
-    @Operation(security = @SecurityRequirement(name = "bearerAuth"))
-    @PostMapping("/{contentId}/comments")
+    @Operation(
+            summary = "댓글 작성",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @RequestBody(
+                    content = @Content(
+                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                            schema = @Schema(implementation = CommentCreateRequest.class)
+                    )
+            )
+    )
+    @PostMapping(value = "/{contentId}/comments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommentCreateResponse> createComment(
             @PathVariable Long contentId,
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @ModelAttribute CommentCreateRequest request) throws IOException {
         
@@ -41,11 +58,21 @@ public class CommentController {
         return ResponseEntity.ok(response);
     }
     
-    @Operation(security = @SecurityRequirement(name = "bearerAuth"))
-    @PostMapping("/{contentId}/comments/{commentId}/replies")
+    @Operation(
+            summary = "대댓글 작성",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @RequestBody(
+                    content = @Content(
+                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                            schema = @Schema(implementation = CommentCreateRequest.class)
+                    )
+            )
+    )
+    @PostMapping(value = "/{contentId}/comments/{commentId}/replies", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommentCreateResponse> createReply(
             @PathVariable Long contentId,
             @PathVariable Long commentId,
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @ModelAttribute CommentCreateRequest request) throws IOException {
         
@@ -63,6 +90,7 @@ public class CommentController {
         return ResponseEntity.ok(response);
     }
     
+    @Operation(summary = "게시글의 댓글 목록 조회")
     @GetMapping("/{contentId}/comments")
     public ResponseEntity<CommentListResponse> getComments(@PathVariable Long contentId) {
         CommentListResponse response = commentListService.getCommentsByContentId(contentId);

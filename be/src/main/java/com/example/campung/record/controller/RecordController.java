@@ -6,9 +6,13 @@ import com.example.campung.record.dto.RecordDeleteResponse;
 import com.example.campung.record.service.RecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,11 +29,17 @@ public class RecordController {
     @Operation(
         summary = "녹음파일 등록", 
         description = "새 녹음파일을 업로드하고 등록합니다.",
-        security = @SecurityRequirement(name = "bearerAuth")
+        security = @SecurityRequirement(name = "bearerAuth"),
+        requestBody = @RequestBody(
+                content = @Content(
+                        mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                        schema = @Schema(implementation = RecordCreateRequest.class)
+                )
+        )
     )
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<RecordCreateResponse> createRecord(
-            @Parameter(description = "인증 토큰", required = true)
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @ModelAttribute RecordCreateRequest request) throws IOException {
 
@@ -73,7 +83,7 @@ public class RecordController {
     public ResponseEntity<RecordDeleteResponse> deleteRecord(
             @Parameter(description = "삭제할 녹음파일 ID", required = true)
             @PathVariable Long recordId,
-            @Parameter(description = "인증 토큰", required = true)
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization) {
 
         // 인증 토큰 검증
