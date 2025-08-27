@@ -120,8 +120,10 @@ class MapClusterManager(
 
             Log.d("MapClusterManager", "마커 선택됨: ${content.title}")
 
-            // 툴팁 표시는 MapSelectionManager에서 처리하도록 위임
-            // (클러스터 선택 상태 등을 고려해서 표시 여부 결정)
+            // 마커 애니메이션 후에 Compose 툴팁 표시 (약간의 딜레이)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                onShowTooltip?.invoke(content, com.shinhan.campung.presentation.ui.components.TooltipType.CLICK)
+            }, 150) // 마커 애니메이션이 어느정도 진행된 후에 툴팁 표시
         } else {
             Log.e("MapClusterManager", "마커를 찾을 수 없음: ${content.title}")
         }

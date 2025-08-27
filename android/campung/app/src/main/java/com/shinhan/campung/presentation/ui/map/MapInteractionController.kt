@@ -202,8 +202,12 @@ class MapInteractionController(
             // 새 중앙 마커 설정
             centerMarker = newCenterMarker
             
-            // 포커스 툴팁 표시 (선택된 마커와 다를 때만)
-            newCenterMarker?.let { showFocusTooltipIfAllowed(it) }
+            // 포커스 툴팁 표시 (딜레이 후 표시하여 애니메이션 개선)
+            newCenterMarker?.let { content ->
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    showFocusTooltipIfAllowed(content)
+                }, 100) // 클릭 툴팁보다 짧은 딜레이로 빠르게 표시
+            }
         }
     }
     

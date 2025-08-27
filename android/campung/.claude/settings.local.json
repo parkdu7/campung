@@ -6,7 +6,10 @@
       "Bash(./gradlew:*)",
       "Bash(adb logcat:*)",
       "Read(/C:\\Users\\SSAFY\\Downloads/**)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Read(C:\\SSAFY\\shinhan\\dev\\campung\\android\\campung\\app\\src\\main\\java\\com\\shinhan\\campung\\presentation\\ui\\screens/**)",
+      "Read(C:\\SSAFY\\shinhan\\dev\\campung\\android\\campung\\app\\src\\main\\java\\com\\shinhan\\campung\\presentation\\ui\\map/**)",
+      "Read(C:\\SSAFY\\shinhan\\dev\\campung\\android\\campung\\app\\src\\main\\java\\com\\shinhan\\campung\\presentation\\ui\\map/**)"
     ],
     "deny": [],
     "ask": []
