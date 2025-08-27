@@ -65,6 +65,8 @@ import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.presentation.ui.components.DatePickerDialog
 import com.shinhan.campung.data.model.MapContent
+import com.shinhan.campung.data.model.MapRecord
+import com.shinhan.campung.presentation.ui.components.AudioPlayer
 import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
@@ -126,6 +128,7 @@ fun FullMapScreen(
     val isLoading by mapViewModel.isLoading.collectAsState()
     val tooltipState by mapViewModel.tooltipState.collectAsState()
     val sharedLocations by locationSharingManager.sharedLocations.collectAsState()
+    val currentPlayingRecord by mapViewModel.currentPlayingRecord.collectAsState()
 
     // 위치 공유 브로드캐스트 수신
     DisposableEffect(context) {
@@ -424,19 +427,19 @@ fun FullMapScreen(
     }
 
     // 클러스터링 업데이트 - 더 안정적으로 처리
-    LaunchedEffect(mapViewModel.shouldUpdateClustering, mapViewModel.mapContents.size, naverMapRef) {
+    LaunchedEffect(mapViewModel.shouldUpdateClustering, mapViewModel.mapContents.size, mapViewModel.mapRecords.size, naverMapRef) {
         val map = naverMapRef ?: return@LaunchedEffect
 
-        if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isNotEmpty()) {
-            Log.d("FullMapScreen", "🔄 클러스터링 업데이트: ${mapViewModel.mapContents.size}개 마커")
+        if (mapViewModel.shouldUpdateClustering && (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty())) {
+            Log.d("FullMapScreen", "🔄 클러스터링 업데이트: ${mapViewModel.mapContents.size}개 Content 마커, ${mapViewModel.mapRecords.size}개 Record 마커")
             try {
-                clusterManager?.updateMarkers(mapViewModel.mapContents)
+                clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords)
                 mapViewModel.clusteringUpdated()
                 Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
             } catch (e: Exception) {
                 Log.e("FullMapScreen", "❌ 클러스터링 업데이트 실패", e)
             }
-        } else if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isEmpty()) {
+        } else if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isEmpty() && mapViewModel.mapRecords.isEmpty()) {
             Log.d("FullMapScreen", "🧹 빈 데이터로 클러스터링 클리어")
             clusterManager?.clearMarkers()
             mapViewModel.clusteringUpdated()
@@ -450,7 +453,22 @@ fun FullMapScreen(
         if (selectedMarker != null) {
             Log.d("FullMapScreen", "ClusterManager에 마커 선택 요청: ${selectedMarker.title}")
             clusterManager?.selectMarker(selectedMarker)
-        } else {
+        } else if (mapViewModel.selectedRecord == null) {
+            // Record도 선택되지 않은 경우에만 완전히 해제
+            Log.d("FullMapScreen", "ClusterManager 선택 해제")
+            clusterManager?.clearSelection()
+        }
+    }
+
+    // 선택된 Record가 변경될 때마다 ClusterManager에 반영
+    LaunchedEffect(mapViewModel.selectedRecord) {
+        val selectedRecord = mapViewModel.selectedRecord
+        Log.d("FullMapScreen", "LaunchedEffect: selectedRecord 변경됨 - ${selectedRecord?.recordUrl}")
+        if (selectedRecord != null) {
+            Log.d("FullMapScreen", "ClusterManager에 Record 선택 요청: ${selectedRecord.recordUrl}")
+            clusterManager?.selectRecordMarker(selectedRecord)
+        } else if (mapViewModel.selectedMarker == null) {
+            // 일반 마커도 선택되지 않은 경우에만 완전히 해제
             Log.d("FullMapScreen", "ClusterManager 선택 해제")
             clusterManager?.clearSelection()
         }
@@ -461,13 +479,21 @@ fun FullMapScreen(
 
     // 뒤로가기 버튼 처리
     BackHandler {
-        if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
-            // 마커나 클러스터가 선택되어 있으면 선택 해제
-            mapViewModel.clearSelectedMarker()
-            clusterManager?.clearSelection()
-        } else {
-            // 아무것도 선택되어 있지 않으면 화면 나가기
-            navController.popBackStack()
+        when {
+            mapViewModel.selectedRecord != null -> {
+                // Record가 선택되어 있으면 Record 선택 해제 (오디오 플레이어 닫기)
+                mapViewModel.stopRecord()
+                clusterManager?.clearSelection()
+            }
+            mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null -> {
+                // 마커나 클러스터가 선택되어 있으면 선택 해제
+                mapViewModel.clearSelectedMarker()
+                clusterManager?.clearSelection()
+            }
+            else -> {
+                // 아무것도 선택되어 있지 않으면 화면 나가기
+                navController.popBackStack()
+            }
         }
     }
 
@@ -600,9 +626,17 @@ fun FullMapScreen(
 
                                 // 지도 클릭 시 마커 및 클러스터 선택 해제
                                 map.setOnMapClickListener { _, _ ->
-                                    if (mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null) {
-                                        mapViewModel.clearSelectedMarker()
-                                        clusterManager?.clearSelection()
+                                    when {
+                                        mapViewModel.selectedRecord != null -> {
+                                            // Record 선택 해제 (오디오 플레이어 닫기)
+                                            mapViewModel.stopRecord()
+                                            clusterManager?.clearSelection()
+                                        }
+                                        mapViewModel.selectedMarker != null || clusterManager?.selectedClusterMarker != null -> {
+                                            // Content 마커나 클러스터 선택 해제
+                                            mapViewModel.clearSelectedMarker()
+                                            clusterManager?.clearSelection()
+                                        }
                                     }
                                 }
                             }
@@ -717,7 +751,6 @@ fun FullMapScreen(
                                     )
                                 }
 
-                                // 녹음등록 버튼
                                 // 녹음등록 버튼
                                 Box(
                                     modifier = Modifier
@@ -882,6 +915,39 @@ fun FullMapScreen(
                     )
                 }
 
+
+                // 오디오 플레이어 오버레이 - 애니메이션 추가
+                AnimatedVisibility(
+                    visible = currentPlayingRecord != null,
+                    enter = slideInVertically(
+                        initialOffsetY = { it }, // 아래에서 위로 슬라이드
+                        animationSpec = tween(400, easing = FastOutSlowInEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(300)
+                    ),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it }, // 위에서 아래로 슬라이드
+                        animationSpec = tween(300, easing = FastOutLinearInEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(200)
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 120.dp) // 바텀시트 위에 표시
+                        .zIndex(1000f) // 최상위에 표시
+                ) {
+                    currentPlayingRecord?.let { record ->
+                        AudioPlayer(
+                            recordUrl = record.recordUrl,
+                            recordId = record.recordId,
+                            authorName = record.author.nickname,
+                            createdAt = record.createdAt,
+                            onClose = {
+                                mapViewModel.stopRecord()
+                            }
+                        )
+                    }
+                }
             }
         }
     }

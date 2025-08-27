@@ -31,7 +31,7 @@ class MapCameraListener(
         if (kotlin.math.abs(currentZoom - lastZoomLevel) > 0.5) {
             lastZoomLevel = currentZoom
             Log.d("MapCameraListener", "줌 변경: $currentZoom → 클러스터링 업데이트")
-            clusterManager?.updateMarkers(mapViewModel.mapContents)
+            clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords)
         }
         
         // 2. 사용자 드래그시 바텀시트 축소
