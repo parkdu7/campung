@@ -35,6 +35,7 @@ class MapViewModel @Inject constructor(
     private val contentMapper: ContentMapper,
     val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
+    fun getLastKnownLocation(): Pair<Double, Double>? = lastRequestLocation
 
     // UI States
     private val _bottomSheetContents = MutableStateFlow<List<MapContent>>(emptyList())
@@ -116,11 +117,26 @@ class MapViewModel @Inject constructor(
         val postType: String
     )
 
+    private var pendingHighlightId: Long? = null
+
+    fun requestHighlight(contentId: Long) {
+        Log.d(TAG, "🎯 하이라이트 요청 등록: $contentId")
+        pendingHighlightId = contentId
+        
+        // 이미 로드된 데이터에서 해당 마커를 찾아서 즉시 하이라이트
+        mapContents.firstOrNull { it.contentId == contentId }?.let { content ->
+            Log.d(TAG, "✅ 기존 데이터에서 마커 발견 - 즉시 선택: ${content.title}")
+            selectMarker(content)
+            pendingHighlightId = null // 처리 완료
+        } ?: Log.d(TAG, "⏳ 기존 데이터에 없음 - 다음 로드 시 처리 예약")
+    }
+
     fun loadMapContents(
         latitude: Double,
         longitude: Double,
         radius: Int? = null,
-        postType: String? = null
+        postType: String? = null,
+        force: Boolean = false                 // ✅ 추가
     ) {
         // 이전 요청 취소
         debounceJob?.cancel()
@@ -133,25 +149,48 @@ class MapViewModel @Inject constructor(
             postType = postType ?: selectedPostType
         )
 
-        // 이전 요청과 비교해서 중복 요청 방지
-        lastRequestParams?.let { lastParams ->
-            val locationDistance = calculateDistance(
-                lastParams.location.first, lastParams.location.second,
-                latitude, longitude
-            )
+//        // 이전 요청과 비교해서 중복 요청 방지
+//        lastRequestParams?.let { lastParams ->
+//            val locationDistance = calculateDistance(
+//                lastParams.location.first, lastParams.location.second,
+//                latitude, longitude
+//            )
+//
+//            // 위치는 같고 (500m 이내), 다른 파라미터도 동일하면 스킵
+//            if (locationDistance < 500.0 &&
+//                lastParams.date == currentParams.date &&
+//                lastParams.tags == currentParams.tags &&
+//                lastParams.postType == currentParams.postType) {
+//                return
+//            }
+//        }
 
-            // 위치는 같고 (500m 이내), 다른 파라미터도 동일하면 스킵
-            if (locationDistance < 500.0 &&
-                lastParams.date == currentParams.date &&
-                lastParams.tags == currentParams.tags &&
-                lastParams.postType == currentParams.postType) {
-                return
+        // ✅ 중복 요청 스킵 로직 개선
+        if (!force) {
+            lastRequestParams?.let { lastParams ->
+                val locationDistance = calculateDistance(
+                    lastParams.location.first, lastParams.location.second,
+                    latitude, longitude
+                )
+                
+                // 거리는 더 짧게, 다른 조건들은 동일하게 체크
+                if (locationDistance < 100.0 &&  // 500m -> 100m로 변경
+                    lastParams.date == currentParams.date &&
+                    lastParams.tags == currentParams.tags &&
+                    lastParams.postType == currentParams.postType) {
+                    Log.d(TAG, "중복 요청 스킵 - 거리: ${locationDistance.toInt()}m")
+                    return
+                }
             }
+        } else {
+            Log.d(TAG, "강제 로드 모드 - 중복 체크 무시")
         }
 
-        // 100ms 디바운스 적용 (빠른 반응)
+        // 150ms 디바운스 적용 (안정성과 반응성 균형)
         debounceJob = viewModelScope.launch {
-            delay(100)
+            delay(150)
+            
+            Log.d(TAG, "🚀 데이터 로드 시작 - 위치: (${latitude}, ${longitude}), 반경: ${radius ?: getDefaultRadius()}m")
 
             _isLoading.value = true
             errorMessage = null
@@ -159,14 +198,9 @@ class MapViewModel @Inject constructor(
             lastRequestParams = currentParams
 
             try {
-                // 선택된 날짜를 문자열로 변환
                 val dateString = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
-
-                // 반경이 제공되지 않은 경우 기본값 사용 (이전 버전 호환성)
                 val requestRadius = radius ?: getDefaultRadius()
-                
-                Log.d(TAG, "📍 API 요청: lat=$latitude, lng=$longitude, radius=${requestRadius}m, postType=${postType ?: selectedPostType}")
-                
+
                 val response = mapRepository.getMapContents(
                     latitude = latitude,
                     longitude = longitude,
@@ -176,23 +210,49 @@ class MapViewModel @Inject constructor(
                 ).getOrThrow()
 
                 if (response.success) {
-                    mapContents = response.data.contents
+                    val newContents = response.data.contents
+                    Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 마커")
+                    
+                    // 데이터 업데이트
+                    mapContents = newContents
                     shouldUpdateClustering = true
+                    
+                    // 로딩 상태 해제 (UI 반응성 개선)
+                    _isLoading.value = false
 
-                    // 새로운 데이터 로드 시 선택된 마커가 여전히 존재하는지 확인
+                    // ✅ 방금 등록한 ID가 있으면 자동으로 선택/하이라이트
+                    pendingHighlightId?.let { id ->
+                        Log.d(TAG, "🎯 pendingHighlightId 처리 시작: $id")
+                        Log.d(TAG, "📋 로드된 컨텐츠 IDs: ${newContents.map { it.contentId }}")
+                        
+                        newContents.firstOrNull { it.contentId == id }?.let { content ->
+                            Log.d(TAG, "✅ 하이라이트 대상 마커 찾음: ${content.title} (${content.contentId})")
+                            
+                            // 클러스터링 완료 후 마커 선택
+                            selectMarker(content)
+                            
+                        } ?: Log.w(TAG, "⚠️ 하이라이트 대상 마커를 찾지 못함: $id")
+                        
+                        pendingHighlightId = null
+                    }
+
+                    // 선택된 마커가 새 데이터에 없으면 해제
                     selectedMarker?.let { selected ->
                         val stillExists = mapContents.any { it.contentId == selected.contentId }
                         if (!stillExists) {
-                            selectedMarker = null // 더 이상 존재하지 않으면 선택 해제
+                            Log.d(TAG, "⚠️ 기존 선택 마커가 새 데이터에 없음 - 선택 해제")
+                            selectedMarker = null
                         }
                     }
                 } else {
+                    Log.e(TAG, "❌ 데이터 로드 실패: ${response.message}")
                     errorMessage = response.message
+                    _isLoading.value = false
                 }
 
-            _isLoading.value = false
-            } catch (throwable: Throwable) {
-                errorMessage = throwable.message ?: "알 수 없는 오류가 발생했습니다"
+            } catch (t: Throwable) {
+                Log.e(TAG, "❌ 데이터 로드 예외", t)
+                errorMessage = t.message ?: "알 수 없는 오류가 발생했습니다"
                 _isLoading.value = false
             }
         }
@@ -333,10 +393,24 @@ class MapViewModel @Inject constructor(
     }
 
     fun updateSelectedDate(date: LocalDate) {
+        Log.d(TAG, "📅 날짜 변경: $selectedDate → $date")
         selectedDate = date
+        
+        // 기존 마커들 즉시 클리어
+        mapContents = emptyList()
+        shouldUpdateClustering = true
+        
+        // 선택된 마커도 클리어
+        selectedMarker = null
+        clearSelectedMarker()
+        
+        // lastRequestParams 초기화로 새로운 요청 허용
+        lastRequestParams = null
+        
         // 날짜가 변경되면 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
-            loadMapContents(lat, lng)
+            Log.d(TAG, "🔄 날짜 변경으로 인한 데이터 리로드")
+            loadMapContents(lat, lng, force = true)
         }
     }
 
@@ -354,18 +428,40 @@ class MapViewModel @Inject constructor(
             selectedTags.first() // 하나만 선택되므로 first() 사용
         }
 
+        // 기존 마커들 즉시 클리어
+        mapContents = emptyList()
+        shouldUpdateClustering = true
+        
+        // 선택된 마커도 클리어
+        selectedMarker = null
+        clearSelectedMarker()
+        
+        // lastRequestParams 초기화로 새로운 요청 허용
+        lastRequestParams = null
+        
         // 필터가 변경되면 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
-            loadMapContents(lat, lng)
+            loadMapContents(lat, lng, force = true)
         }
     }
 
     fun updatePostType(postType: String) {
         selectedPostType = postType
 
+        // 기존 마커들 즉시 클리어
+        mapContents = emptyList()
+        shouldUpdateClustering = true
+        
+        // 선택된 마커도 클리어
+        selectedMarker = null
+        clearSelectedMarker()
+        
+        // lastRequestParams 초기화로 새로운 요청 허용
+        lastRequestParams = null
+        
         // postType 변경 시 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
-            loadMapContents(lat, lng)
+            loadMapContents(lat, lng, force = true)
         }
     }
 
@@ -374,9 +470,20 @@ class MapViewModel @Inject constructor(
         selectedDate = LocalDate.now()
         selectedPostType = "ALL"
 
+        // 기존 마커들 즉시 클리어
+        mapContents = emptyList()
+        shouldUpdateClustering = true
+        
+        // 선택된 마커도 클리어
+        selectedMarker = null
+        clearSelectedMarker()
+        
+        // lastRequestParams 초기화로 새로운 요청 허용
+        lastRequestParams = null
+        
         // 필터 초기화 후 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
-            loadMapContents(lat, lng)
+            loadMapContents(lat, lng, force = true)
         }
     }
 
