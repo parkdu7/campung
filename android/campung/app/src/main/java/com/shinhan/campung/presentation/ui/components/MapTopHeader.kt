@@ -50,7 +50,7 @@ fun MapTopHeader(
 
         // ✅ 날짜만 카드(내부 패딩만 적용)
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(30.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             onClick = onDateClick,                  // 클릭은 Card에만
