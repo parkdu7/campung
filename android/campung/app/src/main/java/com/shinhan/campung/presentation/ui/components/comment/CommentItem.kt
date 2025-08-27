@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.shinhan.campung.data.model.Comment
+import com.shinhan.campung.presentation.ui.theme.CampusSecondary
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 import java.time.ZoneId
@@ -25,10 +26,15 @@ import java.time.ZoneId
 fun CommentItem(
     comment: Comment,
     onReplyClick: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false
 ) {
     Column(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                if (isSelected) CampusSecondary.copy(alpha = 0.1f) else Color.Transparent
+            )
     ) {
         // 댓글
         Row(

@@ -100,6 +100,52 @@ class ContentDetailViewModel @Inject constructor(
         }
     }
 
+    fun selectCommentForReply(commentId: Long) {
+        val comment = _uiState.value.comments.find { it.commentId == commentId }
+        val authorName = if (comment?.author?.isAnonymous == true) "익명" else comment?.author?.nickname ?: "사용자"
+        
+        _uiState.value = _uiState.value.copy(
+            selectedCommentId = commentId,
+            selectedCommentAuthor = authorName,
+            commentText = "" // 댓글 입력창 초기화
+        )
+    }
+    
+    fun clearReplyMode() {
+        _uiState.value = _uiState.value.copy(
+            selectedCommentId = null,
+            selectedCommentAuthor = null
+        )
+    }
+    
+    fun postReply(commentId: Long, body: String) {
+        if (body.isBlank()) return
+        
+        viewModelScope.launch {
+            // 댓글 전송 시작하면 즉시 텍스트 초기화 및 모드 해제
+            _uiState.value = _uiState.value.copy(
+                commentText = "",
+                selectedCommentId = null,
+                selectedCommentAuthor = null
+            )
+            
+            try {
+                _uiState.value.content?.contentId?.let { contentId ->
+                    contentRepository.postReply(contentId, commentId, body.trim(), false)
+                    // 댓글 목록 새로고침
+                    loadComments(contentId)
+                }
+            } catch (e: Exception) {
+                // 에러 발생시 텍스트 복원 및 에러 메시지 표시
+                _uiState.value = _uiState.value.copy(
+                    commentText = body,
+                    selectedCommentId = commentId,
+                    error = "댓글 작성 중 오류가 발생했습니다: ${e.message}"
+                )
+            }
+        }
+    }
+
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }

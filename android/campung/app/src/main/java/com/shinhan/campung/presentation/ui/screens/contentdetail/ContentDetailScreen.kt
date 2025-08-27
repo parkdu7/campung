@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,6 +38,7 @@ fun ContentDetailScreen(
     viewModel: ContentDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(contentId) {
         viewModel.loadContent(contentId)
@@ -49,16 +52,33 @@ fun ContentDetailScreen(
             viewModel.clearError()
         }
     }
+    
+    // 대댓글 모드 진입 시 키보드 포커스
+    LaunchedEffect(uiState.selectedCommentId) {
+        if (uiState.selectedCommentId != null) {
+            focusRequester.requestFocus()
+        }
+    }
 
     ContentDetailScreenContent(
         uiState = uiState,
         onBackClick = { navController.popBackStack() },
         onLikeClick = { viewModel.toggleLike(contentId) },
         onCommentTextChange = viewModel::updateCommentText,
-        onSendComment = { viewModel.postComment(contentId, uiState.commentText) },
+        onSendComment = { 
+            if (uiState.isReplyMode && uiState.selectedCommentId != null) {
+                viewModel.postReply(uiState.selectedCommentId!!, uiState.commentText)
+            } else {
+                viewModel.postComment(contentId, uiState.commentText)
+            }
+        },
         onReplyClick = { commentId ->
-            // TODO: 대댓글 작성 기능 구현
-        }
+            viewModel.selectCommentForReply(commentId)
+        },
+        onClearReplyMode = {
+            viewModel.clearReplyMode()
+        },
+        focusRequester = focusRequester
     )
 }
 
@@ -70,7 +90,9 @@ private fun ContentDetailScreenContent(
     onLikeClick: () -> Unit,
     onCommentTextChange: (String) -> Unit,
     onSendComment: () -> Unit,
-    onReplyClick: (Long) -> Unit
+    onReplyClick: (Long) -> Unit,
+    onClearReplyMode: () -> Unit = {},
+    focusRequester: FocusRequester = FocusRequester()
 ) {
     if (uiState.isLoading) {
         LoadingContent(onBackClick = onBackClick)
@@ -170,7 +192,8 @@ private fun ContentDetailScreenContent(
                 items(uiState.comments) { comment ->
                     CommentItem(
                         comment = comment,
-                        onReplyClick = onReplyClick
+                        onReplyClick = onReplyClick,
+                        isSelected = comment.commentId == uiState.selectedCommentId
                     )
                 }
 
@@ -194,6 +217,10 @@ private fun ContentDetailScreenContent(
                 commentText = uiState.commentText,
                 onCommentTextChange = onCommentTextChange,
                 onSendComment = onSendComment,
+                isReplyMode = uiState.isReplyMode,
+                selectedCommentAuthor = uiState.selectedCommentAuthor,
+                onClearReplyMode = onClearReplyMode,
+                focusRequester = focusRequester,
                 modifier = Modifier.padding(
                     WindowInsets.ime.exclude(WindowInsets.navigationBars).asPaddingValues()
                 )

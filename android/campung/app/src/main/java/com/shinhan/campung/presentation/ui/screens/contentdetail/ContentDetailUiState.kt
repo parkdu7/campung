@@ -11,8 +11,15 @@ data class ContentDetailUiState(
     val likeCount: Int = 0,
     val commentText: String = "",
     val error: String? = null,
-    val isCommentLoading: Boolean = false
+    val isCommentLoading: Boolean = false,
+    
+    // 대댓글 모드 상태
+    val selectedCommentId: Long? = null,
+    val selectedCommentAuthor: String? = null,
 ) {
     val hasContent: Boolean get() = content != null
     val commentCount: Int get() = comments.size
+    
+    // 대댓글 모드 여부
+    val isReplyMode: Boolean get() = selectedCommentId != null
 }

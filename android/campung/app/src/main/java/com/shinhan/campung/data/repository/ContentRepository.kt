@@ -8,6 +8,7 @@ import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.remote.api.ContentApiService
 import com.shinhan.campung.data.remote.dto.CommentRequest
 import kotlinx.coroutines.flow.first
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,6 +18,7 @@ interface ContentRepository {
     suspend fun getLikeStatus(contentId: Long): LikeResponse
     suspend fun toggleLike(contentId: Long): LikeResponse
     suspend fun postComment(contentId: Long, body: String, isAnonymous: Boolean)
+    suspend fun postReply(contentId: Long, commentId: Long, body: String, isAnonymous: Boolean)
 }
 
 @Singleton
@@ -100,6 +102,24 @@ class ContentRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             throw Exception("댓글 작성 중 오류 발생: ${e.message}")
+        }
+    }
+    
+    override suspend fun postReply(contentId: Long, commentId: Long, body: String, isAnonymous: Boolean) {
+        try {
+            val response = contentApiService.postReply(
+                contentId = contentId,
+                commentId = commentId,
+                body = body.toRequestBody(),
+                isAnonymous = isAnonymous.toString().toRequestBody(),
+                parentCommentId = commentId.toString().toRequestBody()
+            )
+            
+            if (!response.isSuccessful || response.body()?.success != true) {
+                throw Exception("대댓글 작성 실패: ${response.message()}")
+            }
+        } catch (e: Exception) {
+            throw Exception("대댓글 작성 중 오류 발생: ${e.message}")
         }
     }
 }

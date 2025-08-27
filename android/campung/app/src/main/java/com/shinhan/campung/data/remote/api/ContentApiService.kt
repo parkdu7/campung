@@ -4,6 +4,7 @@ import com.shinhan.campung.data.remote.dto.CommentListResponse
 import com.shinhan.campung.data.remote.dto.CommentRequest
 import com.shinhan.campung.data.remote.dto.CommentResponse
 import com.shinhan.campung.data.remote.dto.LikeResponse
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -24,12 +25,14 @@ interface ContentApiService {
     ): Response<CommentResponse>
 
     // 대댓글 작성
+    @Multipart
     @POST("/api/contents/{contentId}/comments/{commentId}/replies")
     suspend fun postReply(
         @Path("contentId") contentId: Long,
         @Path("commentId") commentId: Long,
-        @Query("body") body: String,
-        @Query("isAnonymous") isAnonymous: Boolean
+        @Part("body") body: RequestBody,
+        @Part("isAnonymous") isAnonymous: RequestBody,
+        @Part("parentCommentId") parentCommentId: RequestBody
     ): Response<CommentResponse>
 
     // 좋아요 토글
