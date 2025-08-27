@@ -39,12 +39,6 @@ class MapCameraListener(
             mapViewModel.onMapMove()
         }
         
-        // 3. API 요청 (새로운 데이터 로드)
-        mapViewModel.loadMapContents(
-            latitude = center.latitude,
-            longitude = center.longitude
-        )
-        
         // 4. 상호작용 컨트롤러에 카메라 변경 알림 (중앙 마커 추적 등)
         if (clusterManager?.isClusterMoving == false) {
             interactionController.onCameraChanged(clusterManager)

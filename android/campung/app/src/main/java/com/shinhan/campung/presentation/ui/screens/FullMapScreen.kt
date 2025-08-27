@@ -302,6 +302,14 @@ fun FullMapScreen(
 
     LaunchedEffect(refreshId, naverMapRef) {
         val id = refreshId ?: return@LaunchedEffect
+        Log.d("FullMapScreen", "🎯 글 작성 후 리프레시 처리 시작 - ID: $id")
+        
+        // NaverMap이 준비될 때까지 기다림
+        if (naverMapRef == null) {
+            Log.w("FullMapScreen", "⚠️ NaverMap이 아직 준비되지 않음 - 리프레시 지연")
+            return@LaunchedEffect
+        }
+        
         // 현재 화면 중심/반경으로 강제 리로드
         val center = naverMapRef?.cameraPosition?.target
         val lat = center?.latitude ?: mapViewModel.getLastKnownLocation()?.first ?: 0.0
@@ -310,11 +318,19 @@ fun FullMapScreen(
             com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(it)
         } ?: 2000
 
-        mapViewModel.requestHighlight(id)                 // ✅ 하이라이트 예약
-        mapViewModel.loadMapContents(lat, lng, radius = radius, force = true) // ✅ 강제 리로드
+        Log.d("FullMapScreen", "📍 리프레시 위치: ($lat, $lng), 반경: ${radius}m")
+        
+        // 하이라이트 예약과 강제 리로드
+        mapViewModel.requestHighlight(id)
+        Log.d("FullMapScreen", "🔍 하이라이트 예약 완료 - ID: $id")
+        
+        // 서버 동기화 대기 후 한 번만 리로드
+        kotlinx.coroutines.delay(1000)
+        mapViewModel.loadMapContents(lat, lng, radius = radius, force = true)
 
         // 원샷 처리
         navController.currentBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", null)
+        Log.d("FullMapScreen", "✅ 리프레시 ID 초기화 완료")
     }
 
     LaunchedEffect(Unit) {
@@ -335,19 +351,23 @@ fun FullMapScreen(
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
 
-            // 초기 로드시에도 화면 영역 기반 반경 계산 사용
+            // 초기 로드 - 강제로 데이터 로드하여 확실히 마커 표시
             naverMapRef?.let { map ->
                 val radius = com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(map)
-                mapViewModel.loadMapContentsWithCalculatedRadius(
-                    latitude = pos.latitude,
-                    longitude = pos.longitude,
-                    radius = radius
-                )
-            } ?: run {
-                // NaverMap이 아직 준비되지 않았으면 기본 방식 사용
+                Log.d("FullMapScreen", "🎯 초기 위치 기반 마커 로드: (${pos.latitude}, ${pos.longitude}), 반경: ${radius}m")
                 mapViewModel.loadMapContents(
                     latitude = pos.latitude,
-                    longitude = pos.longitude
+                    longitude = pos.longitude,
+                    radius = radius,
+                    force = true  // 초기 로드는 항상 강제 실행
+                )
+            } ?: run {
+                // NaverMap이 아직 준비되지 않았으면 기본 방식으로 강제 로드
+                Log.d("FullMapScreen", "🎯 NaverMap 준비 전 기본 마커 로드: (${pos.latitude}, ${pos.longitude})")
+                mapViewModel.loadMapContents(
+                    latitude = pos.latitude,
+                    longitude = pos.longitude,
+                    force = true  // 초기 로드는 항상 강제 실행
                 )
             }
         }
@@ -369,12 +389,22 @@ fun FullMapScreen(
         }
     }
 
-    LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
+    // 클러스터링 업데이트 - 더 안정적으로 처리
+    LaunchedEffect(mapViewModel.shouldUpdateClustering, mapViewModel.mapContents.size, naverMapRef) {
         val map = naverMapRef ?: return@LaunchedEffect
 
-        if (mapViewModel.shouldUpdateClustering) {
-            Log.d("FullMapScreen", "LaunchedEffect에서 클러스터링 업데이트: ${mapViewModel.mapContents.size}개")
-            clusterManager?.updateMarkers(mapViewModel.mapContents)
+        if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isNotEmpty()) {
+            Log.d("FullMapScreen", "🔄 클러스터링 업데이트: ${mapViewModel.mapContents.size}개 마커")
+            try {
+                clusterManager?.updateMarkers(mapViewModel.mapContents)
+                mapViewModel.clusteringUpdated()
+                Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
+            } catch (e: Exception) {
+                Log.e("FullMapScreen", "❌ 클러스터링 업데이트 실패", e)
+            }
+        } else if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isEmpty()) {
+            Log.d("FullMapScreen", "🧹 빈 데이터로 클러스터링 클리어")
+            clusterManager?.clearMarkers()
             mapViewModel.clusteringUpdated()
         }
     }
