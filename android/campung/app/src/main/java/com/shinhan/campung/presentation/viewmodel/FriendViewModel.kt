@@ -4,16 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shinhan.campung.data.remote.response.FriendResponse
 import com.shinhan.campung.data.repository.FriendRepository
+import com.shinhan.campung.data.repository.LocationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.util.Log
 
 @HiltViewModel
 class FriendViewModel @Inject constructor(
-    private val friendRepository: FriendRepository
+    private val friendRepository: FriendRepository,
+    private val locationRepository: LocationRepository
 ) : ViewModel() {
 
     // UI 상태
@@ -169,6 +172,36 @@ class FriendViewModel @Inject constructor(
     // 성공 메시지 클리어
     fun clearSuccessMessage() {
         _uiState.value = _uiState.value.copy(successMessage = null)
+    }
+
+    // 위치 공유 요청 보내기
+    fun sendLocationShareRequest(targetUserId: String) {
+        Log.d("FriendViewModel", "위치 공유 요청 시작: targetUserId=$targetUserId")
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                val result = locationRepository.sendLocationShareRequest(targetUserId)
+                Log.d("FriendViewModel", "위치 공유 요청 성공: $result")
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    successMessage = "위치 공유 요청을 보냈습니다."
+                )
+            } catch (e: Exception) {
+                Log.e("FriendViewModel", "위치 공유 요청 실패", e)
+                val errorMessage = when (e) {
+                    is retrofit2.HttpException -> {
+                        val errorBody = e.response()?.errorBody()?.string()
+                        Log.e("FriendViewModel", "HTTP ${e.code()} 에러: $errorBody")
+                        "위치 공유 요청 실패 (HTTP ${e.code()}): $errorBody"
+                    }
+                    else -> e.message ?: "위치 공유 요청을 보내는데 실패했습니다."
+                }
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = errorMessage
+                )
+            }
+        }
     }
 
     // 새로고침

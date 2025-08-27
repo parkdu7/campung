@@ -3,12 +3,21 @@ package com.shinhan.campung.data.remote.response
 import com.google.gson.annotations.SerializedName
 
 data class NotificationListResponse(
-    @SerializedName("success")
-    val success: Boolean = true,
+    @SerializedName("notifications")
+    val notifications: List<NotificationResponse>? = null,
     
-    @SerializedName("message")
-    val message: String? = null,
+    @SerializedName("unreadCount")
+    val unreadCount: Long = 0,
     
-    @SerializedName("data")
-    val data: List<NotificationResponse>? = null
+    @SerializedName("totalPages")
+    val totalPages: Int = 0,
+    
+    @SerializedName("totalElements")
+    val totalElements: Long = 0,
+    
+    @SerializedName("currentPage")
+    val currentPage: Int = 0,
+    
+    @SerializedName("size")
+    val size: Int = 0
 )

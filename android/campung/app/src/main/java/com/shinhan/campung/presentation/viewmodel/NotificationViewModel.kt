@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.shinhan.campung.data.repository.FriendRepository
 import com.shinhan.campung.data.repository.LocationRepository
 import com.shinhan.campung.data.repository.NotificationRepository
+import com.shinhan.campung.data.service.LocationService
 import com.shinhan.campung.presentation.ui.screens.NotificationItem
 import com.shinhan.campung.presentation.ui.screens.NotificationUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +20,8 @@ import android.util.Log
 class NotificationViewModel @Inject constructor(
     private val notificationRepository: NotificationRepository,
     private val friendRepository: FriendRepository,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val locationService: LocationService
 ) : ViewModel() {
 
     // UI 상태
@@ -87,9 +89,14 @@ class NotificationViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    error = e.message ?: "친구 요청 수락에 실패했습니다."
-                )
+                val errorMessage = when {
+                    e.message?.contains("이미 처리된 요청") == true -> "이미 처리된 친구 요청입니다."
+                    e.message?.contains("500") == true -> "이미 친구 관계이거나 처리된 요청입니다."
+                    else -> e.message ?: "친구 요청 수락에 실패했습니다."
+                }
+                _uiState.value = _uiState.value.copy(error = errorMessage)
+                // 에러가 발생해도 UI에서 해당 알림을 제거
+                markAsReadAndRemove(notificationId)
             }
         }
     }
@@ -114,9 +121,14 @@ class NotificationViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    error = e.message ?: "친구 요청 거절에 실패했습니다."
-                )
+                val errorMessage = when {
+                    e.message?.contains("이미 처리된 요청") == true -> "이미 처리된 친구 요청입니다."
+                    e.message?.contains("500") == true -> "이미 친구 관계이거나 처리된 요청입니다."
+                    else -> e.message ?: "친구 요청 거절에 실패했습니다."
+                }
+                _uiState.value = _uiState.value.copy(error = errorMessage)
+                // 에러가 발생해도 UI에서 해당 알림을 제거
+                markAsReadAndRemove(notificationId)
             }
         }
     }
@@ -125,10 +137,19 @@ class NotificationViewModel @Inject constructor(
     fun acceptLocationShareRequest(notificationId: Long) {
         viewModelScope.launch {
             try {
+                // 위치 권한 확인
+                if (!locationService.hasLocationPermission()) {
+                    _uiState.value = _uiState.value.copy(
+                        error = "위치 권한이 필요합니다. 설정에서 권한을 허용해주세요."
+                    )
+                    return@launch
+                }
+
                 val notification = _notifications.value.find { it.id == notificationId }
                 val locationRequestId = extractLocationRequestIdFromData(notification?.data)
 
                 if (locationRequestId != null) {
+                    Log.d("NotificationVM", "위치 공유 요청 수락 시작: locationRequestId=$locationRequestId")
                     locationRepository.acceptLocationShareRequest(locationRequestId)
                     _uiState.value = _uiState.value.copy(
                         successMessage = "위치 공유 요청을 수락했습니다."
@@ -141,6 +162,7 @@ class NotificationViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
+                Log.e("NotificationVM", "위치 공유 요청 수락 실패", e)
                 _uiState.value = _uiState.value.copy(
                     error = e.message ?: "위치 공유 요청 수락에 실패했습니다."
                 )

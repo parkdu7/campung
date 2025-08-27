@@ -3,15 +3,19 @@ package com.shinhan.campung.data.repository
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.remote.api.LocationApi
 import com.shinhan.campung.data.remote.request.LocationShareRespondRequest
+import com.shinhan.campung.data.remote.request.LocationShareRequestRequest
 import com.shinhan.campung.data.remote.response.LocationShareRespondResponse
+import com.shinhan.campung.data.service.LocationService
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
+import android.util.Log
 
 @Singleton
 class LocationRepository @Inject constructor(
     private val locationApi: LocationApi,
-    private val authDataStore: AuthDataStore
+    private val authDataStore: AuthDataStore,
+    private val locationService: LocationService
 ) {
 
     // 토큰 가져오기 헬퍼 메서드
@@ -23,25 +27,38 @@ class LocationRepository @Inject constructor(
 
     // 위치 공유 요청 수락
     suspend fun acceptLocationShareRequest(locationRequestId: Long): LocationShareRespondResponse {
+        // 현재 위치 획득
+        val currentLocation = locationService.getCurrentLocation()
+        
+        if (currentLocation == null) {
+            throw IllegalStateException("현재 위치를 가져올 수 없습니다. 위치 권한을 확인해주세요.")
+        }
+        
+        Log.d("LocationRepository", "현재 위치: ${currentLocation.latitude}, ${currentLocation.longitude}")
         val request = LocationShareRespondRequest(
-            locationRequestId = locationRequestId,
-            action = "accept"
+            action = "accept",
+            latitude = java.math.BigDecimal(currentLocation.latitude.toString()),
+            longitude = java.math.BigDecimal(currentLocation.longitude.toString())
         )
-        return locationApi.respondToLocationShareRequest(request)
+        
+        return locationApi.respondToLocationShareRequest(locationRequestId, request)
     }
 
     // 위치 공유 요청 거절
     suspend fun rejectLocationShareRequest(locationRequestId: Long): LocationShareRespondResponse {
         val request = LocationShareRespondRequest(
-            locationRequestId = locationRequestId,
             action = "reject"
         )
-        return locationApi.respondToLocationShareRequest(request)
+        return locationApi.respondToLocationShareRequest(locationRequestId, request)
     }
 
     // 위치 공유 요청 보내기
     suspend fun sendLocationShareRequest(targetUserId: String): LocationShareRespondResponse {
-        val request = mapOf("targetUserId" to targetUserId)
+        val request = LocationShareRequestRequest(
+            friendUserIds = listOf(targetUserId),
+            purpose = "위치 확인"
+        )
+        Log.d("LocationRepository", "위치 공유 요청 데이터: targetUserId=$targetUserId, friendUserIds=${request.friendUserIds}, purpose=${request.purpose}")
         return locationApi.sendLocationShareRequest(request)
     }
 
