@@ -19,13 +19,21 @@ public class CampusEmotionService {
 
     private final EmotionAnalysisOrchestrator emotionAnalysisOrchestrator;
     private final EmotionStatisticsService emotionStatisticsService;
+    private final CampusTemperatureManager temperatureManager;
 
     /**
      * 매시간 실행되는 감정 분석 프로세스 (스케줄러용)
      */
     public void analyzeHourlyEmotions() {
         log.info("스케줄러 기반 감정 분석 시작");
+        
+        // 감정 분석 실행
         emotionAnalysisOrchestrator.executeHourlyEmotionAnalysis();
+        
+        // 감정 분석 결과를 온도 매니저에 전달
+        updateTemperatureFromEmotionAnalysis();
+        
+        log.info("스케줄러 기반 감정 분석 완료");
     }
     
     /**
@@ -70,6 +78,33 @@ public class CampusEmotionService {
      */
     public Double getCurrentEmotionTemperature() {
         return emotionStatisticsService.getCurrentEmotionTemperature();
+    }
+    
+    /**
+     * 감정 분석 결과를 온도 매니저에 전달하는 내부 메서드
+     */
+    private void updateTemperatureFromEmotionAnalysis() {
+        // 현재 감정 평균 점수 조회
+        Map<String, Double> averageScores = getCurrentDailyAverageScores();
+        
+        if (averageScores == null || averageScores.isEmpty()) {
+            log.warn("감정 평균 점수가 없어 온도 전달을 건너뜁니다");
+            return;
+        }
+        
+        // 현재 감정 온도 조회
+        Double emotionTemperature = getCurrentEmotionTemperature();
+        
+        if (emotionTemperature == null) {
+            log.warn("감정 온도가 없어 온도 전달을 건너뜁니다");
+            return;
+        }
+        
+        // 온도 매니저에 감정 기반 온도 설정
+        temperatureManager.setBaseEmotionTemperature(emotionTemperature);
+        
+        log.info("감정 분석 결과를 온도 매니저에 전달 완료: {}도 (감정 점수: {})", 
+                emotionTemperature, averageScores);
     }
 
     /**

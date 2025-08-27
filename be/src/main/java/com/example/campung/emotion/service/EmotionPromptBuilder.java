@@ -45,7 +45,9 @@ public class EmotionPromptBuilder {
     private void addTaskInstructions(StringBuilder prompt) {
         prompt.append("【작업 지시】\n");
         prompt.append("아래 게시글들의 감정을 분석하여 6가지 감정('우울함', '밝음', '신남', '화남', '슬픔', '흥분된')에 대해 1점에서 100점 사이로 점수를 매기세요.\n");
-        prompt.append("모든 게시글의 감정 점수를 합산하여 최종 누적 점수를 계산하세요.\n\n");
+        prompt.append("모든 게시글의 감정 점수를 합산하여 최종 누적 점수를 계산하세요.\n");
+        prompt.append("【중요】 게시글에서 특정 감정이 별로 느껴지지 않는다면 해당 감정 점수를 낮게(1-20점) 측정하세요.\n");
+        prompt.append("감정적 표현이 약하거나 중립적인 내용일 경우 감정 점수를 대폭 낮춰서 평가하세요.\n\n");
     }
 
     /**
@@ -85,7 +87,7 @@ public class EmotionPromptBuilder {
      */
     private void addFinalConfirmation(StringBuilder prompt) {
         prompt.append("【최종 확인】\n");
-        prompt.append("응답 예시: {\"우울함\": 250, \"밝음\": 180, \"신남\": 120, \"화남\": 90, \"슬픔\": 200, \"흥분된\": 160}\n");
+        prompt.append("응답 예시: {\"우울함\": 100, \"밝음\": 80, \"신남\": 10, \"화남\": 70, \"슬픔\": 20, \"흥분된\": 60}\n");
         prompt.append("위 형식과 정확히 일치하는 JSON만 반환하세요. 추가 텍스트 금지.\n");
     }
 }
