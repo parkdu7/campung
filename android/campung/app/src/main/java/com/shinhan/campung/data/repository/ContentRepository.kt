@@ -92,8 +92,9 @@ class ContentRepositoryImpl @Inject constructor(
         try {
             val response = contentApiService.postComment(
                 contentId = contentId,
-                body = body,
-                isAnonymous = isAnonymous
+                body = body.toRequestBody(),
+                isAnonymous = isAnonymous.toString().toRequestBody(),
+                parentCommentId = "".toRequestBody() // 일반 댓글은 빈 문자열
             )
             
             if (!response.isSuccessful || response.body()?.success != true) {

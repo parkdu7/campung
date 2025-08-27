@@ -165,17 +165,44 @@ private fun ContentDetailScreenContent(
                         createdAt = content.createdAtDateTime
                     )
                 }
+                
+                // 작성자 정보 구분선
+                item {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = Color(0xFFE0E0E0)
+                    )
+                }
 
                 // 미디어 파일 (이미지/비디오)
                 if (!content.mediaFiles.isNullOrEmpty()) {
                     item {
                         MediaPagerSection(mediaFiles = content.mediaFiles)
                     }
+                    
+                    // 미디어 구분선
+                    item {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            thickness = 0.5.dp,
+                            color = Color(0xFFE0E0E0)
+                        )
+                    }
                 }
 
                 // 컨텐츠 텍스트
                 item {
                     ContentTextSection(content = content.body)
+                }
+                
+                // 컨텐츠 텍스트 구분선
+                item {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        thickness = 0.5.dp,
+                        color = Color(0xFFE0E0E0)
+                    )
                 }
 
                 // 좋아요/댓글 수 바
@@ -187,14 +214,63 @@ private fun ContentDetailScreenContent(
                         onLikeClick = onLikeClick
                     )
                 }
-
-                // 댓글 목록
-                items(uiState.comments) { comment ->
-                    CommentItem(
-                        comment = comment,
-                        onReplyClick = onReplyClick,
-                        isSelected = comment.commentId == uiState.selectedCommentId
+                
+                // 댓글 영역 구분선
+                item {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        thickness = 1.dp,
+                        color = Color(0xFFE0E0E0)
                     )
+                }
+
+                // 댓글 목록 또는 빈 상태
+                if (uiState.comments.isEmpty() && !uiState.isCommentLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "첫 번째 댓글을 남겨보세요!",
+                                    fontSize = 16.sp,
+                                    color = Color(0xFF999999),
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "이 게시물에 대한 생각을 공유해 주세요",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFFBBBBBB)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // 댓글 목록
+                    items(uiState.comments.size) { index ->
+                        val comment = uiState.comments[index]
+                        
+                        CommentItem(
+                            comment = comment,
+                            onReplyClick = onReplyClick,
+                            isSelected = comment.commentId == uiState.selectedCommentId
+                        )
+                        
+                        // 댓글 사이 구분선 (마지막 댓글은 제외)
+                        if (index < uiState.comments.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                thickness = 0.5.dp,
+                                color = Color(0xFFF0F0F0)
+                            )
+                        }
+                    }
                 }
 
                 // 댓글 로딩 표시
