@@ -1,4 +1,4 @@
-package com.shinhan.campung
+package com.shinhan.campung.navigation
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -25,7 +25,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.naver.maps.map.MapView
 import com.shinhan.campung.data.local.AuthDataStore
-import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.screens.FriendScreen
 import com.shinhan.campung.presentation.ui.screens.FullMapScreen
 import com.shinhan.campung.presentation.ui.screens.HomeScreen
