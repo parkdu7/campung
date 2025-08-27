@@ -3,7 +3,7 @@ spring:
     name: Campung
   config:
     import: optional:classpath:properties/env.properties
-    
+  
   # MariaDB 설정
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
@@ -19,6 +19,12 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+  # 파일 업로드 용량 설정
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
   
   # Redis 설정  
   data:

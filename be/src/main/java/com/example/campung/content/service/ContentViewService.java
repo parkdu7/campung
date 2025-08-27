@@ -94,6 +94,11 @@ public class ContentViewService {
             totalLikes, isLikedByCurrentUser);
         detail.setLikeInfo(likeInfo);
         
+        // 생성일시 설정 (ISO 8601 형식)
+        if (content.getCreatedAt() != null) {
+            detail.setCreatedAt(content.getCreatedAt().toString() + "Z");
+        }
+        
         return detail;
     }
     

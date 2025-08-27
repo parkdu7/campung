@@ -14,10 +14,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 공식 GPT-5 API 가이드 완전 준수 서비스
+ * 공식 GPT-5-mini API 가이드 완전 준수 서비스
  * 참조: https://api.openai.com/v1/responses
  * 
- * 지원 모델: gpt-5 only
+ * 지원 모델: gpt-5-mini only
  * 파라미터: reasoning.effort, text.verbosity
  */
 @Service
@@ -30,10 +30,10 @@ public class GPT5FallbackService {
     private final ObjectMapper objectMapper;
 
     /**
-     * GPT-5 Responses API 폴백 호출
+     * GPT-5-mini Responses API 폴백 호출
      */
     public String generateSummaryWithFallback(String landmarkName, String postsContent, int radius) {
-        return generateSummaryWithModel("gpt-5", landmarkName, postsContent, radius, "medium", "low");
+        return generateSummaryWithModel("gpt-5-mini", landmarkName, postsContent, radius, "medium", "low");
     }
     
     /**
@@ -42,24 +42,24 @@ public class GPT5FallbackService {
     public String generateSummaryWithModel(String model, String landmarkName, String postsContent, 
                                          int radius, String verbosity, String reasoningEffort) {
         try {
-            // GPT-5 Chat Completions API 사용 (공식 가이드 준수)
+            // GPT-5-mini Chat Completions API 사용 (공식 가이드 준수)
             String result = callGPT5ResponsesAPI(landmarkName, postsContent, radius, verbosity, reasoningEffort);
             if (result != null && !result.contains("요약을 생성할 수 없습니다")) {
-                log.info("gpt-5 Chat Completions API 성공");
+                log.info("gpt-5-mini Chat Completions API 성공");
                 return result;
             }
             
-            log.error("gpt-5 Chat Completions API 실패");
+            log.error("gpt-5-mini Chat Completions API 실패");
             return landmarkName + " 주변 분위기를 분석할 수 없습니다.";
             
         } catch (Exception e) {
-            log.error("gpt-5 Chat Completions API 호출 실패: {}", e.getMessage(), e);
+            log.error("gpt-5-mini Chat Completions API 호출 실패: {}", e.getMessage(), e);
             return landmarkName + " 주변 분위기를 분석하는 중 오류가 발생했습니다.";
         }
     }
 
     /**
-     * 공식 GPT-5 Chat Completions API 호출 (가이드 완전 준수)
+     * 공식 GPT-5-mini Chat Completions API 호출 (가이드 완전 준수)
      */
     private String callGPT5ResponsesAPI(String landmarkName, String postsContent, 
                                        int radius, String verbosity, String reasoningEffort) {
@@ -80,9 +80,9 @@ public class GPT5FallbackService {
                 landmarkName, radius, lengthInstruction, postsContent
             );
 
-            // 공식 GPT-5 Chat Completions API 요청 구조 (가이드 준수)
+            // 공식 GPT-5-mini Chat Completions API 요청 구조 (가이드 준수)
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", "gpt-5");
+            requestBody.put("model", "gpt-5-mini");
             requestBody.put("messages", java.util.Arrays.asList(
                 Map.of("role", "user", "content", inputText)
             ));
@@ -97,7 +97,7 @@ public class GPT5FallbackService {
                 requestBody.put("verbosity", verbosity);
             }
 
-            log.info("gpt-5 Chat Completions API 호출 시작 (reasoning_effort: {}, verbosity: {})", 
+            log.info("gpt-5-mini Chat Completions API 호출 시작 (reasoning_effort: {}, verbosity: {})", 
                     reasoningEffort, verbosity);
 
             String response = webClient.post()
@@ -107,7 +107,7 @@ public class GPT5FallbackService {
                     .bodyToMono(String.class)
                     .timeout(Duration.ofSeconds(60))
                     .onErrorResume(throwable -> {
-                        log.error("gpt-5 Chat Completions API 호출 실패: {}", throwable.getMessage());
+                        log.error("gpt-5-mini Chat Completions API 호출 실패: {}", throwable.getMessage());
                         return Mono.empty();
                     })
                     .block();
@@ -119,7 +119,7 @@ public class GPT5FallbackService {
             return null;
 
         } catch (Exception e) {
-            log.error("gpt-5 Responses API 호출 중 예외: {}", e.getMessage());
+            log.error("gpt-5-mini Responses API 호출 중 예외: {}", e.getMessage());
             return null;
         }
     }
@@ -138,7 +138,7 @@ public class GPT5FallbackService {
     }
 
     /**
-     * GPT-5 Chat Completions API 응답에서 텍스트 추출
+     * GPT-5-mini Chat Completions API 응답에서 텍스트 추출
      */
     private String extractChatCompletionsText(String response) {
         try {
@@ -153,11 +153,11 @@ public class GPT5FallbackService {
                 }
             }
             
-            log.warn("GPT-5 Chat Completions 응답에서 content를 찾을 수 없음");
+            log.warn("GPT-5-mini Chat Completions 응답에서 content를 찾을 수 없음");
             return "요약을 생성할 수 없습니다.";
             
         } catch (Exception e) {
-            log.error("GPT-5 Chat Completions 응답 파싱 중 오류: {}", e.getMessage());
+            log.error("GPT-5-mini Chat Completions 응답 파싱 중 오류: {}", e.getMessage());
             return "응답 처리 중 오류가 발생했습니다.";
         }
     }

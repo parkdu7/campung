@@ -31,14 +31,22 @@ public class LocationShareService {
                 .orElseThrow(() -> new RuntimeException("요청자를 찾을 수 없습니다"));
         
         int successCount = 0;
-        int totalCount = request.getFriendIds().size();
+        int totalCount = request.getFriendUserIds() != null ? request.getFriendUserIds().size() : 0;
+        
+        if (request.getFriendUserIds() == null || request.getFriendUserIds().isEmpty()) {
+            return LocationShareResponseDto.builder()
+                    .message("친구 ID 목록이 비어있습니다")
+                    .successCount(0)
+                    .totalCount(0)
+                    .build();
+        }
         
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(24); // 24시간 후 만료
         
-        for (Long friendId : request.getFriendIds()) {
+        for (String friendUserId : request.getFriendUserIds()) {
             try {
-                User toUser = userRepository.findById(friendId)
-                        .orElseThrow(() -> new RuntimeException("친구를 찾을 수 없습니다: " + friendId));
+                User toUser = userRepository.findByUserId(friendUserId)
+                        .orElseThrow(() -> new RuntimeException("친구를 찾을 수 없습니다: " + friendUserId));
                 
                 // LocationRequest 생성
                 LocationRequest locationRequest = LocationRequest.builder()
@@ -74,10 +82,10 @@ public class LocationShareService {
                 }
                 
                 successCount++;
-                log.info("Location share request sent successfully to user: {}", friendId);
+                log.info("Location share request sent successfully to user: {}", friendUserId);
                 
             } catch (Exception e) {
-                log.error("Failed to send location share request to user: {}", friendId, e);
+                log.error("Failed to send location share request to user: {}", friendUserId, e);
             }
         }
         
@@ -153,6 +161,14 @@ public class LocationShareService {
             
             notificationRepository.save(notification);
             
+            // 기존 location_share_request 알림을 읽음 처리
+            notificationRepository.findByUser_UserIdAndTypeAndDataContaining(
+                respondentUserId, "location_share_request", "\"shareRequestId\":" + shareRequestId)
+                .forEach(existingNotification -> {
+                    existingNotification.setIsRead(true);
+                    notificationRepository.save(existingNotification);
+                });
+            
             log.info("Location share accepted: requestId={}, respondent={}", shareRequestId, respondentUserId);
             
             return LocationShareRespondResponseDto.builder()
@@ -186,6 +202,14 @@ public class LocationShareService {
                     .build();
             
             notificationRepository.save(notification);
+            
+            // 기존 location_share_request 알림을 읽음 처리
+            notificationRepository.findByUser_UserIdAndTypeAndDataContaining(
+                respondentUserId, "location_share_request", "\"shareRequestId\":" + shareRequestId)
+                .forEach(existingNotification -> {
+                    existingNotification.setIsRead(true);
+                    notificationRepository.save(existingNotification);
+                });
             
             log.info("Location share rejected: requestId={}, respondent={}", shareRequestId, respondentUserId);
             

@@ -70,6 +70,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.shinhan.campung.R
 
@@ -379,14 +380,14 @@ fun FullMapScreen(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
-            // 네이버 지도
-            AndroidView(
-                factory = { mapView },
-                update = { mv ->
-                    if (naverMapRef == null) {
-                        mv.getMapAsync { map ->
-                            naverMapRef = map
-                            mapInitializer.setupMapUI(map)
+                // 네이버 지도
+                AndroidView(
+                    factory = { mapView },
+                    update = { mv ->
+                        if (naverMapRef == null) {
+                            mv.getMapAsync { map ->
+                                naverMapRef = map
+                                mapInitializer.setupMapUI(map)
 
                                 clusterManager =
                                     clusterManagerInitializer.createClusterManager(map) { centerContent ->
@@ -397,7 +398,7 @@ fun FullMapScreen(
                             val interactionController = com.shinhan.campung.presentation.ui.map.MapInteractionController(mapViewModel).apply {
                                 setNaverMap(map)
                             }
-                            
+
                             // 기존 카메라 리스너 (마커 중심점 관리)
                                 mapCameraListener = MapCameraListener(mapViewModel, clusterManager, interactionController)
                                 map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
@@ -427,85 +428,87 @@ fun FullMapScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // 뒤로가기 버튼
-            IconButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .padding(12.dp)
-                    .align(Alignment.TopStart)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
-            }
+                // 뒤로가기 버튼
+                IconButton(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .align(Alignment.TopStart)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
+                }
 
-            // LocationButton - 바텀시트와 함께 움직임
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(
-                        start = 16.dp,
-                        bottom = 16.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이(30dp)만큼 위로
-                    )
-                    .offset(y = locationButtonOffsetY)
-            ) {
-                AndroidView(
-                    factory = { ctx -> LocationButtonView(ctx) },
-                    update = { btn ->
-                        naverMapRef?.let { btn.map = it }
-                    }
-                )
-
-                // 클릭 오버레이
+                // LocationButton - 바텀시트와 함께 움직임
                 Box(
                     modifier = Modifier
-                        .matchParentSize()
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            val pos = myLatLng
-                            if (pos != null) {
-                                naverMapRef?.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
-                                naverMapRef?.locationOverlay?.apply {
-                                    isVisible = true
-                                    position = pos
-                                }
-                            } else {
-                                if (hasPermission) {
-                                    fetchMyLocationOnce()
+                        .align(Alignment.BottomStart)
+                        .padding(
+                            start = 16.dp,
+                            bottom = 16.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이(30dp)만큼 위로
+                        )
+                        .offset(y = locationButtonOffsetY)
+                ) {
+                    AndroidView(
+                        factory = { ctx -> LocationButtonView(ctx) },
+                        update = { btn ->
+                            naverMapRef?.let { btn.map = it }
+                        }
+                    )
+
+                    // 클릭 오버레이
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) {
+                                val pos = myLatLng
+                                if (pos != null) {
+                                    naverMapRef?.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
+                                    naverMapRef?.locationOverlay?.apply {
+                                        isVisible = true
+                                        position = pos
+                                    }
                                 } else {
-                                    locationPermissionManager.requestLocationPermission(permissionLauncher)
+                                    if (hasPermission) {
+                                        fetchMyLocationOnce()
+                                    } else {
+                                        locationPermissionManager.requestLocationPermission(
+                                            permissionLauncher
+                                        )
+                                    }
                                 }
                             }
-                        }
-                )
-            }
-
-            // 플로팅 버튼 상태 관리
-            var isFabExpanded by remember { mutableStateOf(false) }
-
-            // 확장 가능한 플로팅 액션 버튼 - 우측 하단
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(
-                        end = 16.dp,
-                        bottom = 16.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이만큼 위로
                     )
-                    .offset(y = locationButtonOffsetY) // 바텀시트와 함께 움직임
-            ) {
+                }
+
+                // 플로팅 버튼 상태 관리
+                var isFabExpanded by remember { mutableStateOf(false) }
+
+                // 확장 가능한 플로팅 액션 버튼 - 우측 하단
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(
+                            end = 16.dp,
+                            bottom = 8.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이만큼 위로
+                        )
+                        .offset(y = locationButtonOffsetY) // 바텀시트와 함께 움직임
+                ) {
                     Column(
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // 확장된 상태에서 보이는 버튼들 (위에서 아래로 순서)
+                        // 확장된 상태에서 보이는 버튼들 (아래에서 위로 나타남)
                         AnimatedVisibility(
                             visible = isFabExpanded,
                             enter = slideInVertically(
-                                initialOffsetY = { -it },
+                                initialOffsetY = { it }, // 양수 = 아래에서 위로
                                 animationSpec = tween(300)
                             ) + fadeIn(animationSpec = tween(300)),
                             exit = slideOutVertically(
-                                targetOffsetY = { -it },
+                                targetOffsetY = { it }, // 양수 = 위에서 아래로 사라짐
                                 animationSpec = tween(200)
                             ) + fadeOut(animationSpec = tween(200))
                         ) {
@@ -513,28 +516,10 @@ fun FullMapScreen(
                                 horizontalAlignment = Alignment.End,
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // 취소 버튼 (X) - 가장 위
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clickable(
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() }
-                                        ) {
-                                            isFabExpanded = false
-                                        }
-                                ) {
-                                    Image(
-                                        painter = painterResource(R.drawable.btn_cancel),
-                                        contentDescription = "닫기",
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-
                                 // 펜 버튼
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
+                                        .size(56.dp)
                                         .clickable(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
@@ -552,7 +537,7 @@ fun FullMapScreen(
                                 // 게시판 버튼
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
+                                        .size(56.dp)
                                         .clickable(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
@@ -569,7 +554,13 @@ fun FullMapScreen(
                             }
                         }
 
-                        // 메인 버튼 (+ 또는 다른 아이콘) - 가장 아래
+                        // 메인 버튼 (+ 또는 X) - 가장 아래
+                        val rotationAngle by animateFloatAsState(
+                            targetValue = if (isFabExpanded) 45f else 0f,
+                            animationSpec = tween(300),
+                            label = "fab_rotation"
+                        )
+
                         Box(
                             modifier = Modifier
                                 .size(56.dp) // 메인 버튼은 조금 더 크게
@@ -577,97 +568,88 @@ fun FullMapScreen(
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() }
                                 ) {
-                                    if (!isFabExpanded) {
-                                        isFabExpanded = true
-                                    }
+                                    // 토글 기능
+                                    isFabExpanded = !isFabExpanded
                                 }
                         ) {
-                            AnimatedContent(
-                                targetState = isFabExpanded,
-                                transitionSpec = {
-                                    fadeIn(animationSpec = tween(150)) togetherWith
-                                            fadeOut(animationSpec = tween(150))
-                                },
-                                label = "fab_icon"
-                            ) { expanded ->
-                                Image(
-                                    painter = painterResource(R.drawable.btn_add),
-                                    contentDescription = if (expanded) "메뉴 열림" else "메뉴",
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
+                            Image(
+                                painter = painterResource(R.drawable.btn_add),
+                                contentDescription = if (isFabExpanded) "메뉴 닫기" else "메뉴 열기",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .rotate(rotationAngle) // 45도 회전 애니메이션
+                            )
                         }
                     }
                 }
-            }
 
-            // 새로운 바텀시트 컴포넌트 사용
-            MapDraggableBottomSheet(
-                state = bottomSheetState,
-                screenHeight = screenHeight,
-                availableHeight = availableHeight,
-                contentHeight = dynamicContentHeight,
-                dragHandleHeight = dragHandleHeight
-            ) {
-                // 바텀시트 콘텐츠
-                MapBottomSheetContent(
-                    contents = bottomSheetContents,
-                    isLoading = isLoading,
-                    isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
-                    navigationBarHeight = with(density) { navigationBarHeight.toDp() },
-                    statusBarHeight = with(density) { statusBarHeight.toDp() },
-                    onContentClick = { content ->
-                        // TODO: 컨텐츠 상세 화면으로 이동
-                    }
-                )
-            }
-
-            // 상단 헤더 (오버레이)
-            MapTopHeader(
-                selectedDate = mapViewModel.selectedDate,
-                onBackClick = { navController.popBackStack() },
-                onDateClick = {
-                    showDatePicker = true
-                },
-                onFriendClick = {
-                    navController.navigate(Route.FRIEND)
-                },
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-
-            // 필터 태그 (오버레이)
-            HorizontalFilterTags(
-                selectedTags = mapViewModel.selectedTags,
-                onTagClick = { tagId ->
-                    mapViewModel.toggleFilterTag(tagId)
-                },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 64.dp)
-            )
-
-            // 애니메이션 툴팁 오버레이
-            AnimatedMapTooltip(
-                visible = tooltipState.isVisible,
-                content = tooltipState.content?.title ?: "",
-                position = tooltipState.position,
-                type = tooltipState.type
-            )
-
-
-
-        // 날짜 선택 다이얼로그
-        if (showDatePicker) {
-            DatePickerDialog(
-                selectedDate = mapViewModel.selectedDate,
-                onDateSelected = { newDate ->
-                    mapViewModel.updateSelectedDate(newDate)
-                },
-                onDismiss = {
-                    showDatePicker = false
+                // 새로운 바텀시트 컴포넌트 사용
+                MapDraggableBottomSheet(
+                    state = bottomSheetState,
+                    screenHeight = screenHeight,
+                    availableHeight = availableHeight,
+                    contentHeight = dynamicContentHeight,
+                    dragHandleHeight = dragHandleHeight
+                ) {
+                    // 바텀시트 콘텐츠
+                    MapBottomSheetContent(
+                        contents = bottomSheetContents,
+                        isLoading = isLoading,
+                        isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
+                        navigationBarHeight = with(density) { navigationBarHeight.toDp() },
+                        statusBarHeight = with(density) { statusBarHeight.toDp() },
+                        onContentClick = { content ->
+                            // TODO: 컨텐츠 상세 화면으로 이동
+                        }
+                    )
                 }
-            )
+
+                // 상단 헤더 (오버레이)
+                MapTopHeader(
+                    selectedDate = mapViewModel.selectedDate,
+                    onBackClick = { navController.popBackStack() },
+                    onDateClick = {
+                        showDatePicker = true
+                    },
+                    onFriendClick = {
+                        navController.navigate(Route.FRIEND)
+                    },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+
+                // 필터 태그 (오버레이)
+                HorizontalFilterTags(
+                    selectedTags = mapViewModel.selectedTags,
+                    onTagClick = { tagId ->
+                        mapViewModel.toggleFilterTag(tagId)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 64.dp)
+                )
+
+                // 애니메이션 툴팁 오버레이
+                AnimatedMapTooltip(
+                    visible = tooltipState.isVisible,
+                    content = tooltipState.content?.title ?: "",
+                    position = tooltipState.position,
+                    type = tooltipState.type
+                )
+
+
+                // 날짜 선택 다이얼로그
+                if (showDatePicker) {
+                    DatePickerDialog(
+                        selectedDate = mapViewModel.selectedDate,
+                        onDateSelected = { newDate ->
+                            mapViewModel.updateSelectedDate(newDate)
+                        },
+                        onDismiss = {
+                            showDatePicker = false
+                        }
+                    )
+                }
+            }
         }
     }
-}
 }

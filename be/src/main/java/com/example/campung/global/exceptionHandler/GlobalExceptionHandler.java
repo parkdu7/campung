@@ -15,7 +15,7 @@ import java.util.Map;
  * Spring Boot 3.x 호환 - 특정 패키지만 대상으로 제한
  * @RestControllerAdvice 사용으로 SpringDoc 호환성 개선
  */
-@RestControllerAdvice(basePackages = {"com.example.campung.test.controller", "com.example.campung.user.controller", "com.example.campung.content.controller", "com.example.campung.comment.controller", "com.example.campung.contentlike.controller", "com.example.campung.lankmark.controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
+@RestControllerAdvice(basePackages = {"com.example.campung.test.controller", "com.example.campung.user.controller", "com.example.campung.content.controller", "com.example.campung.comment.controller", "com.example.campung.contentlike.controller", "com.example.campung.lankmark.controller", "com.example.campung.emotion.controller", "com.example.campung.main.controller"})  // SpringDoc 2.8.0에서 호환성 문제 해결
 public class GlobalExceptionHandler {
     
     /**
@@ -234,6 +234,32 @@ public class GlobalExceptionHandler {
         response.put("message", e.getMessage());
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+    
+    /**
+     * 감정 분석 예외 처리
+     */
+    @ExceptionHandler(com.example.campung.global.exception.EmotionAnalysisException.class)
+    public ResponseEntity<Map<String, Object>> handleEmotionAnalysisException(com.example.campung.global.exception.EmotionAnalysisException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("errorCode", "EMOTION_ANALYSIS_ERROR");
+        response.put("message", e.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+    
+    /**
+     * GPT-5 서비스 예외 처리
+     */
+    @ExceptionHandler(com.example.campung.global.exception.GPT5ServiceException.class)
+    public ResponseEntity<Map<String, Object>> handleGPT5ServiceException(com.example.campung.global.exception.GPT5ServiceException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("errorCode", "GPT5_SERVICE_ERROR");
+        response.put("message", e.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
     
     /**
