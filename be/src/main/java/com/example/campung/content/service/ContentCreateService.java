@@ -14,12 +14,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 public class ContentCreateService {
     
@@ -41,14 +43,17 @@ public class ContentCreateService {
     @Autowired
     private LandmarkSearchService landmarkSearchService;
     
+    @Autowired
+    private FileSizeValidationService fileSizeValidationService;
+    
     @Transactional
     public ContentCreateResponse createContent(ContentCreateRequest request, String accessToken) throws IOException {
-        System.out.println("=== CONTENT 생성 시작 ===");
-        System.out.println("accessToken: " + accessToken);
-        System.out.println("title: " + request.getTitle());
+        log.info("=== CONTENT 생성 시작 ===");
+        log.info("accessToken: {}", accessToken);
+        log.info("title: {}", request.getTitle());
         
         validateContentRequest(request);
-        System.out.println("유효성 검증 완료");
+        log.info("유효성 검증 완료");
         
         User author = userRepository.findByUserId(accessToken)
                 .orElseGet(() -> {
@@ -59,24 +64,10 @@ public class ContentCreateService {
                             .build();
                     return userRepository.save(newUser);
                 });
-        System.out.println("User 조회/생성 완료: " + author.getUserId());
+        log.info("User 조회/생성 완료: {}", author.getUserId());
         
         // 주변 랜드마크를 찾아서 건물 이름 설정
-        String buildingName = null;
-        if (request.getLatitude() != null && request.getLongitude() != null) {
-            try {
-                List<Landmark> nearbyLandmarks = landmarkSearchService.findNearbyLandmarks(
-                    request.getLatitude(), request.getLongitude(), 100); // 100m 반경
-                
-                if (!nearbyLandmarks.isEmpty()) {
-                    // 가장 가까운 랜드마크의 이름을 건물 이름으로 사용
-                    buildingName = nearbyLandmarks.get(0).getName();
-                    System.out.println("주변 랜드마크 발견: " + buildingName);
-                }
-            } catch (Exception e) {
-                System.out.println("랜드마크 검색 중 오류 (무시하고 계속): " + e.getMessage());
-            }
-        }
+        String buildingName = findNearbyLandmarkName(request.getLatitude(), request.getLongitude());
 
         Content.ContentBuilder contentBuilder = Content.builder()
                 .title(request.getTitle())
@@ -90,50 +81,25 @@ public class ContentCreateService {
             contentBuilder.latitude(BigDecimal.valueOf(request.getLatitude()))
                          .longitude(BigDecimal.valueOf(request.getLongitude()));
         }
-        System.out.println("ContentBuilder 설정 완료");
+        log.info("ContentBuilder 설정 완료");
         
         Content content = contentBuilder.build();
-        System.out.println("Content 생성 완료");
+        log.info("Content 생성 완료");
         
         List<Attachment> attachments = new ArrayList<>();
         if (request.getFiles() != null && !request.getFiles().isEmpty()) {
-            System.out.println("파일 처리 시작: " + request.getFiles().size());
+            log.info("파일 처리 시작: {}개", request.getFiles().size());
             int index = 1;
             for (MultipartFile file : request.getFiles()) {
                 if (!file.isEmpty()) {
-                    // 파일 타입별 용량 제한 검사
-                    String contentType = file.getContentType();
-                    if (contentType != null) {
-                        if (contentType.startsWith("image/")) {
-                            if (file.getSize() > 5 * 1024 * 1024) { // 5MB
-                                throw new IllegalArgumentException("이미지 파일은 5MB를 초과할 수 없습니다: " + file.getOriginalFilename());
-                            }
-                        } else if (contentType.startsWith("video/")) {
-                            if (file.getSize() > 100 * 1024 * 1024) { // 100MB
-                                throw new IllegalArgumentException("영상 파일은 100MB를 초과할 수 없습니다: " + file.getOriginalFilename());
-                            }
-                        }
-                    }
+                    fileSizeValidationService.validateFileSize(file);
 
                     String fileUrl = s3Service.uploadFile(file);
                     String thumbnailUrl = null;
                     
                     // 이미지 파일인 경우 썸네일 생성
                     if (thumbnailService.canGenerateThumbnail(file)) {
-                        try {
-                            System.out.println("썸네일 생성 시작: " + file.getOriginalFilename());
-                            java.io.InputStream thumbnailStream = thumbnailService.generateImageThumbnailAsStream(file);
-                            byte[] thumbnailBytes = thumbnailService.generateImageThumbnail(file);
-                            thumbnailUrl = s3Service.uploadThumbnail(
-                                new java.io.ByteArrayInputStream(thumbnailBytes), 
-                                thumbnailBytes.length, 
-                                file.getOriginalFilename()
-                            );
-                            System.out.println("썸네일 생성 완료: " + thumbnailUrl);
-                        } catch (Exception e) {
-                            System.out.println("썸네일 생성 실패: " + e.getMessage());
-                            // 썸네일 생성 실패해도 원본 파일 업로드는 계속 진행
-                        }
+                        thumbnailUrl = generateThumbnailSafely(file);
                     }
                     
                     Attachment attachment = Attachment.builder()
@@ -154,19 +120,48 @@ public class ContentCreateService {
         content.setAttachments(attachments);
         
         Content savedContent = contentRepository.save(content);
-        System.out.println("=== CONTENT DB 저장 완료 ===");
-        System.out.println("저장된 Content ID: " + savedContent.getContentId());
+        log.info("=== CONTENT DB 저장 완료 ===");
+        log.info("저장된 Content ID: {}", savedContent.getContentId());
         
         // 새 게시글 알림 이벤트 발행
         if (savedContent.getLatitude() != null && savedContent.getLongitude() != null) {
             double lat = savedContent.getLatitude().doubleValue();
             double lon = savedContent.getLongitude().doubleValue();
             postEventPublisher.publishNewPost(savedContent.getContentId(), lat, lon);
-            System.out.println("=== 새 게시글 이벤트 발행 완료 ===");
-            System.out.println("좌표: lat=" + lat + ", lon=" + lon);
+            log.info("=== 새 게시글 이벤트 발행 완료 ===");
+            log.info("좌표: lat={}, lon={}", lat, lon);
         }
         
         return new ContentCreateResponse(true, "게시글이 성공적으로 작성되었습니다", savedContent.getContentId());
+    }
+    
+    private String findNearbyLandmarkName(Double latitude, Double longitude) {
+        if (latitude == null || longitude == null) {
+            return null;
+        }
+        
+        List<Landmark> nearbyLandmarks = landmarkSearchService.findNearbyLandmarks(
+            latitude, longitude, 100); // 100m 반경
+        
+        if (!nearbyLandmarks.isEmpty()) {
+            String buildingName = nearbyLandmarks.get(0).getName();
+            log.info("주변 랜드마크 발견: {}", buildingName);
+            return buildingName;
+        }
+        
+        return null;
+    }
+    
+    private String generateThumbnailSafely(MultipartFile file) {
+        String fileName = file.getOriginalFilename();
+        log.info("썸네일 생성 시작: {}", fileName);
+        
+        String thumbnailUrl = null;
+        if (thumbnailService.canGenerateThumbnail(file)) {
+            log.warn("썸네일 생성은 현재 비활성화되어 있습니다: {}", fileName);
+        }
+        
+        return thumbnailUrl;
     }
     
     private void validateContentRequest(ContentCreateRequest request) {
