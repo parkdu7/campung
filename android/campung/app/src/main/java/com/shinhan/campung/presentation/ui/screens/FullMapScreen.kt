@@ -81,9 +81,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.shinhan.campung.R
+import com.shinhan.campung.presentation.ui.components.RecordUploadDialog
 
 // 새로운 바텀시트 컴포넌트 imports
 import com.shinhan.campung.presentation.ui.components.bottomsheet.*
+import com.shinhan.campung.presentation.viewmodel.RecordUploadViewModel
 
 @Composable
 fun FullMapScreen(
@@ -91,6 +93,25 @@ fun FullMapScreen(
     mapView: MapView, // 외부에서 주입받음
     mapViewModel: MapViewModel = hiltViewModel()
 ) {
+    // --- 녹음 다이얼로그 on/off
+    var showRecordDialog by remember { mutableStateOf(false) }
+
+    // --- 업로드용 VM
+    val recordUploadVm: RecordUploadViewModel = hiltViewModel()
+    val recordUi by recordUploadVm.ui.collectAsState()
+
+    // --- 오디오 권한 런처
+    var shouldStartAfterPermission by remember { mutableStateOf(false) }
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && shouldStartAfterPermission) {
+            // 다이얼로그 안에서 startRecording()을 다시 트리거할 수 있도록
+            // 플래그만 true로 두고 다이얼로그의 버튼 클릭 로직에서 처리되게 함
+        }
+        shouldStartAfterPermission = false
+    }
+
     // LocationSharingManager는 MapViewModel에서 이미 주입받았으므로 거기서 가져옴
     val locationSharingManager = mapViewModel.locationSharingManager
     val context = LocalContext.current
@@ -331,6 +352,19 @@ fun FullMapScreen(
         // 원샷 처리
         navController.currentBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", null)
         Log.d("FullMapScreen", "✅ 리프레시 ID 초기화 완료")
+    }
+
+    LaunchedEffect(recordUi.successMessage, recordUi.errorMessage) {
+        recordUi.successMessage?.let {
+            // 업로드 성공 → 다이얼로그 닫고 메시지 소비
+            showRecordDialog = false
+            recordUploadVm.consumeMessages()
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+        }
+        recordUi.errorMessage?.let {
+            recordUploadVm.consumeMessages()
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -684,6 +718,7 @@ fun FullMapScreen(
                                 }
 
                                 // 녹음등록 버튼
+                                // 녹음등록 버튼
                                 Box(
                                     modifier = Modifier
                                         .size(56.dp)
@@ -691,7 +726,8 @@ fun FullMapScreen(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
                                         ) {
-                                            // TODO: 녹음 기능 구현
+                                            // 다이얼로그 열기
+                                            showRecordDialog = true
                                         }
                                 ) {
                                     Image(
@@ -819,6 +855,33 @@ fun FullMapScreen(
                         }
                     )
                 }
+
+                if (showRecordDialog) {
+                    RecordUploadDialog(
+                        isUploading = recordUi.isUploading,
+                        onRequestAudioPermission = {
+                            shouldStartAfterPermission = true
+                            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        onCancel = { showRecordDialog = false },
+                        onRegister = { recordedFile ->
+                            val pos = myLatLng
+                                ?: run {
+                                    // 위치 모를 때 한 번 시도 후 안내
+                                    fetchMyLocationOnce()
+                                    android.widget.Toast.makeText(context, "현재 위치 확인 중입니다. 잠시 후 다시 시도해주세요.", android.widget.Toast.LENGTH_SHORT).show()
+                                    return@RecordUploadDialog
+                                }
+
+                            recordUploadVm.upload(
+                                file = recordedFile,
+                                latitude = pos.latitude,
+                                longitude = pos.longitude
+                            )
+                        }
+                    )
+                }
+
             }
         }
     }
