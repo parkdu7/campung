@@ -32,6 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.shinhan.campung.presentation.viewmodel.WritePostViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +42,12 @@ fun WritePostScreen(
     onBack: () -> Unit = {},
     onSubmitted: () -> Unit = {}
 ) {
+    val viewModel: WritePostViewModel = hiltViewModel()
+    val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // --- 기존 로컬 상태들 ---
     val boards = remember {
         listOf(
             BoardItem("장터게시판", "전공책 등 중고물품을 사고 팔 수 있어요."),
@@ -58,14 +67,14 @@ fun WritePostScreen(
         boards.firstOrNull { it.title == selectedBoardTitle }
     }
 
-    var isRealName by rememberSaveable { mutableStateOf(true) } // true=실명, false=익명
+    var isRealName by rememberSaveable { mutableStateOf(false) } // true=실명, false=익명
     val displayName = "박승균"
     var nickname by rememberSaveable { mutableStateOf("") }
     var title by rememberSaveable { mutableStateOf("") }
     var content by rememberSaveable { mutableStateOf("") }
 
-    // ---- 이미지 선택/표시 상태 ----
-    val images = remember { mutableStateListOf<Uri>() } // 최대 3개
+    // 이미지 선택 상태 (최대 3개)
+    val images = remember { mutableStateListOf<Uri>() }
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris ->
@@ -77,6 +86,22 @@ fun WritePostScreen(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // --- ViewModel 이벤트 수집 (성공/실패 스낵바 + 성공 콜백) ---
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is WritePostViewModel.Event.Success -> {
+                    scope.launch { snackbarHostState.showSnackbar("등록 완료! #${event.contentId}") }
+                    onSubmitted()
+                }
+                is WritePostViewModel.Event.Error -> {
+                    scope.launch { snackbarHostState.showSnackbar(event.message) }
+                }
+            }
+        }
+    }
+
+    // --- 아래는 기존 UI (SnackbarHost와 로딩 오버레이만 추가) ---
     Box(
         Modifier
             .fillMaxSize()
@@ -123,7 +148,7 @@ fun WritePostScreen(
                     Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null)
                 }
 
-                // 실명/익명 토글 (오른쪽 정렬)
+                // 실명/익명 토글
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -150,7 +175,7 @@ fun WritePostScreen(
 
                 Spacer(Modifier.height(10.dp))
 
-                // 닉네임(익명) 입력
+                // 닉네임(익명) 입력 - 서버 스펙엔 없지만 UI 보존
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it },
@@ -188,7 +213,7 @@ fun WritePostScreen(
 
                 Spacer(Modifier.height(14.dp))
 
-                // 내용 + 첨부 미리보기 + 하단툴바
+                // 내용 + 툴바
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -197,7 +222,6 @@ fun WritePostScreen(
                         .border(1.dp, borderColor, fieldShape)
                         .background(Color.White)
                 ) {
-                    // 내용/미리보기 영역
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -214,14 +238,10 @@ fun WritePostScreen(
                                 .fillMaxWidth()
                                 .weight(1f, fill = false)
                         )
-
-
                     }
 
-                    // 실선
                     Divider(color = borderColor)
 
-                    // 하단 툴바
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -239,7 +259,8 @@ fun WritePostScreen(
                                         )
                                     )
                                 }
-                            }
+                            },
+                            enabled = images.size < 3 && !uiState.isLoading
                         ) {
                             Icon(Icons.Outlined.AddCircle, contentDescription = "이미지 추가")
                         }
@@ -250,7 +271,7 @@ fun WritePostScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                // ---- 이미지 미리보기 ----
+                // 이미지 미리보기
                 if (images.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     Row(
@@ -269,9 +290,9 @@ fun WritePostScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                // X 버튼 (우상단)
                                 IconButton(
                                     onClick = { images.removeAt(idx) },
+                                    enabled = !uiState.isLoading,
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
                                         .padding(6.dp)
@@ -291,11 +312,24 @@ fun WritePostScreen(
                 }
             }
 
-
-
             // 등록 버튼
+            val canSubmit = selectedBoard != null && title.isNotBlank() && content.isNotBlank()
             Button(
-                onClick = { onSubmitted() },
+                onClick = {
+                    // files: 현재는 Uri를 문자열로만 보냄 (서버가 파일키/URL 요구 시 이 부분 교체)
+                    val fileStrings = images.map { it.toString() }
+                    viewModel.submit(
+                        boardTitle = selectedBoardTitle,
+                        title = title,
+                        body = content,
+                        isRealName = isRealName,
+                        emotionTag = null,            // UI 생기면 연결
+                        files = fileStrings,
+                        latitude = null,              // TODO: 실제 위경도 연결 시 값 전달
+                        longitude = null
+                    )
+                },
+                enabled = canSubmit && !uiState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -306,11 +340,37 @@ fun WritePostScreen(
                     contentColor = Color.White
                 )
             ) {
-                Text("등록", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (uiState.isLoading) "등록 중..." else "등록",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
 
-        // 게시판 선택 바텀시트
+        // 스낵바 호스트
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 24.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+
+        // 로딩 오버레이
+        if (uiState.isLoading) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color(0x66000000)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+
+        // 게시판 선택 바텀시트 (기존 그대로)
         if (showBoardSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showBoardSheet = false },

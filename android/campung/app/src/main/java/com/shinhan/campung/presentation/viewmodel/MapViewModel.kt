@@ -33,6 +33,7 @@ class MapViewModel @Inject constructor(
     private val mapRepository: MapRepository,
     private val contentMapper: ContentMapper
 ) : BaseViewModel() {
+    fun getLastKnownLocation(): Pair<Double, Double>? = lastRequestLocation
 
     // UI States
     private val _bottomSheetContents = MutableStateFlow<List<MapContent>>(emptyList())
