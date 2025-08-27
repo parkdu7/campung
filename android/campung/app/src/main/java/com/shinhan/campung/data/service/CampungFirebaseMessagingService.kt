@@ -113,6 +113,10 @@ class CampungFirebaseMessagingService : FirebaseMessagingService() {
         val userName = data["userName"] ?: "알 수 없는 사용자"
         val latitude = data["latitude"]
         val longitude = data["longitude"]
+        val displayUntil = data["displayUntil"] ?: ""
+        val shareId = data["shareId"] ?: ""
+        
+        Log.d(TAG, "위치 공유 데이터 수신 - userName: $userName, lat: $latitude, lng: $longitude, displayUntil: $displayUntil")
         
         val title = notification?.title ?: "위치가 공유되었습니다"
         val body = notification?.body ?: "$userName 님이 위치를 공유했습니다"
@@ -123,7 +127,35 @@ class CampungFirebaseMessagingService : FirebaseMessagingService() {
             putExtra("userName", userName)
             putExtra("latitude", latitude)
             putExtra("longitude", longitude)
+            putExtra("displayUntil", displayUntil)
+            putExtra("shareId", shareId)
         }
+        
+        // 위치 공유 데이터를 전역적으로 브로드캐스트
+        val broadcastIntent = Intent("com.shinhan.campung.LOCATION_SHARED").apply {
+            putExtra("userName", userName)
+            putExtra("latitude", latitude)
+            putExtra("longitude", longitude)
+            putExtra("displayUntil", displayUntil)
+            putExtra("shareId", shareId)
+        }
+        Log.d(TAG, "브로드캐스트 전송 중 - action: com.shinhan.campung.LOCATION_SHARED")
+        Log.d(TAG, "브로드캐스트 데이터 - userName: $userName, shareId: $shareId")
+        
+        // 전역 브로드캐스트와 LocalBroadcast 모두 전송
+        sendBroadcast(broadcastIntent)
+        
+        // LocalBroadcastManager도 사용 (더 안전함)
+        try {
+            androidx.localbroadcastmanager.content.LocalBroadcastManager
+                .getInstance(this)
+                .sendBroadcast(broadcastIntent)
+            Log.d(TAG, "LocalBroadcast도 전송 완료")
+        } catch (e: Exception) {
+            Log.e(TAG, "LocalBroadcast 전송 실패", e)
+        }
+        
+        Log.d(TAG, "브로드캐스트 전송 완료")
         
         showNotification(title, body, intent, GENERAL_CHANNEL_ID)
     }

@@ -10,6 +10,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +43,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.shinhan.campung.data.service.LocationSharingManager
+import com.shinhan.campung.presentation.ui.map.SharedLocationMarkerManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -83,6 +90,8 @@ fun FullMapScreen(
     mapView: MapView, // 외부에서 주입받음
     mapViewModel: MapViewModel = hiltViewModel()
 ) {
+    // LocationSharingManager는 MapViewModel에서 이미 주입받았으므로 거기서 가져옴
+    val locationSharingManager = mapViewModel.locationSharingManager
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val configuration = LocalConfiguration.current
@@ -94,6 +103,80 @@ fun FullMapScreen(
     val isBottomSheetExpanded by mapViewModel.isBottomSheetExpanded.collectAsState()
     val isLoading by mapViewModel.isLoading.collectAsState()
     val tooltipState by mapViewModel.tooltipState.collectAsState()
+    val sharedLocations by locationSharingManager.sharedLocations.collectAsState()
+    
+    // 위치 공유 브로드캐스트 수신
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                android.util.Log.d("FullMapScreen", "브로드캐스트 수신됨 - action: ${intent?.action}")
+                
+                if (intent?.action == "com.shinhan.campung.LOCATION_SHARED") {
+                    android.util.Log.d("FullMapScreen", "위치 공유 브로드캐스트 처리 시작")
+                    
+                    val userName = intent.getStringExtra("userName")
+                    val latitude = intent.getStringExtra("latitude")?.toDoubleOrNull()
+                    val longitude = intent.getStringExtra("longitude")?.toDoubleOrNull()
+                    val displayUntil = intent.getStringExtra("displayUntil")
+                    val shareId = intent.getStringExtra("shareId")
+                    
+                    android.util.Log.d("FullMapScreen", "브로드캐스트 데이터: userName=$userName, lat=$latitude, lng=$longitude, displayUntil=$displayUntil, shareId=$shareId")
+                    
+                    if (userName == null || latitude == null || longitude == null || displayUntil == null || shareId == null) {
+                        android.util.Log.e("FullMapScreen", "브로드캐스트 데이터 누락 - 처리 중단")
+                        return
+                    }
+                    
+                    android.util.Log.d("FullMapScreen", "LocationSharingManager.addSharedLocation 호출")
+                    locationSharingManager.addSharedLocation(
+                        userName, latitude, longitude, displayUntil, shareId
+                    )
+                } else {
+                    android.util.Log.d("FullMapScreen", "다른 액션의 브로드캐스트 무시")
+                }
+            }
+        }
+        
+        val intentFilter = IntentFilter("com.shinhan.campung.LOCATION_SHARED")
+        android.util.Log.d("FullMapScreen", "브로드캐스트 수신기 등록 중 - action: com.shinhan.campung.LOCATION_SHARED")
+        
+        // 전역 브로드캐스트 수신기 등록
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API 33+)")
+        } else {
+            context.registerReceiver(receiver, intentFilter)
+            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API <33)")
+        }
+        
+        // LocalBroadcastManager도 등록 (더 안전함)
+        try {
+            androidx.localbroadcastmanager.content.LocalBroadcastManager
+                .getInstance(context)
+                .registerReceiver(receiver, intentFilter)
+            android.util.Log.d("FullMapScreen", "LocalBroadcast 수신기도 등록 완료")
+        } catch (e: Exception) {
+            android.util.Log.e("FullMapScreen", "LocalBroadcast 수신기 등록 실패", e)
+        }
+        
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+                android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 해제 완료")
+            } catch (e: IllegalArgumentException) {
+                android.util.Log.w("FullMapScreen", "전역 브로드캐스트 수신기 해제 실패 (이미 해제됨)")
+            }
+            
+            try {
+                androidx.localbroadcastmanager.content.LocalBroadcastManager
+                    .getInstance(context)
+                    .unregisterReceiver(receiver)
+                android.util.Log.d("FullMapScreen", "LocalBroadcast 수신기 해제 완료")
+            } catch (e: Exception) {
+                android.util.Log.w("FullMapScreen", "LocalBroadcast 수신기 해제 실패", e)
+            }
+        }
+    }
 
     // 화면 크기
     val screenHeight = configuration.screenHeightDp.dp
@@ -182,6 +265,23 @@ fun FullMapScreen(
                 myLatLng = location
             }
         }
+    }
+    
+    // 위치 공유 마커 매니저 (모듈화됨)
+    val sharedLocationMarkerManager = remember { SharedLocationMarkerManager() }
+    
+    // 위치 공유 데이터 변경 시 마커 업데이트
+    LaunchedEffect(sharedLocations) {
+        android.util.Log.d("FullMapScreen", "sharedLocations 업데이트됨 - 크기: ${sharedLocations.size}")
+        sharedLocations.forEachIndexed { index, location ->
+            android.util.Log.d("FullMapScreen", "[$index] ${location.userName} - (${location.latitude}, ${location.longitude}) - 만료: ${location.displayUntil}")
+        }
+        
+        naverMapRef?.let { map ->
+            android.util.Log.d("FullMapScreen", "지도 마커 업데이트 시작")
+            sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
+            android.util.Log.d("FullMapScreen", "지도 마커 업데이트 완료")
+        } ?: android.util.Log.w("FullMapScreen", "naverMapRef가 null - 마커 업데이트 건너뜀")
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -416,6 +516,9 @@ fun FullMapScreen(
                         } else {
                             naverMapRef?.let { map ->
                                 mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
+                                
+                                // 위치 공유 마커 업데이트 (모듈화된 매니저 사용)
+                                sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
                             }
                         }
                     },
