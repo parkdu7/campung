@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.ViewGroup
 import com.naver.maps.map.NaverMap
 import com.shinhan.campung.data.model.MapContent
+import com.shinhan.campung.data.model.MapRecord
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
 import com.shinhan.campung.presentation.ui.components.TooltipType
 
@@ -72,7 +73,27 @@ class ClusterManagerInitializer(
                 mapViewModel.hideTooltip()
             }
             
-            Log.d("ClusterManagerInitializer", "ClusterManager 생성됨 - 툴팁 콜백 연결됨")
+            // Record 클릭 이벤트 처리
+            manager.onRecordClick = { mapRecord ->
+                Log.d("ClusterManagerInitializer", "🎯 Record 클릭: ${mapRecord.recordUrl}")
+                try {
+                    // Record 마커 선택 상태 업데이트
+                    manager.selectRecordMarker(mapRecord)
+                    
+                    // 오디오 플레이어 실행
+                    mapViewModel.playRecord(mapRecord)
+                } catch (e: Exception) {
+                    Log.e("ClusterManagerInitializer", "❌ [ERROR] Record 재생 중 예외 발생", e)
+                }
+            }
+            
+            // Record 클러스터 클릭 이벤트 처리
+            manager.onRecordClusterClick = { clusterRecords ->
+                Log.d("ClusterManagerInitializer", "🎯 Record 클러스터 클릭: ${clusterRecords.size}개 녹음")
+                // Record 클러스터 클릭 시 목록 표시 등의 로직 추가 가능
+            }
+            
+            Log.d("ClusterManagerInitializer", "ClusterManager 생성됨 - 툴팁 및 Record 콜백 연결됨")
         }
     }
 }
