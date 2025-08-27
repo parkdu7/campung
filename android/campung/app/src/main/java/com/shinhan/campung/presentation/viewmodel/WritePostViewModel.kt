@@ -78,32 +78,18 @@ class WritePostViewModel @Inject constructor(
             _uiState.value = UiState(isLoading = true)
             val (lat, lng) = resolveCoords(latitude, longitude)
 
-            val result = if (files.isNullOrEmpty()) {
-                contentsRepository.createContentFormUrlEncoded(
-                    title = title,
-                    body = body,
-                    latitude = lat,
-                    longitude = lng,
-                    postType = postType,
-                    isAnonymous = isAnonymous,
-                    contentScope = "MAP",
-                    emotionTag = emotionTag,
-                    files = null // 문자열 URL/키를 보내는 경우에만 사용
-                )
-            } else {
-                contentsRepository.createContentMultipart(
-                    title = title,
-                    body = body,
-                    latitude = lat,
-                    longitude = lng,
-                    postType = postType,
-                    isAnonymous = isAnonymous,
-                    contentScope = "MAP",
-                    emotionTag = emotionTag,
-                    fileUris = files,                 // ✅ Uri 그대로 전달
-                    useBracketForFiles = false        // 서버 스펙에 따라 true로
-                )
-            }
+            val result = contentsRepository.createContent(
+                title = title,
+                body = body,
+                latitude = lat,
+                longitude = lng,
+                postType = postType,
+                isAnonymous = isAnonymous,
+                contentScope = "MAP",
+                emotionTag = emotionTag,
+                fileUris = files, // 파일이 있든 없든 항상 multipart로 전송
+                useBracketForFiles = false // 서버 스펙에 따라 true로 변경 가능
+            )
 
             _uiState.value = UiState(isLoading = false)
             result.onSuccess { res ->
