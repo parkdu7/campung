@@ -6,7 +6,8 @@
       "Bash(./gradlew:*)",
       "Bash(adb logcat:*)",
       "Read(/C:\\Users\\SSAFY\\Downloads/**)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
