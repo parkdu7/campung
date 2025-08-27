@@ -62,22 +62,45 @@ public class EmotionCalculatorService {
                               (averageScores.get(EmotionType.DEPRESSION.getKoreanName()) + 
                                averageScores.get(EmotionType.SADNESS.getKoreanName()));
 
-        log.info("감정 온도 계산 - 활력 지수: {}", vitalityIndex);
+        // 전체 감정 점수 평균 계산
+        double totalEmotionAverage = averageScores.values().stream()
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0.0);
+
+        log.info("감정 온도 계산 - 활력 지수: {}, 전체 감정 평균: {}", vitalityIndex, totalEmotionAverage);
+
+        // 감정 점수가 전반적으로 낮은 경우 온도를 더 낮게 조정
+        double temperatureAdjustment = 0.0;
+        if (totalEmotionAverage < 30) {
+            temperatureAdjustment = -8.0; // 매우 낮은 감정 점수
+            log.info("감정 점수가 매우 낮음 (평균 {}점) - 온도 {}도 하락", totalEmotionAverage, temperatureAdjustment);
+        } else if (totalEmotionAverage < 50) {
+            temperatureAdjustment = -5.0; // 낮은 감정 점수
+            log.info("감정 점수가 낮음 (평균 {}점) - 온도 {}도 하락", totalEmotionAverage, temperatureAdjustment);
+        }
 
         // 활력 지수에 따른 온도 범위 계산
+        double baseTemperature;
         if (vitalityIndex > 40) {
             // 25-35°C (뜨거움)
-            return 25.0 + (random.nextDouble() * 10.0);
+            baseTemperature = 25.0 + (random.nextDouble() * 10.0);
         } else if (vitalityIndex >= 20) {
             // 20-24°C (따뜻함)
-            return 20.0 + (random.nextDouble() * 4.0);
+            baseTemperature = 20.0 + (random.nextDouble() * 4.0);
         } else if (vitalityIndex >= -20) {
             // 15-19°C (선선함)
-            return 15.0 + (random.nextDouble() * 4.0);
+            baseTemperature = 15.0 + (random.nextDouble() * 4.0);
         } else {
             // 5-14°C (쌀쌀함)
-            return 5.0 + (random.nextDouble() * 9.0);
+            baseTemperature = 5.0 + (random.nextDouble() * 9.0);
         }
+
+        // 최종 온도에 감정 점수 조정값 적용 (최저 1도로 제한)
+        double finalTemperature = Math.max(1.0, baseTemperature + temperatureAdjustment);
+        log.info("최종 온도 계산: 기본 {}도 + 조정 {}도 = {}도", baseTemperature, temperatureAdjustment, finalTemperature);
+        
+        return finalTemperature;
     }
 
     /**
