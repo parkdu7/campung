@@ -15,6 +15,7 @@ public class ContentDetailRequest {
     private List<MediaFileInfo> mediaFiles;
     private boolean isHotContent;
     private LikeInfo likeInfo;
+    private String createdAt;
     
     public static class AuthorInfo {
         private String nickname;
@@ -122,4 +123,6 @@ public class ContentDetailRequest {
     public void setHotContent(boolean hotContent) { isHotContent = hotContent; }
     public LikeInfo getLikeInfo() { return likeInfo; }
     public void setLikeInfo(LikeInfo likeInfo) { this.likeInfo = likeInfo; }
+    public String getCreatedAt() { return createdAt; }
+    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 }
