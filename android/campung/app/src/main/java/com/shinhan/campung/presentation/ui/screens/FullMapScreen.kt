@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -45,6 +46,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.shinhan.campung.data.service.LocationSharingManager
 import com.shinhan.campung.presentation.ui.map.SharedLocationMarkerManager
+import com.shinhan.campung.presentation.ui.map.POIMarkerManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -65,6 +67,8 @@ import com.shinhan.campung.presentation.ui.map.ClusterManagerInitializer
 import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
 import com.shinhan.campung.presentation.ui.components.DatePickerDialog
+import com.shinhan.campung.presentation.ui.components.POIFilterTags
+import com.shinhan.campung.presentation.ui.components.POIDetailDialog
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.model.MapRecord
 import com.shinhan.campung.presentation.ui.components.AudioPlayer
@@ -142,6 +146,14 @@ fun FullMapScreen(
 
 
     val sharedLocations by locationSharingManager.sharedLocations.collectAsState()
+
+    // POI 관련 상태
+    val poiData by mapViewModel.poiData.collectAsState()
+    val isPOIVisible by mapViewModel.isPOIVisible.collectAsState()
+    val selectedPOICategory by mapViewModel.selectedPOICategory.collectAsState()
+    val isPOILoading by mapViewModel.isPOILoading.collectAsState()
+    val selectedPOI by mapViewModel.selectedPOI.collectAsState()
+    val showPOIDialog by mapViewModel.showPOIDialog.collectAsState()
     val currentPlayingRecord by mapViewModel.currentPlayingRecord.collectAsState()
 
     // 위치 공유 브로드캐스트 수신
@@ -271,7 +283,6 @@ fun FullMapScreen(
     }
 
     // 지도 설정
-    val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
     DisposableEffect(lifecycle, mapView) {
         val observer = object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) { mapView.onStart() }
@@ -310,6 +321,9 @@ fun FullMapScreen(
     // 위치 공유 마커 매니저 (모듈화됨)
     val sharedLocationMarkerManager = remember { SharedLocationMarkerManager() }
 
+    // POI 마커 매니저 (모듈화됨)
+    var poiMarkerManager by remember { mutableStateOf<POIMarkerManager?>(null) }
+
     // 위치 공유 데이터 변경 시 마커 업데이트
     LaunchedEffect(sharedLocations) {
         android.util.Log.d("FullMapScreen", "sharedLocations 업데이트됨 - 크기: ${sharedLocations.size}")
@@ -322,6 +336,25 @@ fun FullMapScreen(
             sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
             android.util.Log.d("FullMapScreen", "지도 마커 업데이트 완료")
         } ?: android.util.Log.w("FullMapScreen", "naverMapRef가 null - 마커 업데이트 건너뜀")
+    }
+
+    // POI 데이터 변경 시 마커 업데이트
+    LaunchedEffect(poiData, isPOIVisible) {
+        android.util.Log.d("FullMapScreen", "🏪 POI 데이터 변경 감지 - 크기: ${poiData.size}, 표시상태: $isPOIVisible")
+
+        naverMapRef?.let { map ->
+            poiMarkerManager?.let { manager ->
+                if (isPOIVisible && poiData.isNotEmpty()) {
+                    android.util.Log.d("FullMapScreen", "🏪 POI 마커 표시 시작 - ${poiData.size}개")
+                    manager.showPOIMarkers(poiData)
+                } else if (isPOIVisible && poiData.isEmpty()) {
+                    android.util.Log.d("FullMapScreen", "🏪 POI 활성화 상태이지만 데이터 없음")
+                } else {
+                    android.util.Log.d("FullMapScreen", "🏪 POI 마커 숨기기")
+                    manager.clearPOIMarkers()
+                }
+            } ?: android.util.Log.w("FullMapScreen", "🏪 POI 마커 매니저가 null")
+        } ?: android.util.Log.w("FullMapScreen", "🏪 NaverMap이 null")
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -622,6 +655,15 @@ fun FullMapScreen(
                                         highlightedContent = centerContent
                                     }
 
+                                // POI 마커 매니저 초기화
+                                poiMarkerManager = POIMarkerManager(context, map, coroutineScope).apply {
+                                    onPOIClick = { poi ->
+                                        android.util.Log.d("FullMapScreen", "🏪 POI 마커 클릭됨: ${poi.name}")
+                                        mapViewModel.onPOIClick(poi)
+                                    }
+                                }
+                                android.util.Log.d("FullMapScreen", "🏪 POI 마커 매니저 초기화 완료")
+
                             // 지도 상호작용 컨트롤러 생성
                             val interactionController = com.shinhan.campung.presentation.ui.map.MapInteractionController(mapViewModel).apply {
                                 setNaverMap(map)
@@ -666,16 +708,6 @@ fun FullMapScreen(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-
-                // 뒤로가기 버튼
-                IconButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .align(Alignment.TopStart)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
-                }
 
                 // LocationButton - 바텀시트와 함께 움직임
                 Box(
@@ -724,6 +756,7 @@ fun FullMapScreen(
 
                 // 플로팅 버튼 상태 관리
                 var isFabExpanded by remember { mutableStateOf(false) }
+
 
                 // 확장 가능한 플로팅 액션 버튼 - 우측 하단
                 Box(
@@ -983,6 +1016,16 @@ fun FullMapScreen(
                         )
                     }
                 }
+            }
+        }
+
+        // POI 상세 다이얼로그
+        selectedPOI?.let { poi ->
+            if (showPOIDialog) {
+                POIDetailDialog(
+                    poi = poi,
+                    onDismiss = { mapViewModel.dismissPOIDialog() }
+                )
             }
         }
     }

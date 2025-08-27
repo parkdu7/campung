@@ -97,6 +97,10 @@ class MapViewportManager(
             longitude = center.longitude,
             radius = radius
         )
+        
+        // POI 데이터도 함께 업데이트 (POI가 활성화된 경우)
+        Log.v(tag, "🏪 화면 변경으로 POI 업데이트 요청")
+        mapViewModel.updatePOIForLocation(center.latitude, center.longitude, radius)
     }
     
     /**
