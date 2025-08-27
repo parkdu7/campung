@@ -145,7 +145,6 @@ fun FullMapScreen(
     }
 
     // 지도 설정
-    val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
     DisposableEffect(lifecycle, mapView) {
         val observer = object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) { mapView.onStart() }
@@ -474,7 +473,10 @@ fun FullMapScreen(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
                                         ) {
-                                            // TODO: 펜/그리기 기능 구현
+                                            // 메뉴 닫기
+                                            isFabExpanded = false
+                                            // 글쓰기 화면으로 이동
+                                            navController.navigate(Route.WRITE_POST)
                                         }
                                 ) {
                                     Image(

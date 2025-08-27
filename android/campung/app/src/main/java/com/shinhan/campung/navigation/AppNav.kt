@@ -31,6 +31,7 @@ import com.shinhan.campung.presentation.ui.screens.HomeScreen
 import com.shinhan.campung.presentation.ui.screens.LoginScreen
 import com.shinhan.campung.presentation.ui.screens.NotificationScreen
 import com.shinhan.campung.presentation.ui.screens.SignupScreen
+import com.shinhan.campung.presentation.ui.screens.WritePostScreen
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -132,6 +133,14 @@ fun AppNav(authDataStore: AuthDataStore, sharedMapView: MapView) {
             composable(Route.NOTIFICATION) {
                 NotificationScreen(
                     onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            // 글쓰기 화면
+            composable(Route.WRITE_POST) {
+                WritePostScreen(
+                    onBack = { navController.popBackStack() },
+                    onSubmitted = { navController.popBackStack() } // 등록 → 맵으로 복귀
                 )
             }
         }
