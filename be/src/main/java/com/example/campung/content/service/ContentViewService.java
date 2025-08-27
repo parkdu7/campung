@@ -4,6 +4,7 @@ import com.example.campung.content.dto.ContentDetailResponse;
 import com.example.campung.content.dto.ContentDetailRequest;
 import com.example.campung.content.repository.ContentRepository;
 import com.example.campung.content.repository.ContentLikeRepository;
+import com.example.campung.comment.repository.CommentRepository;
 import com.example.campung.global.exception.ContentNotFoundException;
 import com.example.campung.entity.Content;
 import com.example.campung.entity.Attachment;
@@ -21,6 +22,9 @@ public class ContentViewService {
     
     @Autowired
     private ContentLikeRepository contentLikeRepository;
+    
+    @Autowired
+    private CommentRepository commentRepository;
     
     @Autowired
     private ContentHotService contentHotService;
@@ -93,6 +97,10 @@ public class ContentViewService {
         ContentDetailRequest.LikeInfo likeInfo = new ContentDetailRequest.LikeInfo(
             totalLikes, isLikedByCurrentUser);
         detail.setLikeInfo(likeInfo);
+        
+        // 댓글 수 설정
+        int commentCount = commentRepository.countByContentId(content.getContentId());
+        detail.setCommentCount(commentCount);
         
         // 생성일시 설정 (ISO 8601 형식)
         if (content.getCreatedAt() != null) {
