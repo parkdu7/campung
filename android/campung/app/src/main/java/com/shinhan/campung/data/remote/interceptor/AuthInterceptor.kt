@@ -18,9 +18,10 @@ class AuthInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         
-        // 로그인/회원가입 같은 인증 불필요한 엔드포인트는 그대로 진행
+        // 로그인/회원가입/댓글조회 같은 인증 불필요한 엔드포인트는 그대로 진행
         val url = originalRequest.url.toString()
-        if (url.contains("/login") || url.contains("/signup") || url.contains("/duplicate")) {
+        if (url.contains("/login") || url.contains("/signup") || url.contains("/duplicate") ||
+            (url.contains("/comments") && originalRequest.method == "GET")) {
             return chain.proceed(originalRequest)
         }
         

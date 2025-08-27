@@ -27,7 +27,8 @@
             android:value="phjh6di3ly" /><!--${NAVER_MAP_CLIENT_ID}-->
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustNothing">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

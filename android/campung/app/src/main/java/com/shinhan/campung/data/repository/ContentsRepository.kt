@@ -51,26 +51,8 @@ class ContentsRepository @Inject constructor(
         return MultipartBody.Part.createFormData(partName, fileName, body)
     }
 
-    // ---- 기존: x-www-form-urlencoded ----
-    suspend fun createContentFormUrlEncoded(
-        title: String,
-        body: String,
-        latitude: Double,
-        longitude: Double,
-        postType: PostType,
-        isAnonymous: Boolean,
-        contentScope: String = "MAP",
-        emotionTag: String? = null,
-        files: List<String>? = null,
-    ): Result<ContentCreateResponse> = runCatching {
-        api.createContentFormUrlEncoded(
-            title, body, latitude, longitude,
-            contentScope, postType.name, emotionTag, isAnonymous, files
-        )
-    }
-
-    // ---- 새로: multipart/form-data (바이너리 업로드) ----
-    suspend fun createContentMultipart(
+    // 통합된 컨텐츠 생성 함수 - 항상 multipart/form-data 사용
+    suspend fun createContent(
         title: String,
         body: String,
         latitude: Double,
@@ -83,7 +65,7 @@ class ContentsRepository @Inject constructor(
         useBracketForFiles: Boolean = false,   // 서버가 files[] 요구 시 true
     ): Result<ContentCreateResponse> = runCatching {
         val partName = if (useBracketForFiles) "files[]" else "files"
-        val fileParts: List<MultipartBody.Part>? = fileUris?.map { uriToPart(it, partName) }
+        val fileParts: List<MultipartBody.Part>? = fileUris?.takeIf { it.isNotEmpty() }?.map { uriToPart(it, partName) }
 
         api.createContentMultipart(
             title = title.asText(),
@@ -94,7 +76,35 @@ class ContentsRepository @Inject constructor(
             postType = postType.name.asText(),
             emotionTag = emotionTag?.asText(),
             isAnonymous = isAnonymous.asText(),
-            files = fileParts
+            files = fileParts  // 파일이 없으면 null, 있으면 multipart로 전송
         )
     }
+
+    // 기존 함수들은 새로운 통합 함수로 위임 (하위 호환성)
+    @Deprecated("Use createContent instead", ReplaceWith("createContent(title, body, latitude, longitude, postType, isAnonymous, contentScope, emotionTag, null)"))
+    suspend fun createContentFormUrlEncoded(
+        title: String,
+        body: String,
+        latitude: Double,
+        longitude: Double,
+        postType: PostType,
+        isAnonymous: Boolean,
+        contentScope: String = "MAP",
+        emotionTag: String? = null,
+        files: List<String>? = null,
+    ): Result<ContentCreateResponse> = createContent(title, body, latitude, longitude, postType, isAnonymous, contentScope, emotionTag, null)
+
+    @Deprecated("Use createContent instead", ReplaceWith("createContent(title, body, latitude, longitude, postType, isAnonymous, contentScope, emotionTag, fileUris, useBracketForFiles)"))
+    suspend fun createContentMultipart(
+        title: String,
+        body: String,
+        latitude: Double,
+        longitude: Double,
+        postType: PostType,
+        isAnonymous: Boolean,
+        contentScope: String = "MAP",
+        emotionTag: String? = null,
+        fileUris: List<Uri>? = null,
+        useBracketForFiles: Boolean = false,
+    ): Result<ContentCreateResponse> = createContent(title, body, latitude, longitude, postType, isAnonymous, contentScope, emotionTag, fileUris, useBracketForFiles)
 }
