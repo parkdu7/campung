@@ -41,6 +41,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        isCoreLibraryDesugaringEnabled = true  // Java 8 time API 지원
     }
     
     kotlinOptions {
@@ -82,6 +83,10 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
+    
+    // WebSocket & Geohash
+    implementation("org.java-websocket:Java-WebSocket:1.5.3")
+    implementation("ch.hsr:geohash:1.4.0")
 
     // Test
     testImplementation(libs.junit)
@@ -109,4 +114,9 @@ dependencies {
     implementation("com.naver.maps:map-sdk:3.22.1") // 네이버 지도 SDK
     implementation("com.google.android.gms:play-services-location:21.3.0") // 위치
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4") // Compose-Lifecycle
+    
+    // 바텀시트 추가 의존성
+    implementation("com.github.bumptech.glide:compose:1.0.0-beta01") // Glide for Compose
+    implementation("io.github.fornewid:naver-map-compose:1.7.0") // NaverMap Compose
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4") // Java 8 time API
 }

@@ -1,25 +1,35 @@
 package com.shinhan.campung.data.remote.api
 
 import com.shinhan.campung.data.remote.request.DuplicateRequest
+import com.shinhan.campung.data.remote.request.LocationShareRespondRequest
 import com.shinhan.campung.data.remote.request.LoginRequest
 import com.shinhan.campung.data.remote.request.SignUpRequest
 import com.shinhan.campung.data.remote.response.DuplicateResponse
+import com.shinhan.campung.data.remote.response.LocationShareRespondResponse
 import com.shinhan.campung.data.remote.response.LoginResponse
 import com.shinhan.campung.data.remote.response.LogoutResponse
 import com.shinhan.campung.data.remote.response.SignUpResponse
 import retrofit2.http.Body
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 
 interface AuthApi {
-    @POST("/api/login")
+    @POST("login")
     suspend fun login(@Body body: LoginRequest): LoginResponse
 
-    @POST("/api/signup")
+    @POST("signup")
     suspend fun signUp(@Body body: SignUpRequest): SignUpResponse
 
-    @POST("/api/duplicate")
+    @POST("duplicate")
     suspend fun checkDuplicate(@Body body: DuplicateRequest): DuplicateResponse
 
-    @POST("/api/logout")
+    @POST("logout")
     suspend fun logout(): LogoutResponse
+
+    @PUT("location/share/request/{shareRequestId}/respond")
+    suspend fun respondToLocationShare(
+        @Path("shareRequestId") shareRequestId: Long,
+        @Body request: LocationShareRespondRequest
+    ): LocationShareRespondResponse
 }

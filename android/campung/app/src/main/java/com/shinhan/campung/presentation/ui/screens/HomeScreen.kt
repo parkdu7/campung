@@ -10,10 +10,13 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.shinhan.campung.presentation.viewmodel.NewPostViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.naver.maps.map.MapView
 import com.shinhan.campung.presentation.ui.components.*
 import com.shinhan.campung.presentation.ui.theme.CampusBackground
 import com.shinhan.campung.presentation.ui.theme.CampusPrimary
@@ -31,11 +35,34 @@ import com.shinhan.campung.presentation.viewmodel.HomeViewModel
 @Composable
 fun HomeScreen(
     navController: NavController,
-    onLoggedOut: () -> Unit
+    onLoggedOut: () -> Unit,
+    sharedMapView: MapView // ← 추가
 ) {
     val vm: HomeViewModel = hiltViewModel()
+    val newPostVm: NewPostViewModel = hiltViewModel()
+    
+    // 새 게시글 서비스 시작
+    LaunchedEffect(Unit) {
+        newPostVm.startNewPostService()
+    }
+    
+    // 스낵바 상태
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // 새 게시글 알림 처리
+    LaunchedEffect(newPostVm.showNotification.value) {
+        if (newPostVm.showNotification.value) {
+            val result = snackbarHostState.showSnackbar(
+                message = "근처에 새 게시글이 올라왔어요!",
+                actionLabel = "확인",
+                duration = SnackbarDuration.Short
+            )
+            newPostVm.dismissNotification()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -55,7 +82,7 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = { navController.navigate("notification") }) {
                         Icon(Icons.Default.Notifications, contentDescription = "알림")
                     }
                     IconButton(onClick = { }) {
@@ -89,6 +116,7 @@ fun HomeScreen(
 
             // 맵 카드
             CampusMapCard(
+                mapView = sharedMapView,
                 modifier = Modifier.padding(horizontal = 16.dp),
                 onExpandRequest = { navController.navigate("map/full") }
             )
