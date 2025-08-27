@@ -5,6 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -147,16 +150,19 @@ fun MapContentItem(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_heart),
+                                imageVector = if (content.reactions.isLiked) 
+                                    Icons.Default.Favorite 
+                                else 
+                                    Icons.Default.FavoriteBorder,
                                 contentDescription = "좋아요",
                                 modifier = Modifier.size(16.dp),
-                            tint = Color.Gray
-                        )
-                        Text(
-                            text = content.likeCount.toString(),
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
+                                tint = if (content.reactions.isLiked) Color.Red else Color.Gray
+                            )
+                            Text(
+                                text = content.likeCount.toString(),
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
                         }
                         
                         Row(

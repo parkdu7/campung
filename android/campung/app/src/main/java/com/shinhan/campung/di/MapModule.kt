@@ -1,6 +1,9 @@
 package com.shinhan.campung.di
 
+import com.shinhan.campung.data.remote.api.ContentApiService
 import com.shinhan.campung.data.remote.api.MapApiService
+import com.shinhan.campung.data.repository.ContentRepository
+import com.shinhan.campung.data.repository.ContentRepositoryImpl
 import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapContentRepositoryImpl
 import dagger.Binds
@@ -20,6 +23,11 @@ abstract class MapModule {
     abstract fun bindMapContentRepository(
         mapContentRepositoryImpl: MapContentRepositoryImpl
     ): MapContentRepository
+    
+    @Binds
+    abstract fun bindContentRepository(
+        contentRepositoryImpl: ContentRepositoryImpl
+    ): ContentRepository
 }
 
 @Module
@@ -30,5 +38,11 @@ object MapApiModule {
     @Singleton
     fun provideMapApiService(retrofit: Retrofit): MapApiService {
         return retrofit.create(MapApiService::class.java)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideContentApiService(retrofit: Retrofit): ContentApiService {
+        return retrofit.create(ContentApiService::class.java)
     }
 }
