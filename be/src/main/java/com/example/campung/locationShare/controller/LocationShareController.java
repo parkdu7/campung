@@ -3,6 +3,7 @@ package com.example.campung.locationShare.controller;
 import com.example.campung.locationShare.dto.*;
 import com.example.campung.locationShare.service.LocationShareService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ public class LocationShareController {
     @PostMapping("/share/request")
     @Operation(summary = "위치 공유 요청", description = "친구들에게 위치 공유를 요청합니다")
     public ResponseEntity<LocationShareResponseDto> requestLocationShare(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @RequestBody LocationShareRequestDto request) {
         
@@ -62,6 +64,7 @@ public class LocationShareController {
     @PutMapping("/share/request/{shareRequestId}/respond")
     @Operation(summary = "위치 공유 응답", description = "위치 공유 요청에 수락 또는 거절로 응답합니다")
     public ResponseEntity<LocationShareRespondResponseDto> respondToLocationShare(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @PathVariable Long shareRequestId,
             @RequestBody LocationShareRespondDto response) {

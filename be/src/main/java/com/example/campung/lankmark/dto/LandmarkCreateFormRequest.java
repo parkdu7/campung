@@ -28,11 +28,11 @@ public class LandmarkCreateFormRequest {
     private String description;
     
     @NotNull(message = "위도는 필수입니다")
-    @Schema(description = "위도", example = "37.123456")
+    @Schema(description = "위도", example = "36.0")
     private Double latitude;
     
     @NotNull(message = "경도는 필수입니다")
-    @Schema(description = "경도", example = "127.123456")
+    @Schema(description = "경도", example = "127.0")
     private Double longitude;
     
     @NotNull(message = "카테고리는 필수입니다")
