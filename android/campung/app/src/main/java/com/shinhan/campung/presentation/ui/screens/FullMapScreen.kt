@@ -683,6 +683,24 @@ fun FullMapScreen(
                                     )
                                 }
 
+                                // 녹음등록 버튼
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) {
+                                            // TODO: 녹음 기능 구현
+                                        }
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.btn_record),
+                                        contentDescription = "녹음 이동",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
                                 // 게시판 버튼
                                 Box(
                                     modifier = Modifier
