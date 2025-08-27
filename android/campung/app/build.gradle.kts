@@ -123,4 +123,5 @@ dependencies {
     // Coil (이미지 로딩 for Compose)
     implementation(platform("io.coil-kt:coil-bom:2.7.0"))
     implementation("io.coil-kt:coil-compose")
+    implementation("io.coil-kt:coil-video:2.6.0")
 }

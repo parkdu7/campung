@@ -31,6 +31,7 @@ public class NotificationController {
     })
     @GetMapping
     public ResponseEntity<NotificationListResponse> getNotifications(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size) {
@@ -56,6 +57,7 @@ public class NotificationController {
     })
     @PutMapping("/{notificationId}/read")
     public ResponseEntity<Void> markAsRead(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @Parameter(description = "알림 ID") @PathVariable Long notificationId) {
 
@@ -80,6 +82,7 @@ public class NotificationController {
     })
     @DeleteMapping("/{notificationId}")
     public ResponseEntity<Void> deleteNotification(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @Parameter(description = "알림 ID") @PathVariable Long notificationId) {
 
@@ -104,6 +107,7 @@ public class NotificationController {
     })
     @PutMapping("/settings")
     public ResponseEntity<Void> updateNotificationSettings(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @RequestBody NotificationSettingsRequest request) {
 

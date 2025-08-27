@@ -17,7 +17,14 @@ import com.example.campung.content.service.ContentDeleteService;
 import com.example.campung.content.service.ContentSearchService;
 import com.example.campung.content.service.ContentListService;
 import com.example.campung.global.enums.PostType;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Encoding;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +34,7 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Content", description = "콘텐츠 관련 API")
 public class ContentController {
     
     @Autowired
@@ -47,9 +55,14 @@ public class ContentController {
     @Autowired
     private ContentListService contentListService;
     
-    @Operation(security = @SecurityRequirement(name = "bearerAuth"))
-    @PostMapping("/contents")
+    @Operation(
+            security = @SecurityRequirement(name = "bearerAuth"),
+            summary = "콘텐츠 생성",
+            description = "새로운 콘텐츠를 생성합니다."
+    )
+    @PostMapping(value = "/contents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ContentCreateResponse> createContent(
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @ModelAttribute ContentCreateRequest request) throws IOException {
         
@@ -64,6 +77,7 @@ public class ContentController {
         return ResponseEntity.ok(response);
     }
     
+    @Operation(summary = "콘텐츠 상세 조회")
     @GetMapping("/contents/{contentId}")
     public ResponseEntity<ContentDetailResponse> getContent(
             @PathVariable Long contentId,
@@ -78,10 +92,15 @@ public class ContentController {
         return ResponseEntity.ok(response);
     }
     
-    @Operation(security = @SecurityRequirement(name = "bearerAuth"))
-    @PutMapping("/contents/{contentId}")
+    @Operation(
+            security = @SecurityRequirement(name = "bearerAuth"),
+            summary = "콘텐츠 수정", 
+            description = "기존 콘텐츠를 수정합니다."
+    )
+    @PutMapping(value = "/contents/{contentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ContentUpdateResponse> updateContent(
             @PathVariable Long contentId,
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization,
             @ModelAttribute ContentUpdateRequest request) throws IOException {
         
@@ -96,10 +115,11 @@ public class ContentController {
         return ResponseEntity.ok(response);
     }
     
-    @Operation(security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "콘텐츠 삭제", security = @SecurityRequirement(name = "bearerAuth"))
     @DeleteMapping("/contents/{contentId}")
     public ResponseEntity<ContentDeleteResponse> deleteContent(
             @PathVariable Long contentId,
+            @Parameter(description = "인증 토큰", example = "Bearer test", required = true)
             @RequestHeader("Authorization") String authorization) {
         
         if (authorization == null || !authorization.startsWith("Bearer ")) {
@@ -113,6 +133,7 @@ public class ContentController {
         return ResponseEntity.ok(response);
     }
     
+    @Operation(summary = "콘텐츠 검색")
     @GetMapping("/contents/search")
     public ResponseEntity<ContentSearchResponse> searchContents(
             @RequestParam String q,
@@ -146,6 +167,7 @@ public class ContentController {
         return ResponseEntity.ok(response);
     }
     
+    @Operation(summary = "날짜별 콘텐츠 목록 조회")
     @GetMapping("/contents")
     public ResponseEntity<ContentListResponse> getContentsByDate(
             @RequestParam String date,

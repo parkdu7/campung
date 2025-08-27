@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * 감정 분석 관련 API 컨트롤러
@@ -19,6 +21,7 @@ import java.util.Map;
 @RequestMapping("/api/emotion")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Emotion", description = "감정 분석 관련 API")
 public class EmotionController {
 
     private final CampusEmotionService campusEmotionService;
@@ -26,6 +29,7 @@ public class EmotionController {
     /**
      * 현재 감정 통계 조회
      */
+    @Operation(summary = "캠퍼스 감정 통계 조회")
     @GetMapping("/statistics")
     public ResponseEntity<EmotionStatisticsResponse> getEmotionStatistics() {
         log.info("감정 통계 조회 요청");
@@ -53,6 +57,7 @@ public class EmotionController {
     /**
      * 수동 감정 분석 실행
      */
+    @Operation(summary = "수동 감정 분석 실행")
     @PostMapping("/analyze")
     public ResponseEntity<Map<String, Object>> manualEmotionAnalysis() {
         log.info("수동 감정 분석 실행 요청");
@@ -83,6 +88,7 @@ public class EmotionController {
     /**
      * 오늘 하루 전체 감정 분석 실행
      */
+    @Operation(summary = "오늘 게시글 전체 감정 분석")
     @PostMapping("/analyzeAll")
     public ResponseEntity<Map<String, Object>> analyzeAllTodaysPosts() {
         log.info("오늘 하루 전체 감정 분석 실행 요청");
@@ -113,6 +119,7 @@ public class EmotionController {
     /**
      * 감정 데이터 초기화
      */
+    @Operation(summary = "감정 데이터 초기화")
     @PostMapping("/reset")
     public ResponseEntity<Map<String, Object>> resetEmotionData() {
         log.info("감정 데이터 초기화 요청");
@@ -131,6 +138,7 @@ public class EmotionController {
     /**
      * 현재 감정 날씨만 조회 (간단 조회)
      */
+    @Operation(summary = "현재 감정 날씨 조회")
     @GetMapping("/weather")
     public ResponseEntity<Map<String, Object>> getCurrentWeather() {
         log.info("현재 감정 날씨 조회 요청");
@@ -153,6 +161,7 @@ public class EmotionController {
     /**
      * 평균 감정 점수만 조회
      */
+    @Operation(summary = "평균 감정 점수 조회")
     @GetMapping("/scores")
     public ResponseEntity<Map<String, Object>> getEmotionScores() {
         log.info("감정 점수 조회 요청");
