@@ -75,6 +75,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.rotate
@@ -553,16 +554,6 @@ fun FullMapScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // 뒤로가기 버튼
-                IconButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .align(Alignment.TopStart)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
-                }
-
                 // LocationButton - 바텀시트와 함께 움직임
                 Box(
                     modifier = Modifier
@@ -732,29 +723,32 @@ fun FullMapScreen(
                     )
                 }
 
-                // 상단 헤더 (오버레이)
-                MapTopHeader(
-                    selectedDate = mapViewModel.selectedDate,
-                    onBackClick = { navController.popBackStack() },
-                    onDateClick = {
-                        showDatePicker = true
-                    },
-                    onFriendClick = {
-                        navController.navigate(Route.FRIEND)
-                    },
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp, start = 12.dp, end = 12.dp)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                ) {
+                    MapTopHeader(
+                        selectedDate = mapViewModel.selectedDate,
+                        onBackClick = { navController.popBackStack() },
+                        onDateClick = { showDatePicker = true },
+                        onFriendClick = { navController.navigate(Route.FRIEND) }
+                    )
+                }
+
 
                 // 필터 태그 (오버레이)
                 HorizontalFilterTags(
                     selectedTags = mapViewModel.selectedTags,
-                    onTagClick = { tagId ->
-                        mapViewModel.toggleFilterTag(tagId)
-                    },
+                    onTagClick = { tagId -> mapViewModel.toggleFilterTag(tagId) },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 64.dp)
+                        .padding(top = 80.dp)   // 헤더 카드 아래 공간 확보
                 )
+
 
                 // 애니메이션 툴팁 오버레이
                 AnimatedMapTooltip(
