@@ -13,7 +13,7 @@ data class MapContentResponse(
 
 data class MapContentPage(
     @SerializedName("contents") val contents: List<ContentData>,
-    @SerializedName("records") val records: List<Any>?,
+    @SerializedName("records") val records: List<MapRecord>?,
     @SerializedName("totalCount") val totalCount: Int,
     @SerializedName("hasMore") val hasMore: Boolean,
     // ✅ 서버 공통 날씨/온도 (목록 상단)

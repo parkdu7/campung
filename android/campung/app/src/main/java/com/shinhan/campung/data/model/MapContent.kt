@@ -68,24 +68,6 @@ data class MapContent(
             // 한국 현재 시간으로 fallback
             ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toLocalDateTime()
         }
-    }override fun hashCode(): Int {
-        var result = contentId.hashCode()
-        result = 31 * result + (userId?.hashCode() ?: 0)
-        result = 31 * result + author.hashCode()
-        result = 31 * result + location.hashCode()
-        result = 31 * result + (postType?.hashCode() ?: 0)
-        result = 31 * result + (postTypeName?.hashCode() ?: 0)
-        result = 31 * result + (markerType?.hashCode() ?: 0)
-        result = 31 * result + (contentScope?.hashCode() ?: 0)
-        result = 31 * result + (contentType?.hashCode() ?: 0)
-        result = 31 * result + (title?.hashCode() ?: 0)
-        result = 31 * result + (body?.hashCode() ?: 0)
-        result = 31 * result + (mediaFiles?.hashCode() ?: 0)
-        result = 31 * result + (emotionTag?.hashCode() ?: 0)
-        result = 31 * result + reactions.hashCode()
-        result = 31 * result + (createdAt?.hashCode() ?: 0)
-        result = 31 * result + (expiresAt?.hashCode() ?: 0)
-        return result
     }
 
     override fun hashCode(): Int {
