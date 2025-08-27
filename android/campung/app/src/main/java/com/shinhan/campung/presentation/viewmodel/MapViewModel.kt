@@ -10,7 +10,9 @@ import com.naver.maps.map.NaverMap
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
+import com.shinhan.campung.data.repository.POIRepository
 import com.shinhan.campung.data.mapper.ContentMapper
+import com.shinhan.campung.data.model.POIData
 import com.shinhan.campung.data.model.ContentCategory
 import com.shinhan.campung.presentation.ui.components.TooltipState
 import com.shinhan.campung.presentation.ui.components.TooltipType
@@ -32,6 +34,7 @@ import javax.inject.Inject
 class MapViewModel @Inject constructor(
     private val mapContentRepository: MapContentRepository,
     private val mapRepository: MapRepository,
+    private val poiRepository: POIRepository,
     private val contentMapper: ContentMapper,
     val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
@@ -57,6 +60,19 @@ class MapViewModel @Inject constructor(
     // 위치 공유 상태를 LocationSharingManager에서 가져옴
     val sharedLocations: StateFlow<List<com.shinhan.campung.data.model.SharedLocation>> = 
         locationSharingManager.sharedLocations
+    
+    // POI 관련 상태
+    private val _poiData = MutableStateFlow<List<POIData>>(emptyList())
+    val poiData: StateFlow<List<POIData>> = _poiData.asStateFlow()
+    
+    private val _isPOIVisible = MutableStateFlow(true) // 테스트를 위해 기본값을 true로 변경
+    val isPOIVisible: StateFlow<Boolean> = _isPOIVisible.asStateFlow()
+    
+    private val _selectedPOICategory = MutableStateFlow<String?>(null)
+    val selectedPOICategory: StateFlow<String?> = _selectedPOICategory.asStateFlow()
+    
+    private val _isPOILoading = MutableStateFlow(false)
+    val isPOILoading: StateFlow<Boolean> = _isPOILoading.asStateFlow()
 
     // 마커 클릭 처리 (자연스러운 바텀시트)
     fun onMarkerClick(contentId: Long, associatedContentIds: List<Long>) {
@@ -576,5 +592,138 @@ class MapViewModel @Inject constructor(
     
     fun cleanupExpiredLocations() {
         locationSharingManager.cleanupExpiredLocations()
+    }
+    
+    // ===== POI 관련 함수들 =====
+    
+    /**
+     * POI 표시 상태 토글
+     */
+    fun togglePOIVisibility() {
+        _isPOIVisible.value = !_isPOIVisible.value
+        Log.d(TAG, "🏪 POI 표시 상태 토글: ${_isPOIVisible.value}")
+        
+        if (_isPOIVisible.value) {
+            // POI가 켜질 때 현재 위치 기반으로 로드
+            lastRequestLocation?.let { (lat, lng) ->
+                Log.d(TAG, "🏪 POI 토글 ON - 현재 위치로 데이터 로드: ($lat, $lng)")
+                loadPOIData(lat, lng)
+            } ?: Log.w(TAG, "🏪 POI 토글 ON - 현재 위치 정보 없음")
+        } else {
+            // POI가 꺼질 때 데이터 클리어
+            Log.d(TAG, "🏪 POI 토글 OFF - 데이터 클리어")
+            _poiData.value = emptyList()
+        }
+    }
+    
+    /**
+     * POI 카테고리 선택
+     */
+    fun selectPOICategory(category: String?) {
+        _selectedPOICategory.value = category
+        Log.d(TAG, "🏪 POI 카테고리 선택: $category")
+        
+        if (_isPOIVisible.value) {
+            lastRequestLocation?.let { (lat, lng) ->
+                Log.d(TAG, "🏪 카테고리 변경으로 POI 데이터 재로드: ($lat, $lng), 카테고리=$category")
+                loadPOIData(lat, lng, category)
+            } ?: Log.w(TAG, "🏪 카테고리 선택 - 현재 위치 정보 없음")
+        } else {
+            Log.d(TAG, "🏪 POI가 비활성화 상태 - 카테고리 선택만 저장")
+        }
+    }
+    
+    /**
+     * 중심점과 반경 기반으로 POI 데이터 로드
+     */
+    fun loadPOIData(
+        latitude: Double,
+        longitude: Double,
+        category: String? = _selectedPOICategory.value,
+        radius: Int = 1000
+    ) {
+        if (!_isPOIVisible.value) {
+            Log.d(TAG, "🏪 POI가 비활성화 상태 - 데이터 로드 스킵")
+            return
+        }
+        
+        viewModelScope.launch {
+            _isPOILoading.value = true
+            Log.d(TAG, "🏪 POI 데이터 로드 시작: 위치=($latitude, $longitude), 카테고리=$category, 반경=${radius}m")
+            
+            try {
+                val result = poiRepository.getNearbyPOIs(
+                    latitude = latitude,
+                    longitude = longitude,
+                    radius = radius,
+                    category = category
+                )
+                
+                result.onSuccess { pois ->
+                    val validPois = pois.filter { it.thumbnailUrl != null }
+                    _poiData.value = validPois
+                    Log.d(TAG, "🏪 POI 데이터 로드 성공: 전체 ${pois.size}개, 유효(썸네일 있음) ${validPois.size}개")
+                    
+                    validPois.forEachIndexed { index, poi ->
+                        Log.v(TAG, "🏪 POI[$index]: ${poi.name} (${poi.category}) - ${poi.thumbnailUrl}")
+                    }
+                }.onFailure { throwable ->
+                    Log.e(TAG, "🏪 POI 데이터 로드 실패 - 테스트 더미 데이터 사용", throwable)
+                    
+                    // 테스트용 더미 POI 데이터
+                    val dummyPois = listOf(
+                        POIData(
+                            id = 1L,
+                            name = "테스트 카페",
+                            category = "cafe",
+                            address = "서울시 강남구",
+                            latitude = latitude + 0.001,
+                            longitude = longitude + 0.001,
+                            thumbnailUrl = "https://picsum.photos/200/200?random=1"
+                        ),
+                        POIData(
+                            id = 2L, 
+                            name = "테스트 음식점",
+                            category = "restaurant",
+                            address = "서울시 서초구",
+                            latitude = latitude - 0.001,
+                            longitude = longitude - 0.001,
+                            thumbnailUrl = "https://picsum.photos/200/200?random=2"
+                        )
+                    )
+                    _poiData.value = dummyPois
+                    Log.d(TAG, "🏪 테스트 더미 POI ${dummyPois.size}개 로드됨")
+                }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "🏪 POI 데이터 로드 예외", e)
+                _poiData.value = emptyList()
+            } finally {
+                _isPOILoading.value = false
+                Log.d(TAG, "🏪 POI 로딩 상태 종료")
+            }
+        }
+    }
+    
+    /**
+     * POI 클릭 처리
+     */
+    fun onPOIClick(poi: POIData) {
+        Log.d(TAG, "🏪 POI 클릭: ${poi.name} (${poi.category}) at (${poi.latitude}, ${poi.longitude})")
+        Log.d(TAG, "🏪 POI 정보 - 주소: ${poi.address}, 전화: ${poi.phone}, 평점: ${poi.rating}")
+        // TODO: POI 상세정보 표시 또는 다른 액션 수행
+        // 예: 네이버 맵으로 길찾기, 전화걸기 등
+    }
+    
+    /**
+     * 화면 이동 시 POI 데이터 업데이트
+     */
+    fun updatePOIForLocation(latitude: Double, longitude: Double, radius: Int) {
+        if (_isPOIVisible.value) {
+            Log.d(TAG, "🏪 화면 이동으로 POI 업데이트: ($latitude, $longitude), 반경=${radius}m")
+            loadPOIData(latitude, longitude, radius = radius)
+        } else {
+            Log.v(TAG, "🏪 POI 비활성화 상태 - 화면 이동 업데이트 스킵")
+        }
     }
 }

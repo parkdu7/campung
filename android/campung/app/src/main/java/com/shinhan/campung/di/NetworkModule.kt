@@ -8,8 +8,10 @@ import com.shinhan.campung.data.location.LocationTracker
 import com.shinhan.campung.data.remote.interceptor.AuthInterceptor
 import com.shinhan.campung.data.remote.api.AuthApi
 import com.shinhan.campung.data.remote.api.MapApi
+import com.shinhan.campung.data.remote.api.POIApi
 import com.shinhan.campung.data.repository.AuthRepository
 import com.shinhan.campung.data.repository.MapRepository
+import com.shinhan.campung.data.repository.POIRepository
 import com.shinhan.campung.data.repository.NewPostRepository
 import com.shinhan.campung.data.websocket.WebSocketService
 import com.shinhan.campung.util.Constants
@@ -74,6 +76,10 @@ object NetworkModule {
         retrofit.create(MapApi::class.java)
 
     @Provides @Singleton
+    fun providePOIApi(retrofit: Retrofit): POIApi =
+        retrofit.create(POIApi::class.java)
+
+    @Provides @Singleton
     fun provideFriendApi(retrofit: Retrofit): FriendApi =
         retrofit.create(FriendApi::class.java)
 
@@ -93,6 +99,9 @@ object NetworkModule {
 
     @Provides @Singleton
     fun provideMapRepository(api: MapApi) = MapRepository(api)
+
+    @Provides @Singleton
+    fun providePOIRepository(api: POIApi) = POIRepository(api)
     
     @Provides @Singleton
     fun provideWebSocketService(gson: Gson) = WebSocketService(gson)
