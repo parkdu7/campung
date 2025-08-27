@@ -124,4 +124,10 @@ dependencies {
     implementation(platform("io.coil-kt:coil-bom:2.7.0"))
     implementation("io.coil-kt:coil-compose")
     implementation("io.coil-kt:coil-video:2.6.0")
+
+    // ContentDetailScreen 추가 의존성
+    implementation("io.coil-kt:coil-compose:2.6.0") // Coil for Compose
+    implementation("androidx.media3:media3-exoplayer:1.4.1") // ExoPlayer
+    implementation("androidx.media3:media3-ui:1.4.1") // ExoPlayer UI
+    implementation("androidx.compose.material:material-icons-extended:1.7.5") // Extended Material Icons
 }

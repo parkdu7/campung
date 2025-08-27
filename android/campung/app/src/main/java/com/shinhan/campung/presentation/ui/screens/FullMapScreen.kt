@@ -766,7 +766,7 @@ fun FullMapScreen(
                         navigationBarHeight = with(density) { navigationBarHeight.toDp() },
                         statusBarHeight = with(density) { statusBarHeight.toDp() },
                         onContentClick = { content ->
-                            // TODO: 컨텐츠 상세 화면으로 이동
+                            navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
                         }
                     )
                 }
