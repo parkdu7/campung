@@ -31,9 +31,17 @@ public class CampusEmotionService {
     /**
      * 수동 감정 분석 프로세스 (실시간 분석)
      */
-    public void analyzeRecentEmotions() {
+    public Map<String, Integer> analyzeRecentEmotions() {
         log.info("수동 감정 분석 시작");
-        emotionAnalysisOrchestrator.executeManualEmotionAnalysis();
+        return emotionAnalysisOrchestrator.executeManualEmotionAnalysis();
+    }
+
+    /**
+     * 오늘 하루 전체 감정 분석 프로세스
+     */
+    public Map<String, Integer> analyzeAllTodaysEmotions() {
+        log.info("오늘 하루 전체 감정 분석 시작");
+        return emotionAnalysisOrchestrator.executeAllTodaysAnalysis();
     }
     
 
@@ -109,7 +117,6 @@ public class CampusEmotionService {
         
         // 게시글 분석 통계
         statistics.put("totalAnalyzedPosts", emotionStatisticsService.getTotalAnalyzedPostsCount());
-        statistics.put("cumulativeScores", emotionStatisticsService.getCumulativeEmotionScores());
         statistics.put("hourlyPostsCount", emotionStatisticsService.getHourlyAnalyzedPostsCount());
         
         log.info("감정 분석 통계 조회 완료");

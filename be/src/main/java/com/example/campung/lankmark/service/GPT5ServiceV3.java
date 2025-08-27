@@ -47,8 +47,8 @@ public class GPT5ServiceV3 {
             return landmarkName + " 주변에 분석할 게시글이 없습니다.";
         }
 
-        // gpt-5만 사용, 다른 모델 제거
-        String optimizedModel = "gpt-5";
+        // gpt-5-mini만 사용, 비용 효율적인 모델 선택
+        String optimizedModel = "gpt-5-mini";
         
         // GPT-5 계열 모델로 요약 생성
         String summary = generateSummaryWithOptimizedModel(
@@ -68,7 +68,7 @@ public class GPT5ServiceV3 {
      * GPT-5 모델만 사용 (고정)
      */
     private boolean isValidGPT5Model(String model) {
-        return "gpt-5".equals(model);
+        return "gpt-5-mini".equals(model);
     }
 
     private String generateSummaryWithOptimizedModel(String model, String landmarkName, 
@@ -82,7 +82,7 @@ public class GPT5ServiceV3 {
                 postsText.append("내용: ").append(post.getContents()).append("\n\n");
             }
 
-            log.info("GPT-5 {} 모델로 요약 생성 시작 ({}개 게시글, verbosity: {}, 예상 비용: {})", 
+            log.info("GPT-5-mini {} 모델로 요약 생성 시작 ({}개 게시글, verbosity: {}, 예상 비용: {})", 
                     model, posts.size(), verbosity, getEstimatedCost(model, postsText.length()));
 
             // 공식 Chat Completions API 호출
@@ -90,36 +90,36 @@ public class GPT5ServiceV3 {
                 model, landmarkName, postsText.toString(), radius, verbosity, reasoningEffort);
             
             if (summary != null && !summary.trim().isEmpty()) {
-                log.info("GPT-5 {} 요약 생성 성공 ({}자 → {}자)", 
+                log.info("GPT-5-mini {} 요약 생성 성공 ({}자 → {}자)", 
                         model, postsText.length(), summary.length());
                 return summary.trim();
             } else {
-                log.error("GPT-5 {}에서 빈 응답 반환", model);
+                log.error("GPT-5-mini {}에서 빈 응답 반환", model);
                 return landmarkName + " 주변 분위기를 분석할 수 없습니다.";
             }
             
         } catch (Exception e) {
-            log.error("GPT-5 {} 요약 생성 중 오류 발생: {}", model, e.getMessage(), e);
+            log.error("GPT-5-mini {} 요약 생성 중 오류 발생: {}", model, e.getMessage(), e);
             return landmarkName + " 주변 분위기를 분석하는 중 오류가 발생했습니다.";
         }
     }
 
     /**
-     * GPT-5 비용 등급 (고정)
+     * GPT-5-mini 비용 등급 (고정)
      */
     private String getCostGrade(String model) {
-        return "프리미엄 (GPT-5)";
+        return "균형 (GPT-5-mini)";
     }
 
     /**
-     * GPT-5 예상 비용 계산
+     * GPT-5-mini 예상 비용 계산
      */
     private String getEstimatedCost(String model, int inputLength) {
         // 대략적인 토큰 계산 (1토큰 ≈ 4자)
         int estimatedTokens = inputLength / 4 + 500; // input + output
         
-        // GPT-5: $1.25 input + $10 output (평균 $5.625)
-        double costPer1M = 5.625;
+        // GPT-5-mini: $0.25 input + $2 output (평균 $1.125)
+        double costPer1M = 1.125;
         
         double estimatedCost = (estimatedTokens * costPer1M) / 1_000_000;
         return String.format("$%.6f", estimatedCost);
@@ -162,22 +162,22 @@ public class GPT5ServiceV3 {
             }
         }
         
-        log.info("랜드마크 {} 모든 GPT-5 모델 캐시 삭제 완료", landmarkId);
+        log.info("랜드마크 {} 모든 GPT-5-mini 모델 캐시 삭제 완료", landmarkId);
     }
 
     /**
-     * 빠른 요약 (gpt-5 + low reasoning + low verbosity)
+     * 빠른 요약 (gpt-5-mini + low reasoning + low verbosity)
      */
     public String generateQuickSummary(Long landmarkId, String landmarkName, 
                                      List<LandmarkSummaryService.PostData> posts, int radius) {
-        return generateOptimizedSummary(landmarkId, landmarkName, posts, radius, "gpt-5", "low", "low");
+        return generateOptimizedSummary(landmarkId, landmarkName, posts, radius, "gpt-5-mini", "low", "low");
     }
 
     /**
-     * 프리미엄 요약 (gpt-5 + high reasoning + high verbosity)
+     * 프리미엄 요약 (gpt-5-mini + high reasoning + high verbosity)
      */
     public String generatePremiumSummary(Long landmarkId, String landmarkName, 
                                        List<LandmarkSummaryService.PostData> posts, int radius) {
-        return generateOptimizedSummary(landmarkId, landmarkName, posts, radius, "gpt-5", "high", "high");
+        return generateOptimizedSummary(landmarkId, landmarkName, posts, radius, "gpt-5-mini", "high", "high");
     }
 }

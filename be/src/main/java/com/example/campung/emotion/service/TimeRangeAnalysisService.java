@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import java.time.ZoneId;
+
 /**
  * 시간 범위별 게시글 분석 서비스
  * 시간 범위 계산 및 게시글 조회 전용
@@ -19,6 +21,7 @@ import java.util.List;
 public class TimeRangeAnalysisService {
 
     private final ContentRepository contentRepository;
+    private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
 
     /**
      * 분석 시간 범위 정보
@@ -43,7 +46,7 @@ public class TimeRangeAnalysisService {
      * 스케줄러용 시간 범위 계산 (직전 정시간)
      */
     public AnalysisTimeRange calculateScheduledTimeRange() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(KST_ZONE);
         LocalDateTime startTime = now.minusHours(1).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime endTime = now.withMinute(0).withSecond(0).withNano(0);
         
@@ -54,10 +57,21 @@ public class TimeRangeAnalysisService {
      * 수동 분석용 시간 범위 계산 (현재 시간대)
      */
     public AnalysisTimeRange calculateManualTimeRange() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(KST_ZONE);
         LocalDateTime startTime = now.withMinute(0).withSecond(0).withNano(0);
         LocalDateTime endTime = now;
         
+        return new AnalysisTimeRange(startTime, endTime, false);
+    }
+
+    /**
+     * 오늘 하루 전체 분석용 시간 범위 계산 (새벽 4시부터 현재까지)
+     */
+    public AnalysisTimeRange calculateTodaysAllDayRange() {
+        LocalDateTime now = LocalDateTime.now(KST_ZONE);
+        LocalDateTime startTime = now.toLocalDate().atTime(4, 0);
+        LocalDateTime endTime = now;
+
         return new AnalysisTimeRange(startTime, endTime, false);
     }
 

@@ -38,7 +38,6 @@ public class EmotionController {
                 .emotionTemperature((Double) statistics.get("temperature"))
                 .lastUpdated(((LocalDateTime) statistics.get("lastUpdated")).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .totalAnalyzedPosts((Integer) statistics.get("totalAnalyzedPosts"))
-                .cumulativeScores((Map<String, Integer>) statistics.get("cumulativeScores"))
                 .hourlyPostsCount((Map<String, Integer>) statistics.get("hourlyPostsCount"))
                 .build();
 
@@ -58,17 +57,56 @@ public class EmotionController {
     public ResponseEntity<Map<String, Object>> manualEmotionAnalysis() {
         log.info("수동 감정 분석 실행 요청");
         
-        campusEmotionService.analyzeRecentEmotions();
+        Map<String, Integer> newAnalysisScores = campusEmotionService.analyzeRecentEmotions();
         
-        // 분석 후 최신 통계 조회
-        Map<String, Object> statistics = campusEmotionService.getEmotionStatistics();
+        // 전체 평균 점수 조회
+        Map<String, Double> averageScores = campusEmotionService.getCurrentDailyAverageScores();
+        String weather = campusEmotionService.getCurrentEmotionWeather();
+        Double temperature = campusEmotionService.getCurrentEmotionTemperature();
+        
+        Map<String, Object> analysisResult = new HashMap<>();
+        analysisResult.put("newAnalysisScores", newAnalysisScores);
+        analysisResult.put("overallAverageScores", averageScores);
+        analysisResult.put("emotionWeather", weather);
+        analysisResult.put("emotionTemperature", temperature);
+        analysisResult.put("lastUpdated", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", "감정 분석이 완료되었습니다");
-        response.put("data", statistics);
+        response.put("data", analysisResult);
         
         log.info("수동 감정 분석 완료");
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 오늘 하루 전체 감정 분석 실행
+     */
+    @PostMapping("/analyzeAll")
+    public ResponseEntity<Map<String, Object>> analyzeAllTodaysPosts() {
+        log.info("오늘 하루 전체 감정 분석 실행 요청");
+
+        Map<String, Integer> newAnalysisScores = campusEmotionService.analyzeAllTodaysEmotions();
+
+        // 전체 평균 점수 조회
+        Map<String, Double> averageScores = campusEmotionService.getCurrentDailyAverageScores();
+        String weather = campusEmotionService.getCurrentEmotionWeather();
+        Double temperature = campusEmotionService.getCurrentEmotionTemperature();
+        
+        Map<String, Object> analysisResult = new HashMap<>();
+        analysisResult.put("newAnalysisScores", newAnalysisScores);
+        analysisResult.put("overallAverageScores", averageScores);
+        analysisResult.put("emotionWeather", weather);
+        analysisResult.put("emotionTemperature", temperature);
+        analysisResult.put("lastUpdated", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "오늘 하루 전체 감정 분석이 완료되었습니다");
+        response.put("data", analysisResult);
+
+        log.info("오늘 하루 전체 감정 분석 완료");
         return ResponseEntity.ok(response);
     }
 
