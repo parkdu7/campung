@@ -105,7 +105,7 @@ fun CommentInputBar(
                 Icon(
                     imageVector = Icons.Default.Send,
                     contentDescription = "댓글 전송",
-                    tint = if (commentText.isNotBlank()) LocalContentColor.current else Color.Gray
+                    tint = if (commentText.isNotBlank()) Color.Gray else LocalContentColor.current
                 )
             }
         }

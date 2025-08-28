@@ -16,10 +16,18 @@ data class ContentDetailUiState(
     // 대댓글 모드 상태
     val selectedCommentId: Long? = null,
     val selectedCommentAuthor: String? = null,
+    
+    // 삭제 관련 상태
+    val currentUserId: String? = null,
+    val showDeleteDialog: Boolean = false,
+    val isDeleting: Boolean = false,
 ) {
     val hasContent: Boolean get() = content != null
-    val commentCount: Int get() = comments.size
+    val commentCount: Int get() = content?.commentCount ?: comments.size
     
     // 대댓글 모드 여부
     val isReplyMode: Boolean get() = selectedCommentId != null
+    
+    // 본인 게시글 여부
+    val isMyContent: Boolean get() = currentUserId != null && content?.userId == currentUserId
 }
