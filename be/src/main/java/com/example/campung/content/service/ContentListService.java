@@ -123,9 +123,10 @@ public class ContentListService {
         item.setPostType(content.getPostType().name());
         item.setTitle(content.getTitle());
         
+        String displayNickname = content.getIsAnonymous() ? "익명" : content.getAuthor().getNickname();
         ContentListResponse.AuthorInfo author = new ContentListResponse.AuthorInfo(
-            content.getAuthor().getNickname(),
-            false
+            displayNickname,
+            content.getIsAnonymous()
         );
         item.setAuthor(author);
         

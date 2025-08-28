@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ContentRepository extends JpaRepository<Content, Long> {
@@ -87,4 +88,9 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
      */
     @Query("SELECT DATE(c.createdAt), COUNT(c) FROM Content c WHERE c.createdAt BETWEEN :startTime AND :endTime GROUP BY DATE(c.createdAt)")
     List<Object[]> findDailyPostCounts(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+    
+    /**
+     * 가장 오래된 게시글 조회 (서버 시작 시점 파악용)
+     */
+    Optional<Content> findTopByOrderByCreatedAtAsc();
 }

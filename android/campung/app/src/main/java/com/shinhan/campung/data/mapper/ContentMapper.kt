@@ -24,7 +24,11 @@ class ContentMapper @Inject constructor() {
             body = data.body,
             mediaFiles = data.mediaFiles,
             emotionTag = data.emotionTag,
-            reactions = data.reactions,
+            reactions = com.shinhan.campung.data.model.Reactions(
+                likes = data.likeInfo?.totalLikes ?: 0,
+                comments = data.commentCount,
+                isLiked = data.likeInfo?.likedByCurrentUser ?: false
+            ),
             createdAt = data.createdAt,
             expiresAt = data.expiresAt
         )

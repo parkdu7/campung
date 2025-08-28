@@ -2,7 +2,9 @@ package com.example.campung.main.service;
 
 import com.example.campung.content.repository.ContentRepository;
 import com.example.campung.emotion.service.CampusEmotionService;
+import com.example.campung.emotion.service.CampusTemperatureManager;
 import com.example.campung.entity.Content;
+import com.example.campung.entity.DailyCampus;
 import com.example.campung.entity.Record;
 import com.example.campung.global.enums.PostType;
 import com.example.campung.global.enums.MarkerType;
@@ -23,6 +25,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +39,9 @@ public class MapContentService {
     
     @Autowired
     private CampusEmotionService campusEmotionService;
+    
+    @Autowired
+    private CampusTemperatureManager temperatureManager;
 
     public MapContentResponse getMapContents(MapContentRequest request) {
         System.out.println("=== 지도 콘텐츠 조회 시작 ===");
@@ -66,12 +72,52 @@ public class MapContentService {
 
         MapContentData data = new MapContentData(contentItems, recordItems);
         
-        // 감정 날씨와 온도 데이터 추가
-        String emotionWeather = campusEmotionService.getCurrentEmotionWeather();
-        Double emotionTemperature = campusEmotionService.getCurrentEmotionTemperature();
-        
-        data.setEmotionWeather(emotionWeather);
-        data.setEmotionTemperature(emotionTemperature);
+        // 날짜별 온도/날씨 데이터 설정
+        LocalDate today = LocalDate.now();
+        if (targetDate.equals(today)) {
+            // 오늘 데이터: 현재 실시간 온도 및 감정 분석 결과 사용
+            String emotionWeather = campusEmotionService.getCurrentEmotionWeather();
+            Double currentTemperature = temperatureManager.getCurrentCampusTemperature();
+            
+            // 실시간 최고/최저 온도 조회
+            double[] minMaxTemp = temperatureManager.getTodayMinMaxTemperature();
+            double todayMaxTemp = minMaxTemp[0];
+            double todayMinTemp = minMaxTemp[1];
+            
+            data.setEmotionWeather(emotionWeather);
+            data.setEmotionTemperature(currentTemperature);
+            data.setMaxTemperature(todayMaxTemp);
+            data.setMinTemperature(todayMinTemp);
+            
+            System.out.println("오늘 데이터 - 날씨: " + emotionWeather + 
+                             ", 현재온도: " + currentTemperature +
+                             ", 최고온도: " + todayMaxTemp +
+                             ", 최저온도: " + todayMinTemp);
+        } else {
+            // 과거 데이터: DailyCampus 테이블에서 조회
+            DailyCampus dailyData = temperatureManager.getDailyCampusData(targetDate);
+            
+            if (dailyData != null) {
+                // DailyCampus 데이터가 있는 경우: 최저, 최고, 평균온도, 마지막 날씨 반환
+                data.setEmotionWeather(dailyData.getWeatherType().name().toLowerCase());
+                data.setEmotionTemperature(dailyData.getFinalTemperature()); // 평균온도
+                data.setMaxTemperature(dailyData.getMaxTemperature());
+                data.setMinTemperature(dailyData.getMinTemperature());
+                
+                System.out.println("과거 데이터 (" + targetDate + ") - 날씨: " + dailyData.getWeatherType().name().toLowerCase() + 
+                                 ", 평균온도: " + dailyData.getFinalTemperature() +
+                                 ", 최고온도: " + dailyData.getMaxTemperature() +
+                                 ", 최저온도: " + dailyData.getMinTemperature());
+            } else {
+                // 데이터가 없는 경우 기본값
+                data.setEmotionWeather("cloudy");
+                data.setEmotionTemperature(20.0);
+                data.setMaxTemperature(25.0);
+                data.setMinTemperature(15.0);
+                
+                System.out.println("과거 데이터 없음 (" + targetDate + ") - 기본값 사용");
+            }
+        }
         
         return new MapContentResponse(true, "지도 콘텐츠 조회 성공", data);
     }
@@ -229,9 +275,10 @@ public class MapContentService {
         item.setUserId(content.getAuthor().getUserId());
         
         // Author 정보
+        String displayNickname = content.getIsAnonymous() ? "익명" : content.getAuthor().getNickname();
         AuthorInfo author = new AuthorInfo(
-                content.getAuthor().getNickname(),
-                false // 익명 여부는 추후 구현
+                displayNickname,
+                content.getIsAnonymous()
         );
         item.setAuthor(author);
 
