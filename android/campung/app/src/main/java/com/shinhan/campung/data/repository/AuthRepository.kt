@@ -13,15 +13,25 @@ class AuthRepository(
 ) {
     suspend fun login(userId: String, password: String, fcmToken: String?): Result<Unit> = runCatching {
         val res = api.login(LoginRequest(userId, password, fcmToken))
-        authDataStore.saveToken(res.token)
+        // ✅ 성공 여부 체크 (서버 스펙에 맞춰 필요시 제거/유지)
+        if (res.success == false) error(res.message ?: "로그인 실패")
+
+        // ✅ 토큰/유저아이디/닉네임 저장
+        authDataStore.saveToken(res.accessToken)   // ← 서버 응답 키 반영
         authDataStore.saveUserId(userId)
+        authDataStore.saveNickname(res.nickname)
+
+        // 선택: fcmToken을 로컬에도 보관하고 싶다면
+        if (!fcmToken.isNullOrBlank()) {
+            authDataStore.saveFcmToken(fcmToken)
+        }
     }
 
     suspend fun signUp(userId: String, password: String, nickname: String): Result<Unit> = runCatching {
         val res = api.signUp(SignUpRequest(userId, password, nickname))
         if (!res.success) error(res.message)
-        // ✅ 회원가입 직후에는 로그인시키지 않음 (토큰 저장 X)
-        authDataStore.clear() // 혹시 남아있던 토큰도 정리
+        // 회원가입 직후 자동 로그인하지 않으므로 로컬 정리
+        authDataStore.clear()
     }
 
     suspend fun checkDuplicate(userId: String): Result<Boolean> = runCatching {
@@ -30,7 +40,6 @@ class AuthRepository(
         res.available
     }
 
-    // ✅ 서버 로그아웃 + 로컬 토큰 정리
     suspend fun serverLogout(): Result<Unit> = runCatching {
         val res = api.logout()
         if (!res.success) error(res.message)
@@ -40,16 +49,14 @@ class AuthRepository(
     suspend fun clearLocalToken() { authDataStore.clear() }
 
     suspend fun updateFcmToken(fcmToken: String): Result<Unit> = runCatching {
-        // TODO: 백엔드에 FCM 토큰 업데이트 API 호출 필요
-        // val res = api.updateFcmToken(UpdateFcmTokenRequest(fcmToken))
-        // if (!res.success) error(res.message)
+        // TODO: 서버에 FCM 토큰 업데이트 API 붙이면 여기서 호출
         authDataStore.saveFcmToken(fcmToken)
     }
 
     suspend fun respondToLocationShareRequest(
-        shareRequestId: Long, 
-        action: String, 
-        latitude: java.math.BigDecimal?, 
+        shareRequestId: Long,
+        action: String,
+        latitude: java.math.BigDecimal?,
         longitude: java.math.BigDecimal?
     ): Result<Unit> = runCatching {
         val request = LocationShareRespondRequest(action, latitude, longitude)
