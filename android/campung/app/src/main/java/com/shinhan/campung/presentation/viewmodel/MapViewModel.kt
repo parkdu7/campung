@@ -87,6 +87,9 @@ class MapViewModel @Inject constructor(
     private val _showPOIDialog = MutableStateFlow(false)
     val showPOIDialog: StateFlow<Boolean> = _showPOIDialog.asStateFlow()
 
+    private val _isLoadingPOIDetail = MutableStateFlow(false)
+    val isLoadingPOIDetail: StateFlow<Boolean> = _isLoadingPOIDetail.asStateFlow()
+
     // MapViewModel.kt - 상단 필드들 옆에 추가
     private val _serverWeather = MutableStateFlow<String?>(null)
     val serverWeather: StateFlow<String?> = _serverWeather
@@ -844,6 +847,10 @@ class MapViewModel @Inject constructor(
 
         _selectedPOI.value = poi
         _showPOIDialog.value = true
+        
+        // 상세 정보 및 요약 조회
+        loadPOIDetail(poi.id)
+        
         Log.d(TAG, "🏪 POI 다이얼로그 표시")
     }
 
@@ -853,7 +860,34 @@ class MapViewModel @Inject constructor(
     fun dismissPOIDialog() {
         _showPOIDialog.value = false
         _selectedPOI.value = null
+        _isLoadingPOIDetail.value = false
         Log.d(TAG, "🏪 POI 다이얼로그 닫힘")
+    }
+
+    /**
+     * POI 상세 정보 조회 (요약 포함)
+     */
+    fun loadPOIDetail(landmarkId: Long) {
+        viewModelScope.launch {
+            _isLoadingPOIDetail.value = true
+            
+            try {
+                poiRepository.getLandmarkDetail(
+                    landmarkId = landmarkId
+                ).onSuccess { detailedPOI ->
+                    // 현재 선택된 POI를 상세 정보로 업데이트
+                    _selectedPOI.value = detailedPOI
+                    Log.d(TAG, "🏪 POI 상세 정보 로드 성공: ${detailedPOI.name}, 요약: ${detailedPOI.currentSummary?.take(100)}...")
+                }.onFailure { error ->
+                    Log.e(TAG, "🏪 POI 상세 정보 로드 실패: ${error.message}", error)
+                    // 실패해도 기존 POI 정보는 유지
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "🏪 POI 상세 정보 로드 중 예외 발생: ${e.message}", e)
+            } finally {
+                _isLoadingPOIDetail.value = false
+            }
+        }
     }
 
     /**
