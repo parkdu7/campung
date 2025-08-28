@@ -1,5 +1,6 @@
 package com.example.campung.test.service;
 
+import com.example.campung.global.enums.EmotionTestType;
 import com.example.campung.test.dto.TestContentRequest;
 import com.example.campung.test.dto.TestContentResponse;
 import com.example.campung.content.dto.ContentCreateRequest;
@@ -32,12 +33,14 @@ public class TestContentService {
     public TestContentResponse createTestContents(TestContentRequest request) {
         try {
             log.info("=== 테스트 컨텐츠 생성 시작 ===");
-            log.info("요청 파라미터: lat={}, lng={}, category={}, userId={}", 
-                request.getLatitude(), request.getLongitude(), request.getCategory(), request.getUserId());
+            log.info("요청 파라미터: lat={}, lng={}, category={}, userId={}, emotionType={}", 
+                request.getLatitude(), request.getLongitude(), request.getCategory(), 
+                request.getUserId(), request.getEmotionType());
             
-            // test.json 파일 읽기
-            List<Map<String, String>> testData = loadTestData();
-            log.info("테스트 데이터 로드 완료: {}개", testData.size());
+            // 선택된 감정 타입에 따른 JSON 파일 읽기
+            List<Map<String, String>> testData = loadTestData(request.getEmotionType());
+            log.info("테스트 데이터 로드 완료: {}개 (파일: {})", 
+                testData.size(), request.getEmotionType().getFileName());
             
             int totalCreated = 0;
             
@@ -78,8 +81,16 @@ public class TestContentService {
         }
     }
     
-    private List<Map<String, String>> loadTestData() throws IOException {
-        ClassPathResource resource = new ClassPathResource("test.json");
+    private List<Map<String, String>> loadTestData(EmotionTestType emotionType) throws IOException {
+        String fileName = emotionType.getFileName();
+        log.info("로드할 파일: {}", fileName);
+        
+        ClassPathResource resource = new ClassPathResource(fileName);
+        if (!resource.exists()) {
+            log.error("파일을 찾을 수 없습니다: {}", fileName);
+            throw new IOException("테스트 데이터 파일을 찾을 수 없습니다: " + fileName);
+        }
+        
         return objectMapper.readValue(resource.getInputStream(), 
             new TypeReference<List<Map<String, String>>>() {});
     }
