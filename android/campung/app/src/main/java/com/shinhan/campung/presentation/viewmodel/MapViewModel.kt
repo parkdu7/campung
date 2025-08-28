@@ -13,6 +13,7 @@ import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
 import com.shinhan.campung.data.repository.POIRepository
 import com.shinhan.campung.data.repository.RecordingRepository
+import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.mapper.ContentMapper
 import com.shinhan.campung.data.model.POIData
 import com.shinhan.campung.data.model.ContentCategory
@@ -22,6 +23,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import android.util.Log
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -38,10 +41,18 @@ class MapViewModel @Inject constructor(
     private val mapRepository: MapRepository,
     private val poiRepository: POIRepository,
     private val recordingRepository: RecordingRepository,
+    private val authDataStore: AuthDataStore,
     private val contentMapper: ContentMapper,
     val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
     fun getLastKnownLocation(): Pair<Double, Double>? = lastRequestLocation
+
+    // 현재 사용자 ID
+    val currentUserId: StateFlow<String?> = authDataStore.userIdFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = null
+    )
 
     // UI States
     private val _bottomSheetContents = MutableStateFlow<List<MapContent>>(emptyList())
@@ -708,6 +719,10 @@ class MapViewModel @Inject constructor(
 
     fun isRecordSelected(record: MapRecord): Boolean {
         return selectedRecord?.recordId == record.recordId
+    }
+
+    fun isMyRecord(record: MapRecord, currentUserId: String?): Boolean {
+        return currentUserId != null && record.userId == currentUserId
     }
 
     // ===== POI 관련 함수들 =====

@@ -155,6 +155,7 @@ fun FullMapScreen(
     val selectedPOI by mapViewModel.selectedPOI.collectAsState()
     val showPOIDialog by mapViewModel.showPOIDialog.collectAsState()
     val currentPlayingRecord by mapViewModel.currentPlayingRecord.collectAsState()
+    val currentUserId by mapViewModel.currentUserId.collectAsState()
 
     // 위치 공유 브로드캐스트 수신
     DisposableEffect(context) {
@@ -1039,6 +1040,8 @@ fun FullMapScreen(
                         .zIndex(1000f) // 최상위에 표시
                 ) {
                     currentPlayingRecord?.let { record ->
+                        val isMyRecord = mapViewModel.isMyRecord(record, currentUserId)
+                        
                         AudioPlayer(
                             recordUrl = record.recordUrl,
                             recordId = record.recordId,
@@ -1047,25 +1050,27 @@ fun FullMapScreen(
                             onClose = {
                                 mapViewModel.stopRecord()
                             },
-                            onDelete = {
-                                // 삭제 확인 다이얼로그 표시
-                                android.app.AlertDialog.Builder(context)
-                                    .setTitle("음성 녹음 삭제")
-                                    .setMessage("이 음성 녹음을 삭제하시겠습니까?\n삭제된 음성은 복구할 수 없습니다.")
-                                    .setPositiveButton("삭제") { _, _ ->
-                                        mapViewModel.deleteRecord(
-                                            recordId = record.recordId,
-                                            onSuccess = {
-                                                android.widget.Toast.makeText(context, "음성 녹음이 삭제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
-                                            },
-                                            onError = { errorMessage ->
-                                                android.widget.Toast.makeText(context, "삭제 실패: $errorMessage", android.widget.Toast.LENGTH_SHORT).show()
-                                            }
-                                        )
-                                    }
-                                    .setNegativeButton("취소", null)
-                                    .show()
-                            }
+                            onDelete = if (isMyRecord) {
+                                {
+                                    // 삭제 확인 다이얼로그 표시
+                                    android.app.AlertDialog.Builder(context)
+                                        .setTitle("음성 녹음 삭제")
+                                        .setMessage("이 음성 녹음을 삭제하시겠습니까?\n삭제된 음성은 복구할 수 없습니다.")
+                                        .setPositiveButton("삭제") { _, _ ->
+                                            mapViewModel.deleteRecord(
+                                                recordId = record.recordId,
+                                                onSuccess = {
+                                                    android.widget.Toast.makeText(context, "음성 녹음이 삭제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                onError = { errorMessage ->
+                                                    android.widget.Toast.makeText(context, "삭제 실패: $errorMessage", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                        }
+                                        .setNegativeButton("취소", null)
+                                        .show()
+                                }
+                            } else null
                         )
                     }
                 }
