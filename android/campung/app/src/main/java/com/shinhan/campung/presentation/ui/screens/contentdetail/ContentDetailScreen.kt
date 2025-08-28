@@ -136,7 +136,7 @@ private fun ContentDetailScreenContent(
                     Spacer(modifier = Modifier.width(48.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
+                    containerColor = CampusBackground
                 )
             )
         }

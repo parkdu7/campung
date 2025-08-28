@@ -34,7 +34,7 @@ fun CustomWheelPicker(
     selectedIndex: Int,
     onSelectionChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    visibleItemsCount: Int = 7
+    visibleItemsCount: Int = 3
 ) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
     val itemHeight = 44.dp // iOS 스타일에 맞게 조정
@@ -196,40 +196,85 @@ fun SimpleKoreanDatePicker(
     maxDate: LocalDate = LocalDate.now(),
     minDate: LocalDate = LocalDate.of(2020, 1, 1)
 ) {
-    val years = (minDate.year..maxDate.year).toList()
-    val months = (1..12).toList()
-    val days = (1..31).toList()
+    val today = LocalDate.now()
     
-    var tempYear by remember { mutableIntStateOf(selectedDate.year) }
-    var tempMonth by remember { mutableIntStateOf(selectedDate.monthValue) }
-    var tempDay by remember { mutableIntStateOf(selectedDate.dayOfMonth) }
+    var tempYear by remember(selectedDate) { mutableIntStateOf(selectedDate.year) }
+    var tempMonth by remember(selectedDate) { mutableIntStateOf(selectedDate.monthValue) }
+    var tempDay by remember(selectedDate) { mutableIntStateOf(selectedDate.dayOfMonth) }
+    var isInitialized by remember { mutableStateOf(false) }
     
-    // 동적 일수 계산
-    val maxDaysInMonth = remember(tempYear, tempMonth) {
-        try {
+    val years = (minDate.year..today.year).toList()
+    
+    // 현재 선택된 연도에 따라 월 범위 결정
+    val availableMonths = if (tempYear == today.year) {
+        (1..today.monthValue).toList()
+    } else {
+        (1..12).toList()
+    }
+    
+    // 현재 선택된 연월에 따라 일 범위 결정
+    val availableDaysForCurrentMonth = if (tempYear == today.year && tempMonth == today.monthValue) {
+        (1..today.dayOfMonth).toList()
+    } else {
+        val maxDays = try {
             LocalDate.of(tempYear, tempMonth, 1).lengthOfMonth()
         } catch (e: Exception) {
             31
         }
+        (1..maxDays).toList()
     }
     
-    val availableDays = (1..maxDaysInMonth).toList()
+    // 초기화 완료 표시 - 첫 번째 컴포지션 후 즉시 설정
+    LaunchedEffect(tempYear, tempMonth, tempDay) {
+        isInitialized = true
+    }
     
-    // 날짜가 유효하지 않으면 조정
-    LaunchedEffect(maxDaysInMonth) {
-        if (tempDay > maxDaysInMonth) {
-            tempDay = maxDaysInMonth
+    // 사용자 조작에 의한 날짜 범위 변경 시에만 자동 조정
+    LaunchedEffect(tempYear, tempMonth) {
+        if (isInitialized) { // 초기화 완료 후에만 실행
+            // 연도 변경으로 월이 범위를 벗어날 때만 조정
+            if (tempYear == today.year && tempMonth > today.monthValue) {
+                tempMonth = today.monthValue
+            }
+            // 연월 변경으로 일이 범위를 벗어날 때만 조정
+            if (tempYear == today.year && tempMonth == today.monthValue && tempDay > today.dayOfMonth) {
+                tempDay = today.dayOfMonth
+            } else if (tempDay > availableDaysForCurrentMonth.size) {
+                tempDay = availableDaysForCurrentMonth.size
+            }
         }
     }
     
     fun updateDate() {
+        // 초기화가 완료되지 않았으면 호출하지 않음
+        if (!isInitialized) return
+        
         try {
             val newDate = LocalDate.of(tempYear, tempMonth, tempDay)
-            if (!newDate.isAfter(maxDate) && !newDate.isBefore(minDate)) {
-                onDateSelected(newDate)
+            // 오늘 날짜 이후는 선택할 수 없도록 제한
+            val adjustedDate = if (newDate.isAfter(maxDate)) {
+                maxDate
+            } else if (newDate.isBefore(minDate)) {
+                minDate
+            } else {
+                newDate
             }
+            
+            // 조정된 날짜로 다시 설정
+            if (adjustedDate != newDate) {
+                tempYear = adjustedDate.year
+                tempMonth = adjustedDate.monthValue
+                tempDay = adjustedDate.dayOfMonth
+            }
+            
+            onDateSelected(adjustedDate)
         } catch (e: Exception) {
-            // 에러 무시
+            // 에러 발생 시 오늘 날짜로 설정
+            val today = LocalDate.now()
+            tempYear = today.year
+            tempMonth = today.monthValue
+            tempDay = today.dayOfMonth
+            onDateSelected(today)
         }
     }
     
@@ -245,7 +290,7 @@ fun SimpleKoreanDatePicker(
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
             color = Color.Black,
-            modifier = Modifier.padding(bottom = 32.dp)
+            modifier = Modifier.padding(bottom = 16.dp)
         )
         
         Row(
@@ -256,7 +301,7 @@ fun SimpleKoreanDatePicker(
             // 연도 휠
             CustomWheelPicker(
                 items = years.map { "${it}년" },
-                selectedIndex = (tempYear - years.first()).coerceIn(0, years.size - 1),
+                selectedIndex = years.indexOf(tempYear).coerceAtLeast(0),
                 onSelectionChanged = { index ->
                     tempYear = years[index]
                     updateDate()
@@ -268,10 +313,10 @@ fun SimpleKoreanDatePicker(
             
             // 월 휠
             CustomWheelPicker(
-                items = months.map { "${it}월" },
-                selectedIndex = (tempMonth - 1).coerceIn(0, months.size - 1),
+                items = availableMonths.map { "${it}월" },
+                selectedIndex = availableMonths.indexOf(tempMonth).coerceAtLeast(0),
                 onSelectionChanged = { index ->
-                    tempMonth = months[index]
+                    tempMonth = availableMonths[index]
                     updateDate()
                 },
                 modifier = Modifier.weight(1f)
@@ -281,10 +326,10 @@ fun SimpleKoreanDatePicker(
             
             // 일 휠 (동적으로 업데이트)
             CustomWheelPicker(
-                items = availableDays.map { "${it}일" },
-                selectedIndex = (tempDay - 1).coerceIn(0, availableDays.size - 1),
+                items = availableDaysForCurrentMonth.map { "${it}일" },
+                selectedIndex = availableDaysForCurrentMonth.indexOf(tempDay).coerceAtLeast(0),
                 onSelectionChanged = { index ->
-                    tempDay = availableDays[index]
+                    tempDay = availableDaysForCurrentMonth[index]
                     updateDate()
                 },
                 modifier = Modifier.weight(1f)
@@ -310,21 +355,10 @@ fun KoreanDatePickerDialog(
         Column(
             modifier = modifier
                 .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(20.dp)) // iOS 스타일 라운드
-                .padding(20.dp),
+                .background(Color.White, RoundedCornerShape(48.dp)) // iOS 스타일 라운드
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 상단 핸들 바 (iOS 스타일)
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(4.dp)
-                    .background(
-                        Color(0xFFD1D1D6),
-                        RoundedCornerShape(2.dp)
-                    )
-                    .padding(bottom = 16.dp)
-            )
             
             SimpleKoreanDatePicker(
                 selectedDate = tempDate,
@@ -334,48 +368,38 @@ fun KoreanDatePickerDialog(
                 modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
-            // iOS 스타일 버튼
+            // 텍스트 버튼
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.End
             ) {
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF2F2F7),
-                        contentColor = Color.Black
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        "취소",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-                
-                Button(
-                    onClick = { 
-                        onDateSelected(tempDate)
-                        onDismiss()
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF007AFF),
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "저장",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+                Row {
+                    TextButton(
+                        onClick = onDismiss
+                    ) {
+                        Text(
+                            "취소",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF8E8E93)
+                        )
+                    }
+                    
+                    TextButton(
+                        onClick = { 
+                            onDateSelected(tempDate)
+                            onDismiss()
+                        }
+                    ) {
+                        Text(
+                            text = "저장",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.Black
+                        )
+                    }
                 }
             }
         }
@@ -384,64 +408,14 @@ fun KoreanDatePickerDialog(
 
 @Composable
 fun KoreanDatePicker(
+    selectedDate: LocalDate = LocalDate.now(),
     onDateSelected: (LocalDate) -> Unit = {},
     onDismiss: () -> Unit = {}
 ) {
     KoreanDatePickerDialog(
-        selectedDate = LocalDate.now(),
+        selectedDate = selectedDate,
         onDateSelected = onDateSelected,
         onDismiss = onDismiss
     )
 }
 
-// 사용 예제
-@Composable
-fun DatePickerExample() {
-    var showDatePicker by remember { mutableStateOf(false) }
-    val currentDate = LocalDate.now()
-    var selectedDate by remember { 
-        mutableStateOf("${currentDate.year}년 ${currentDate.monthValue}월 ${currentDate.dayOfMonth}일") 
-    }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Button(
-            onClick = { showDatePicker = true },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF007AFF)
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text(
-                "날짜 선택하기",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-        
-        Text(
-            text = selectedDate,
-            modifier = Modifier.padding(top = 16.dp),
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Normal,
-            color = Color.Black
-        )
-    }
-    
-    if (showDatePicker) {
-        KoreanDatePickerDialog(
-            selectedDate = LocalDate.now(),
-            onDateSelected = { date ->
-                selectedDate = "${date.year}년 ${date.monthValue}월 ${date.dayOfMonth}일"
-            },
-            onDismiss = { 
-                showDatePicker = false 
-            }
-        )
-    }
-}
