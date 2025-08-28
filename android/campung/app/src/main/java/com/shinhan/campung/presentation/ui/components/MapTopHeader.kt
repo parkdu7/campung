@@ -3,6 +3,7 @@ package com.shinhan.campung.presentation.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -115,30 +116,28 @@ fun MapTopHeader(
 
 
         // 친구 버튼 (빨간 알림 점 포함)
-            Box {
-                IconButton(
-                    onClick = onFriendClick,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.friend_icon),
-                        contentDescription = "친구",
-                        tint = Color.Gray
-                    )
-                }
-                
-                // 알림 점
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(
-                            color = Color.Red,
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        )
-                        .align(Alignment.TopEnd)
-                        .offset(x = (-4).dp, y = 4.dp)
+        Box {
+            IconButton(
+                onClick = onFriendClick,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.friend_icon),
+                    contentDescription = "친구",
+                    tint = Color.Unspecified,          // ← 원본 색 유지!
+                    modifier = Modifier.fillMaxSize()  // 필요 시 아이콘 채우기
                 )
             }
+
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(Color.Red, shape = CircleShape)
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-4).dp, y = 4.dp)
+            )
+        }
+
     }
 }
 
