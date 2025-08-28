@@ -38,4 +38,8 @@ class RecordingRepositoryImpl @Inject constructor(
             longitude = lngPart
         )
     }
+
+    override suspend fun deleteRecord(recordId: Long) {
+        api.deleteRecord(recordId)
+    }
 }

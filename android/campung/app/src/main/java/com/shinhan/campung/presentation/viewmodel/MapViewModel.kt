@@ -12,6 +12,7 @@ import com.shinhan.campung.data.model.MapRecord
 import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
 import com.shinhan.campung.data.repository.POIRepository
+import com.shinhan.campung.data.repository.RecordingRepository
 import com.shinhan.campung.data.mapper.ContentMapper
 import com.shinhan.campung.data.model.POIData
 import com.shinhan.campung.data.model.ContentCategory
@@ -36,6 +37,7 @@ class MapViewModel @Inject constructor(
     private val mapContentRepository: MapContentRepository,
     private val mapRepository: MapRepository,
     private val poiRepository: POIRepository,
+    private val recordingRepository: RecordingRepository,
     private val contentMapper: ContentMapper,
     val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
@@ -685,6 +687,34 @@ class MapViewModel @Inject constructor(
         // Record 선택 해제
         selectedRecord = null
         _currentPlayingRecord.value = null
+    }
+
+    fun deleteRecord(recordId: Long, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "🗑️ Record 삭제 시작: $recordId")
+                
+                recordingRepository.deleteRecord(recordId)
+                
+                // 현재 재생 중인 record가 삭제된 것이면 정지
+                if (selectedRecord?.recordId == recordId) {
+                    stopRecord()
+                }
+                
+                // 지도에서 해당 record 제거 (새로운 리스트로 교체)
+                mapRecords = mapRecords.filter { it.recordId != recordId }
+                
+                // 클러스터링 업데이트 트리거 (토글 방식으로 확실히 업데이트)
+                shouldUpdateClustering = !shouldUpdateClustering
+                
+                Log.d(TAG, "✅ Record 삭제 완료: $recordId")
+                onSuccess()
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Record 삭제 실패: $recordId", e)
+                onError(e.message ?: "삭제 중 오류가 발생했습니다")
+            }
+        }
     }
 
     fun isRecordSelected(record: MapRecord): Boolean {
