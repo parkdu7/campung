@@ -12,4 +12,9 @@ interface RecordingRepository {
         latitude: Double,
         longitude: Double
     ): RecordUploadResponse
+
+    /**
+     * 음성 녹음 삭제
+     */
+    suspend fun deleteRecord(recordId: Long)
 }

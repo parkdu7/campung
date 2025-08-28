@@ -427,6 +427,24 @@ fun FullMapScreen(
         }
     }
 
+    // AudioPlayer가 표시될 때 지도 상호작용 제어 및 바텀시트 내리기
+    LaunchedEffect(currentPlayingRecord, naverMapRef) {
+        naverMapRef?.let { map ->
+            map.uiSettings.apply {
+                isScrollGesturesEnabled = currentPlayingRecord == null
+                isZoomGesturesEnabled = currentPlayingRecord == null
+                isTiltGesturesEnabled = currentPlayingRecord == null
+                isRotateGesturesEnabled = currentPlayingRecord == null
+            }
+        }
+        
+        // AudioPlayer가 표시될 때 바텀시트 내리기
+        if (currentPlayingRecord != null) {
+            bottomSheetState.animateTo(BottomSheetValue.PartiallyExpanded)
+            mapViewModel.updateBottomSheetExpanded(false)
+        }
+    }
+
     // 내 위치 찾히면 카메라 이동
     LaunchedEffect(myLatLng, naverMapRef) {
         val map = naverMapRef
@@ -696,6 +714,7 @@ fun FullMapScreen(
                                         }
                                     }
                                 }
+
                             }
                         } else {
                             naverMapRef?.let { map ->
@@ -984,6 +1003,21 @@ fun FullMapScreen(
                 }
 
 
+                // AudioPlayer가 활성화되었을 때 지도 클릭 감지 오버레이
+                if (currentPlayingRecord != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                mapViewModel.stopRecord()
+                            }
+                            .zIndex(999f) // AudioPlayer보다 아래에 있어야 함
+                    )
+                }
+
                 // 오디오 플레이어 오버레이 - 애니메이션 추가
                 AnimatedVisibility(
                     visible = currentPlayingRecord != null,
@@ -1000,8 +1034,8 @@ fun FullMapScreen(
                         animationSpec = tween(200)
                     ),
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 120.dp) // 바텀시트 위에 표시
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 36.dp) // 바텀 위치 조정
                         .zIndex(1000f) // 최상위에 표시
                 ) {
                     currentPlayingRecord?.let { record ->
@@ -1012,6 +1046,25 @@ fun FullMapScreen(
                             createdAt = record.createdAt,
                             onClose = {
                                 mapViewModel.stopRecord()
+                            },
+                            onDelete = {
+                                // 삭제 확인 다이얼로그 표시
+                                android.app.AlertDialog.Builder(context)
+                                    .setTitle("음성 녹음 삭제")
+                                    .setMessage("이 음성 녹음을 삭제하시겠습니까?\n삭제된 음성은 복구할 수 없습니다.")
+                                    .setPositiveButton("삭제") { _, _ ->
+                                        mapViewModel.deleteRecord(
+                                            recordId = record.recordId,
+                                            onSuccess = {
+                                                android.widget.Toast.makeText(context, "음성 녹음이 삭제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                            },
+                                            onError = { errorMessage ->
+                                                android.widget.Toast.makeText(context, "삭제 실패: $errorMessage", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    }
+                                    .setNegativeButton("취소", null)
+                                    .show()
                             }
                         )
                     }
