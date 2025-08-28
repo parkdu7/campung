@@ -75,6 +75,7 @@ public class ContentCreateService {
                 .author(author)
                 .postType(request.getPostType())
                 .emotion(request.getEmotionTag())
+                .isAnonymous(request.getIsAnonymous())
                 .buildingName(buildingName);
         
         if (request.getLatitude() != null && request.getLongitude() != null) {

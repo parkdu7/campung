@@ -7,6 +7,7 @@ import com.example.campung.content.repository.ContentRepository;
 import com.example.campung.content.service.S3Service;
 import com.example.campung.global.exception.ContentNotFoundException;
 import com.example.campung.user.repository.UserRepository;
+import com.example.campung.notification.service.NotificationService;
 import com.example.campung.entity.Comment;
 import com.example.campung.entity.Content;
 import com.example.campung.entity.User;
@@ -30,6 +31,9 @@ public class CommentService {
     
     @Autowired
     private S3Service s3Service;
+    
+    @Autowired
+    private NotificationService notificationService;
     
     @Transactional
     public CommentCreateResponse createComment(Long contentId, CommentCreateRequest request, String accessToken) throws IOException {
@@ -88,6 +92,11 @@ public class CommentService {
         System.out.println("=== 댓글 저장 완료 ===");
         System.out.println("저장된 댓글 ID: " + savedComment.getCommentId());
         
+        // 댓글 알림 전송 (본인이 작성한 게시글이 아닌 경우에만)
+        if (!content.getAuthor().getUserId().equals(accessToken)) {
+            sendCommentNotification(content, author);
+        }
+        
         return new CommentCreateResponse(true, "댓글이 성공적으로 작성되었습니다", savedComment.getCommentId());
     }
     
@@ -98,6 +107,28 @@ public class CommentService {
         
         if (request.getIsAnonymous() == null) {
             throw new IllegalArgumentException("익명 여부를 설정해주세요");
+        }
+    }
+    
+    private void sendCommentNotification(Content content, User commenter) {
+        try {
+            User postAuthor = content.getAuthor();
+            String commenterName = commenter.getUserId().equals("anonymous") || (commenter.getNickname() != null && commenter.getNickname().contains("익명")) 
+                    ? "익명" 
+                    : (commenter.getNickname() != null ? commenter.getNickname() : commenter.getUserId());
+            
+            String contentTitle = content.getTitle();
+            if (contentTitle.length() > 10) {
+                contentTitle = contentTitle.substring(0, 10) + "...";
+            }
+            
+            String message = commenterName + " 님이 " + contentTitle + " 글에 댓글을 작성했습니다.";
+            String title = "댓글 알림";
+            String type = "normal";
+            
+            notificationService.createNotification(postAuthor, type, title, message, null);
+        } catch (Exception e) {
+            System.err.println("댓글 알림 전송 중 오류 발생: " + e.getMessage());
         }
     }
 }

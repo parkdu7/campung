@@ -57,6 +57,9 @@ public class ContentUpdateService {
             if (request.getEmotionTag() != null) {
                 content.setEmotion(request.getEmotionTag());
             }
+            if (request.getIsAnonymous() != null) {
+                content.setIsAnonymous(request.getIsAnonymous());
+            }
             
             // 위치 정보 업데이트
             if (request.getLatitude() != null && request.getLongitude() != null) {
