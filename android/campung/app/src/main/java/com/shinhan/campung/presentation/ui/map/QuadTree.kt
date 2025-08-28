@@ -1,6 +1,7 @@
 package com.shinhan.campung.presentation.ui.map
 
 import com.shinhan.campung.data.model.MapContent
+import com.shinhan.campung.data.model.MapRecord
 import kotlin.math.*
 
 data class Bounds(

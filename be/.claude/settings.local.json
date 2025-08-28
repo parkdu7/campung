@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.gradlew compileJava)",
+      "Bash(./gradlew:*)",
+      "Bash(find:*)",
+      "Bash(gemini:*)",
+      "Bash(gemini)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\Users\\SSAFY\\AppData\\Local\\Temp"
+    ]
+  },
+
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    }
+  }
+}

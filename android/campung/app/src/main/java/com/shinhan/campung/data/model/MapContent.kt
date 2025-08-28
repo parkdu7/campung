@@ -20,6 +20,8 @@ data class MapContent(
     val body: String,
     val mediaFiles: List<MediaFile>?,
     val emotionTag: String,
+    val emotionWeather: String? = null,
+    val emotionTemperature: Int? = null,
     val reactions: Reactions,
     val createdAt: String,
     val expiresAt: String?
@@ -39,12 +41,30 @@ data class MapContent(
     
     private fun parseDateTime(dateStr: String): LocalDateTime {
         return try {
-            // Z가 없는 경우 UTC로 간주하고 Z 추가
-            val normalizedDateStr = if (dateStr.endsWith("Z")) dateStr else "${dateStr}Z"
-            // UTC 시간을 한국 시간으로 변환
-            val zonedDateTime = ZonedDateTime.parse(normalizedDateStr)
-            zonedDateTime.withZoneSameInstant(ZoneId.of("Asia/Seoul")).toLocalDateTime()
+            android.util.Log.d("MapContent", "Original API dateStr: $dateStr")
+            
+            // Z가 붙어있어도 실제로는 한국시간일 가능성이 높음
+            // 일단 Z를 제거하고 한국시간으로 직접 파싱
+            val cleanDateStr = dateStr.removeSuffix("Z")
+            android.util.Log.d("MapContent", "Cleaned dateStr: $cleanDateStr")
+            
+            // 마이크로초가 포함된 경우 밀리초로 잘라내기 (6자리 → 3자리)
+            val truncatedStr = if (cleanDateStr.contains(".") && cleanDateStr.substringAfter(".").length > 3) {
+                val beforeDot = cleanDateStr.substringBefore(".")
+                val afterDot = cleanDateStr.substringAfter(".")
+                val truncatedMicros = afterDot.take(3)
+                "$beforeDot.$truncatedMicros"
+            } else {
+                cleanDateStr
+            }
+            android.util.Log.d("MapContent", "Final dateStr for parsing: $truncatedStr")
+            
+            val result = LocalDateTime.parse(truncatedStr)
+            android.util.Log.d("MapContent", "Parsed LocalDateTime: $result")
+            
+            result
         } catch (e: Exception) {
+            android.util.Log.e("MapContent", "Error parsing dateTime: $dateStr", e)
             // 한국 현재 시간으로 fallback
             ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toLocalDateTime()
         }
@@ -129,7 +149,31 @@ data class Comment(
     val createdAt: String,
     val replies: List<Reply>?,
     val replyCount: Int
-)
+) {
+    val createdAtDateTime: LocalDateTime get() = parseDateTime(createdAt)
+    
+    private fun parseDateTime(dateStr: String): LocalDateTime {
+        return try {
+            // Z가 붙어있어도 실제로는 한국시간으로 직접 파싱
+            val cleanDateStr = dateStr.removeSuffix("Z")
+            
+            // 마이크로초가 포함된 경우 밀리초로 잘라내기 (6자리 → 3자리)
+            val truncatedStr = if (cleanDateStr.contains(".") && cleanDateStr.substringAfter(".").length > 3) {
+                val beforeDot = cleanDateStr.substringBefore(".")
+                val afterDot = cleanDateStr.substringAfter(".")
+                val truncatedMicros = afterDot.take(3)
+                "$beforeDot.$truncatedMicros"
+            } else {
+                cleanDateStr
+            }
+            
+            LocalDateTime.parse(truncatedStr)
+        } catch (e: Exception) {
+            // 한국 현재 시간으로 fallback
+            ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toLocalDateTime()
+        }
+    }
+}
 
 data class Reply(
     val replyId: Long,
@@ -138,7 +182,31 @@ data class Reply(
     val body: String,
     val mediaFiles: List<MediaFile>?,
     val createdAt: String
-)
+) {
+    val createdAtDateTime: LocalDateTime get() = parseDateTime(createdAt)
+    
+    private fun parseDateTime(dateStr: String): LocalDateTime {
+        return try {
+            // Z가 붙어있어도 실제로는 한국시간으로 직접 파싱
+            val cleanDateStr = dateStr.removeSuffix("Z")
+            
+            // 마이크로초가 포함된 경우 밀리초로 잘라내기 (6자리 → 3자리)
+            val truncatedStr = if (cleanDateStr.contains(".") && cleanDateStr.substringAfter(".").length > 3) {
+                val beforeDot = cleanDateStr.substringBefore(".")
+                val afterDot = cleanDateStr.substringAfter(".")
+                val truncatedMicros = afterDot.take(3)
+                "$beforeDot.$truncatedMicros"
+            } else {
+                cleanDateStr
+            }
+            
+            LocalDateTime.parse(truncatedStr)
+        } catch (e: Exception) {
+            // 한국 현재 시간으로 fallback
+            ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toLocalDateTime()
+        }
+    }
+}
 
 data class LikeResponse(
     val isLiked: Boolean,

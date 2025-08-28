@@ -106,6 +106,30 @@ public class CampusEmotionService {
         log.info("감정 분석 결과를 온도 매니저에 전달 완료: {}도 (감정 점수: {})", 
                 emotionTemperature, averageScores);
     }
+    
+    /**
+     * 외부에서 호출 가능한 감정 분석 결과 온도 매니저 전달 메서드
+     */
+    public void passEmotionToTemperatureManager(Map<String, Double> averageScores) {
+        if (averageScores == null || averageScores.isEmpty()) {
+            log.warn("감정 평균 점수가 없어 온도 전달을 건너뜁니다");
+            return;
+        }
+        
+        // 현재 감정 온도 조회
+        Double emotionTemperature = getCurrentEmotionTemperature();
+        
+        if (emotionTemperature == null) {
+            log.warn("감정 온도가 없어 온도 전달을 건너뜁니다");
+            return;
+        }
+        
+        // 온도 매니저에 감정 기반 온도 설정
+        temperatureManager.setBaseEmotionTemperature(emotionTemperature);
+        
+        log.info("외부 호출로 감정 분석 결과를 온도 매니저에 전달 완료: {}도 (감정 점수: {})", 
+                emotionTemperature, averageScores);
+    }
 
     /**
      * 총 분석된 게시글 수 조회

@@ -16,10 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.shinhan.campung.data.model.Author
+import com.shinhan.campung.presentation.utils.TimeFormatter
 import java.time.LocalDateTime
-import java.time.ZonedDateTime
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 
 @Composable
 fun AuthorSection(
@@ -53,25 +51,10 @@ fun AuthorSection(
                 color = Color.Black
             )
             Text(
-                text = formatTimeAgo(createdAt),
+                text = TimeFormatter.formatRelativeTime(createdAt),
                 fontSize = 14.sp,
                 color = Color(0xFF666666)
             )
         }
-    }
-}
-
-private fun formatTimeAgo(dateTime: LocalDateTime): String {
-    // 한국 시간으로 변환
-    val koreaZone = ZoneId.of("Asia/Seoul")
-    val now = ZonedDateTime.now(koreaZone).toLocalDateTime()
-    val minutes = ChronoUnit.MINUTES.between(dateTime, now)
-    
-    return when {
-        minutes < 1 -> "방금 전"
-        minutes < 60 -> "${minutes}분 전"
-        minutes < 1440 -> "${minutes / 60}시간 전"
-        minutes < 10080 -> "${minutes / 1440}일 전"
-        else -> dateTime.format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"))
     }
 }

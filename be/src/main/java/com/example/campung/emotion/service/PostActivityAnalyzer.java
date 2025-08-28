@@ -87,7 +87,30 @@ public class PostActivityAnalyzer {
     }
     
     /**
-     * 시간당 예상 평균 게시글 수
+     * 실제 데이터가 존재하는 날짜 수 계산 (최대 7일)
+     */
+    private int getActualDataDays() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime sevenDaysAgo = now.minusDays(7);
+        
+        // 7일 전 또는 첫 게시글 작성일 중 더 늦은 날짜를 시작점으로 설정
+        LocalDateTime firstPostTime = contentRepository.findTopByOrderByCreatedAtAsc()
+                .map(content -> content.getCreatedAt())
+                .orElse(now);
+        
+        LocalDateTime startTime = firstPostTime.isAfter(sevenDaysAgo) ? firstPostTime : sevenDaysAgo;
+        
+        // 시작일부터 오늘까지의 일수 계산
+        long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(
+                startTime.toLocalDate(), 
+                now.toLocalDate()
+        ) + 1; // 오늘도 포함
+        
+        return Math.max(1, (int) Math.min(daysBetween, 7)); // 최소 1일, 최대 7일
+    }
+    
+    /**
+     * 시간당 예상 평균 게시글 수 (개선된 버전)
      */
     public double getExpectedHourlyAverage() {
         Double dailyAverage = dailyCampusRepository.findAverageHourlyPostCountSince(LocalDate.now().minusDays(7));
@@ -96,8 +119,11 @@ public class PostActivityAnalyzer {
             return dailyAverage;
         }
         
-        // fallback: 일평균을 24로 나눔
-        return calculateDailyAveragePostCount(7) / 24.0;
+        // 개선된 fallback: 실제 데이터 존재 날짜 수로 나누기
+        int actualDays = getActualDataDays();
+        double dailyAveragePostCount = calculateDailyAveragePostCount(actualDays);
+        
+        return dailyAveragePostCount / 24.0;
     }
     
     /**
