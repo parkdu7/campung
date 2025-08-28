@@ -130,4 +130,5 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.4.1") // ExoPlayer
     implementation("androidx.media3:media3-ui:1.4.1") // ExoPlayer UI
     implementation("androidx.compose.material:material-icons-extended:1.7.5") // Extended Material Icons
+    // Custom Date Picker Implementation
 }
