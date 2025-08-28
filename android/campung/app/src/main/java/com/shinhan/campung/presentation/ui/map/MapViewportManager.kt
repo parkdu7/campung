@@ -25,9 +25,12 @@ class MapViewportManager(
     // 디바운스를 위한 Job
     private var loadDataJob: Job? = null
     
-    // 마지막 요청 정보 (중복 요청 방지)
+    // 마지막 요청 정보 (중복 요청 방지)  
     private var lastRequestCenter: LatLng? = null
     private var lastRequestRadius: Int? = null
+    
+    // 버퍼 로딩을 위한 로드된 영역 정보
+    private var currentLoadedArea: LoadedArea? = null
     
     /**
      * 지도 카메라 변경 리스너 생성
@@ -44,18 +47,29 @@ class MapViewportManager(
     }
     
     /**
-     * 데이터 로드 스케줄링 (디바운스 적용)
+     * 데이터 로드 스케줄링 (버퍼 기반 로직)
      */
     private fun scheduleDataLoad() {
+        val naverMap = getCurrentNaverMap() ?: return
+        val currentCenter = naverMap.cameraPosition.target
+        
+        // 현재 화면이 로드된 영역을 벗어났는지 확인
+        if (!MapBoundsCalculator.isOutOfLoadedArea(currentCenter, currentLoadedArea)) {
+            Log.d(tag, "현재 화면이 로드된 영역 내에 있음 - 로딩 스킵")
+            return
+        }
+        
         // 이전 Job 취소
         loadDataJob?.cancel()
         
-        // 새로운 Job 시작 (150ms 디바운스로 ViewModel과 맞춤)
+        // 새로운 Job 시작 (적응형 디바운스)
+        val debounceDelay = 100L // 일정한 디바운스 적용
+        
         loadDataJob = coroutineScope.launch {
-            delay(150)
+            delay(debounceDelay)
             
             try {
-                loadMapContentsForCurrentView()
+                loadMapContentsForCurrentViewWithBuffer()
             } catch (e: Exception) {
                 Log.e(tag, "데이터 로드 중 에러 발생", e)
             }
@@ -63,7 +77,46 @@ class MapViewportManager(
     }
     
     /**
-     * 현재 화면 영역에 대한 맵 데이터 로드
+     * 현재 화면 영역에 대한 맵 데이터 로드 (버퍼 포함)
+     */
+    private suspend fun loadMapContentsForCurrentViewWithBuffer() {
+        val naverMap = getCurrentNaverMap() ?: run {
+            Log.w(tag, "NaverMap 인스턴스가 null입니다")
+            return
+        }
+        
+        // 현재 화면 중앙과 버퍼가 포함된 반경 계산
+        val center = naverMap.cameraPosition.target
+        val bufferedRadius = MapBoundsCalculator.calculateBufferedRadius(naverMap)
+        
+        Log.d(tag, "버퍼 데이터 로드 요청 - 중심: (${center.latitude}, ${center.longitude}), 버퍼반경: ${bufferedRadius}m")
+        
+        // 요청 정보 저장
+        lastRequestCenter = center
+        lastRequestRadius = bufferedRadius
+        
+        // 로드된 영역 정보 업데이트
+        currentLoadedArea = LoadedArea(center, bufferedRadius.toDouble())
+        
+        // 디버깅 정보 출력
+        val areaInfo = MapBoundsCalculator.getVisibleAreaInfo(naverMap)
+        Log.v(tag, areaInfo.toString())
+        
+        // ViewModel에 데이터 로드 요청 (버퍼 반경으로)
+        mapViewModel.loadMapContents(
+            latitude = center.latitude,
+            longitude = center.longitude,
+            radius = bufferedRadius
+        )
+        
+        // POI 데이터는 화면 반경으로 업데이트 (버퍼 적용하지 않음)
+        val visibleRadius = MapBoundsCalculator.calculateVisibleRadius(naverMap)
+        Log.v(tag, "🏪 화면 변경으로 POI 업데이트 요청")
+        mapViewModel.updatePOIForLocation(center.latitude, center.longitude, visibleRadius)
+    }
+    
+    /**
+     * 현재 화면 영역에 대한 맵 데이터 로드 (기존 버전 - 호환성 유지)
      */
     private suspend fun loadMapContentsForCurrentView() {
         val naverMap = getCurrentNaverMap() ?: run {
@@ -127,12 +180,21 @@ class MapViewportManager(
      * 수동으로 현재 화면 영역 데이터 로드 (최초 로드 등)
      */
     fun loadCurrentViewData() {
-        Log.d(tag, "수동 데이터 로드 요청")
+        Log.d(tag, "수동 데이터 로드 요청 (버퍼 포함)")
         loadDataJob?.cancel()
         
         loadDataJob = coroutineScope.launch {
-            loadMapContentsForCurrentView()
+            loadMapContentsForCurrentViewWithBuffer()
         }
+    }
+    
+    /**
+     * 강제로 데이터 재로드 (필터 변경 등)
+     */
+    fun forceReload() {
+        Log.d(tag, "강제 데이터 재로드")
+        currentLoadedArea = null // 로드된 영역 초기화
+        loadCurrentViewData()
     }
     
     /**
@@ -143,6 +205,7 @@ class MapViewportManager(
         loadDataJob?.cancel()
         lastRequestCenter = null
         lastRequestRadius = null
+        currentLoadedArea = null
     }
     
     /**

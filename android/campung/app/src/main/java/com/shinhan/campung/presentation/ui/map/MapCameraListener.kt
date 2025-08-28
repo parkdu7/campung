@@ -18,6 +18,9 @@ class MapCameraListener(
     private var clusteringUpdateJob: kotlinx.coroutines.Job? = null
     private var isClusteringUpdate = false
     
+    // 애니메이션 중 로딩 방지를 위한 상태 추가
+    private var isAnimationInProgress = false
+    
     fun createCameraChangeListener() = NaverMap.OnCameraChangeListener { reason, animated ->
         val currentTime = System.currentTimeMillis()
         
@@ -26,11 +29,20 @@ class MapCameraListener(
             return@OnCameraChangeListener
         }
         lastCameraChangeTime = currentTime
-        Log.d("MapCameraListener", "📹 카메라 변경: reason=$reason")
+        Log.d("MapCameraListener", "📹 카메라 변경: reason=$reason, animated=$animated")
         
         val map = clusterManager?.naverMap ?: return@OnCameraChangeListener
         val center = map.cameraPosition.target
         val currentZoom = map.cameraPosition.zoom
+        
+        // 애니메이션 상태 감지 (마커 클릭, 클러스터 이동 등)
+        val isClusterMoving = clusterManager?.isClusterMoving == true
+        val isMarkerAnimation = animated && (reason == 2 || reason == 1) // GESTURE(1) 또는 DEVELOPER(2)
+        isAnimationInProgress = isClusterMoving || isMarkerAnimation
+        
+        if (isAnimationInProgress) {
+            Log.d("MapCameraListener", "🚫 애니메이션 중 - 데이터 로딩 스킵 (클러스터이동=$isClusterMoving, 마커애니메이션=$isMarkerAnimation)")
+        }
         
         // 1. 줌 레벨 변경시 클러스터링 업데이트 - 더 큰 변화에만 반응하고 디바운스 적용
         if (kotlin.math.abs(currentZoom - lastZoomLevel) > 1.0) { // 0.5 → 1.0으로 변경
@@ -66,9 +78,11 @@ class MapCameraListener(
             mapViewModel.onMapMove()
         }
         
-        // 3. 상호작용 컨트롤러에 카메라 변경 알림 (클러스터링 업데이트 중이 아닐 때만)
-        if (clusterManager?.isClusterMoving == false && !isClusteringUpdate) {
+        // 3. 상호작용 컨트롤러에 카메라 변경 알림 (애니메이션 중이 아닐 때만)
+        if (clusterManager?.isClusterMoving == false && !isClusteringUpdate && !isAnimationInProgress) {
             interactionController.onCameraChanged(clusterManager)
+        } else if (isAnimationInProgress) {
+            Log.d("MapCameraListener", "🎬 애니메이션 진행 중 - 인터랙션 컨트롤러 호출 스킵")
         }
     }
 }

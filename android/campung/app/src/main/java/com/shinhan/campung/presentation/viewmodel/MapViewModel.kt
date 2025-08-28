@@ -206,30 +206,40 @@ class MapViewModel @Inject constructor(
 //            }
 //        }
 
-        // ✅ 중복 요청 스킵 로직 개선
-        if (!force) {
+        // ✅ 스마트 중복 요청 스킵 로직
+        if (!force && !_isLoading.value) { // 로딩 중이 아닐 때만 중복 체크
             lastRequestParams?.let { lastParams ->
                 val locationDistance = calculateDistance(
                     lastParams.location.first, lastParams.location.second,
                     latitude, longitude
                 )
                 
-                // 거리는 더 짧게, 다른 조건들은 동일하게 체크
-                if (locationDistance < 50.0 &&  // 100m -> 50m로 변경 (더 민감하게)
+                // 반경 기반 임계값 계산 (작은 반경일수록 더 민감하게)
+                val threshold = when {
+                    (radius ?: getDefaultRadius()) < 500 -> 25.0    // 500m 미만: 25m 임계값
+                    (radius ?: getDefaultRadius()) < 1500 -> 75.0   // 1.5km 미만: 75m 임계값  
+                    else -> 150.0  // 1.5km 이상: 150m 임계값
+                }
+                
+                if (locationDistance < threshold &&
                     lastParams.date == currentParams.date &&
                     lastParams.tags == currentParams.tags &&
                     lastParams.postType == currentParams.postType) {
-                    Log.d(TAG, "중복 요청 스킵 - 거리: ${locationDistance.toInt()}m")
+                    Log.d(TAG, "스마트 중복 요청 스킵 - 거리: ${locationDistance.toInt()}m < 임계값: ${threshold.toInt()}m")
                     return
                 }
             }
+        } else if (_isLoading.value) {
+            Log.d(TAG, "이미 로딩 중 - 새 요청 무시")
+            return
         } else {
             Log.d(TAG, "강제 로드 모드 - 중복 체크 무시")
         }
 
-        // 100ms 디바운스 적용 (반응성 개선)
+        // 적응형 디바운스 적용 (강제 로드시 더 빠르게)
+        val debounceDelay = if (force) 50L else 100L
         debounceJob = viewModelScope.launch {
-            delay(100)
+            delay(debounceDelay)
 
             Log.d(TAG, "🚀 데이터 로드 시작 - 위치: (${latitude}, ${longitude}), 반경: ${radius ?: getDefaultRadius()}m")
 
