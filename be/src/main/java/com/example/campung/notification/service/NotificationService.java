@@ -9,12 +9,17 @@ import com.example.campung.notification.dto.NotificationSettingsRequest;
 import com.example.campung.notification.repository.NotificationRepository;
 import com.example.campung.notification.repository.NotificationSettingRepository;
 import com.example.campung.user.repository.UserRepository;
+import com.example.campung.locationShare.service.FCMService;
+import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import java.util.List;
 
@@ -27,6 +32,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationSettingRepository notificationSettingRepository;
     private final UserRepository userRepository;
+    private final FCMService fcmService;
     
     public NotificationListResponse getNotifications(String userId, int page, int size) {
         // 사용자 존재 확인
@@ -105,5 +111,64 @@ public class NotificationService {
         
         notificationSettingRepository.save(setting);
         log.info("Notification settings updated for user: {}", userId);
+    }
+    
+    @Transactional
+    public void createNotification(User targetUser, String type, String title, String message, String data) {
+        Notification notification = Notification.builder()
+                .user(targetUser)
+                .type(type)
+                .title(title)
+                .message(message)
+                .data(data)
+                .isRead(false)
+                .build();
+        
+        notificationRepository.save(notification);
+        log.info("Notification created: type={}, title={}, userId={}", type, title, targetUser.getUserId());
+        
+        // FCM 푸시 알림 발송
+        sendFCMNotification(targetUser.getFcmToken(), title, message, data);
+    }
+    
+    private void sendFCMNotification(String fcmToken, String title, String message, String data) {
+        if (fcmToken == null || fcmToken.trim().isEmpty()) {
+            log.warn("FCM token is null or empty, skipping push notification");
+            return;
+        }
+        
+        try {
+            Map<String, String> dataMap = new HashMap<>();
+            dataMap.put("type", "normal");
+            if (data != null) {
+                dataMap.put("data", data);
+            }
+            
+            com.google.firebase.messaging.Notification notification = com.google.firebase.messaging.Notification.builder()
+                    .setTitle(title)
+                    .setBody(message)
+                    .build();
+            
+            AndroidConfig androidConfig = AndroidConfig.builder()
+                    .setNotification(AndroidNotification.builder()
+                            .setTitle(title)
+                            .setBody(message)
+                            .setChannelId("default_channel")
+                            .build())
+                    .build();
+            
+            Message fcmMessage = Message.builder()
+                    .setToken(fcmToken)
+                    .setNotification(notification)
+                    .putAllData(dataMap)
+                    .setAndroidConfig(androidConfig)
+                    .build();
+            
+            String response = FirebaseMessaging.getInstance().send(fcmMessage);
+            log.info("Successfully sent FCM notification: {}", response);
+            
+        } catch (Exception e) {
+            log.error("Failed to send FCM notification to token: {}", fcmToken, e);
+        }
     }
 }

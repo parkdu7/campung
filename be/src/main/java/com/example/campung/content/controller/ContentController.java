@@ -16,6 +16,7 @@ import com.example.campung.content.service.ContentUpdateService;
 import com.example.campung.content.service.ContentDeleteService;
 import com.example.campung.content.service.ContentSearchService;
 import com.example.campung.content.service.ContentListService;
+import com.example.campung.content.service.ContentHotService;
 import com.example.campung.global.enums.PostType;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -31,6 +32,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api")
@@ -54,6 +57,9 @@ public class ContentController {
     
     @Autowired
     private ContentListService contentListService;
+    
+    @Autowired
+    private ContentHotService contentHotService;
     
     @Operation(
             security = @SecurityRequirement(name = "bearerAuth"),
@@ -201,5 +207,22 @@ public class ContentController {
         ContentListResponse response = contentListService.getContentsByDate(request);
         
         return ResponseEntity.ok(response);
+    }
+    
+    @Operation(summary = "인기 게시글 새로고침", description = "인기 게시글 목록을 수동으로 새로고침합니다.")
+    @PostMapping("/contents/hot/refresh")
+    public ResponseEntity<Map<String, Object>> refreshHotContent() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            contentHotService.updateHotContent();
+            response.put("success", true);
+            response.put("message", "인기 게시글이 성공적으로 새로고침되었습니다.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "인기 게시글 새로고침 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
     }
 }

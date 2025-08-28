@@ -26,6 +26,9 @@ public class ContentHotService {
     
     @Transactional
     public void updateHotContent() {
+        // 기존 좋아요 데이터를 Redis로 마이그레이션
+        contentHotTrackingService.migrateExistingLikesToRedis();
+        
         // Redis에서 상위 10개 HOT 컨텐츠 가져오기
         Set<Object> hotContentIds = contentHotTrackingService.getTop10HotContent();
         

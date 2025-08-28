@@ -75,9 +75,10 @@ public class ContentSearchService {
         String highlight = highlightSearchTerm(content.getTitle(), "");
         item.setHighlight(highlight);
         
+        String displayNickname = content.getIsAnonymous() ? "익명" : content.getAuthor().getNickname();
         ContentSearchResponse.AuthorInfo author = new ContentSearchResponse.AuthorInfo(
-            content.getAuthor().getNickname(),
-            false
+            displayNickname,
+            content.getIsAnonymous()
         );
         item.setAuthor(author);
         

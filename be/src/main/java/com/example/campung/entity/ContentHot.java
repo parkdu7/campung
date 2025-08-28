@@ -17,6 +17,10 @@ import java.time.LocalDateTime;
 public class ContentHot {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "hot_id")
+    private Long hotId;
+    
     @Column(name = "content_id")
     private Long contentId;
     

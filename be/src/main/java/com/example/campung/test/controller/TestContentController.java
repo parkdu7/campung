@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/test")
-@Tag(name = "Test Content", description = "테스트 컨텐츠 관리 API")
+@Tag(name = "Test", description = "테스트용 API")
 public class TestContentController {
     
     @Autowired
