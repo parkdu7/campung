@@ -265,8 +265,8 @@ class MapClusterManager(
     }
 
     private fun updateHighlightedMarker(newMarker: Marker?) {
-        // 선택된 마커가 있으면 하이라이트 변경 안함
-        if (selectedMarker != null) return
+        // 선택된 마커가 있거나 애니메이션 진행 중이면 하이라이트 변경 안함
+        if (selectedMarker != null || isAnimating) return
 
         // 이전 하이라이트가 새로운 마커와 같으면 중복 처리 방지
         if (highlightedMarker == newMarker) return
@@ -300,10 +300,12 @@ class MapClusterManager(
     }
 
     private var highlightedMarker: Marker? = null // 접근성을 위해 private으로 변경
+    private var isAnimating = false // 애니메이션 진행 중 플래그
 
-    fun updateMarkers(mapContents: List<MapContent>, mapRecords: List<MapRecord> = emptyList()) {
-        // 선택된 마커 정보 백업
+    fun updateMarkers(mapContents: List<MapContent>, mapRecords: List<MapRecord> = emptyList(), onComplete: (() -> Unit)? = null) {
+        // 선택된 마커 정보 백업 (Content와 Record 모두)
         val wasSelectedContent = selectedContent
+        val wasSelectedRecord = selectedRecord
 
         clearAllMarkers()
 
@@ -320,13 +322,30 @@ class MapClusterManager(
             showClusteredRecords(mapRecords)
         }
 
-        // 이전에 선택된 마커가 있었다면 다시 선택
+        // 이전에 선택된 Content 마커가 있었다면 다시 선택
         wasSelectedContent?.let { prevSelected ->
             val stillExists = mapContents.find { it.contentId == prevSelected.contentId }
             stillExists?.let { content ->
-                selectMarker(content)
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    selectMarker(content)
+                    Log.d("MapClusterManager", "Content 마커 선택 상태 복원: ${content.title}")
+                }, 50) // 마커 생성 후 짧은 딜레이
             }
         }
+
+        // 이전에 선택된 Record 마커가 있었다면 다시 선택
+        wasSelectedRecord?.let { prevSelected ->
+            val stillExists = mapRecords.find { it.recordId == prevSelected.recordId }
+            stillExists?.let { record ->
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    selectRecordMarker(record)
+                    Log.d("MapClusterManager", "Record 마커 선택 상태 복원: ${record.recordUrl}")
+                }, 50) // 마커 생성 후 짧은 딜레이
+            }
+        }
+
+        // 클러스터링 완료 콜백 호출
+        onComplete?.invoke()
     }
 
     private fun showIndividualMarkers(mapContents: List<MapContent>) {
@@ -541,12 +560,12 @@ class MapClusterManager(
 
     private fun getClusterDistance(): Double {
         return when {
-            naverMap.cameraPosition.zoom >= 21 -> 1.0    // 1m - 최대 줌 (거의 동일한 위치만)
-            naverMap.cameraPosition.zoom >= 20 -> 2.0    // 2m - 초초세밀
-            naverMap.cameraPosition.zoom >= 19 -> 3.0    // 3m - 초세밀
-            naverMap.cameraPosition.zoom >= 18 -> 5.0    // 5m - 매우 세밀
-            naverMap.cameraPosition.zoom >= 17 -> 8.0    // 8m - 세밀
-            naverMap.cameraPosition.zoom >= 16 -> 12.0   // 12m
+            naverMap.cameraPosition.zoom >= 21 -> 5.0    // 5m - 최대 줌에서도 적절한 클러스터링
+            naverMap.cameraPosition.zoom >= 20 -> 10.0   // 10m - 초세밀
+            naverMap.cameraPosition.zoom >= 19 -> 15.0   // 15m - 세밀
+            naverMap.cameraPosition.zoom >= 18 -> 25.0   // 25m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 17 -> 40.0   // 40m - 세밀
+            naverMap.cameraPosition.zoom >= 16 -> 60.0   // 60m
             naverMap.cameraPosition.zoom >= 15 -> 18.0   // 18m
             naverMap.cameraPosition.zoom >= 14 -> 28.0   // 28m
             naverMap.cameraPosition.zoom >= 13 -> 45.0   // 45m
@@ -554,6 +573,25 @@ class MapClusterManager(
             naverMap.cameraPosition.zoom >= 11 -> 130.0  // 130m
             naverMap.cameraPosition.zoom >= 10 -> 220.0  // 220m
             else -> 450.0 // 450m - 멀리서 볼 때는 넓게 클러스터링
+        }
+    }
+
+    // Record 전용 클러스터링 거리 - Content보다 더 세밀하게 쪼개기
+    private fun getRecordClusterDistance(): Double {
+        return when {
+            naverMap.cameraPosition.zoom >= 21 -> 2.0    // 2m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 20 -> 4.0    // 4m - 초세밀
+            naverMap.cameraPosition.zoom >= 19 -> 6.0    // 6m - 세밀
+            naverMap.cameraPosition.zoom >= 18 -> 10.0   // 10m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 17 -> 15.0   // 15m - 세밀
+            naverMap.cameraPosition.zoom >= 16 -> 25.0   // 25m
+            naverMap.cameraPosition.zoom >= 15 -> 35.0   // 35m
+            naverMap.cameraPosition.zoom >= 14 -> 50.0   // 50m
+            naverMap.cameraPosition.zoom >= 13 -> 75.0   // 75m
+            naverMap.cameraPosition.zoom >= 12 -> 120.0  // 120m
+            naverMap.cameraPosition.zoom >= 11 -> 200.0  // 200m
+            naverMap.cameraPosition.zoom >= 10 -> 350.0  // 350m
+            else -> 600.0 // 600m - 멀리서 볼 때도 Content보다 더 넓게
         }
     }
 
@@ -649,6 +687,9 @@ class MapClusterManager(
         val content = marker.tag as? MapContent
         
         if (isFocused) {
+            // 애니메이션 시작시 플래그 설정
+            isAnimating = true
+            
             // 포커스 시: 1.0 → 1.4 크기로 부드럽게 애니메이션
             val scaleAnimator = ObjectAnimator.ofFloat(1.0f, 1.4f)
             scaleAnimator.duration = 200
@@ -659,9 +700,18 @@ class MapClusterManager(
                 marker.icon = createIntermediateMarkerIcon(content?.postType, scale)
             }
             
+            scaleAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    isAnimating = false // 애니메이션 완료시 플래그 해제
+                }
+            })
+            
             scaleAnimator.start()
             
         } else {
+            // 애니메이션 시작시 플래그 설정
+            isAnimating = true
+            
             // 포커스 해제 시: 1.4 → 1.0으로 부드럽게 축소
             val scaleAnimator = ObjectAnimator.ofFloat(1.4f, 1.0f)
             scaleAnimator.duration = 150
@@ -675,6 +725,7 @@ class MapClusterManager(
             scaleAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     marker.icon = getNormalMarkerIcon(content?.postType)
+                    isAnimating = false // 애니메이션 완료시 플래그 해제
                 }
             })
             
@@ -943,7 +994,7 @@ class MapClusterManager(
     }
     
     private fun showClusteredRecords(mapRecords: List<MapRecord>) {
-        val clusterDistance = getClusterDistance()
+        val clusterDistance = getRecordClusterDistance() // Record 전용 거리 함수 사용
         val clusters = clusterRecords(mapRecords, clusterDistance)
 
         Log.d("MapClusterManager", "줌: ${naverMap.cameraPosition.zoom}, Record 클러스터 거리: ${clusterDistance}m, 생성된 클러스터: ${clusters.size}개")
@@ -983,8 +1034,20 @@ class MapClusterManager(
                         // 클러스터 이동 플래그 설정
                         isClusterMoving = true
                         
+                        // 클러스터 크기에 따른 적절한 줌 레벨 계산 - 더 많이 확대
+                        val currentZoom = naverMap.cameraPosition.zoom
+                        val targetZoom = when {
+                            cluster.size <= 2 -> minOf(currentZoom + 3.0, 19.0)  // 매우 작은 클러스터: 3레벨 확대
+                            cluster.size <= 5 -> minOf(currentZoom + 2.5, 18.5)  // 작은 클러스터: 2.5레벨 확대
+                            cluster.size <= 15 -> minOf(currentZoom + 2.0, 18.0) // 중간 클러스터: 2레벨 확대  
+                            else -> minOf(currentZoom + 1.5, 17.5) // 큰 클러스터: 1.5레벨 확대
+                        }
+                        
+                        Log.d("MapClusterManager", "Record 클러스터 확대: ${cluster.size}개 → 줌 $currentZoom → $targetZoom")
+                        
+                        // 중앙 이동과 함께 확대
                         naverMap.moveCamera(
-                            CameraUpdate.scrollTo(position)
+                            CameraUpdate.scrollAndZoomTo(position, targetZoom)
                                 .animate(CameraAnimation.Easing)
                         )
                         

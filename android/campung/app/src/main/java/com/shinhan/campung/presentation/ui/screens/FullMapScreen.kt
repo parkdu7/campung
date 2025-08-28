@@ -481,16 +481,19 @@ fun FullMapScreen(
         if (mapViewModel.shouldUpdateClustering && (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty())) {
             Log.d("FullMapScreen", "🔄 클러스터링 업데이트: ${mapViewModel.mapContents.size}개 Content 마커, ${mapViewModel.mapRecords.size}개 Record 마커")
             try {
-                clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords)
-                mapViewModel.clusteringUpdated()
-                Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
+                clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords) {
+                    // 클러스터링 완료 콜백
+                    mapViewModel.onClusteringCompleted()
+                    Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
+                }
             } catch (e: Exception) {
                 Log.e("FullMapScreen", "❌ 클러스터링 업데이트 실패", e)
+                mapViewModel.onClusteringCompleted() // 실패 시에도 로딩 상태 해제
             }
         } else if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isEmpty() && mapViewModel.mapRecords.isEmpty()) {
             Log.d("FullMapScreen", "🧹 빈 데이터로 클러스터링 클리어")
             clusterManager?.clearMarkers()
-            mapViewModel.clusteringUpdated()
+            mapViewModel.onClusteringCompleted() // 통일된 콜백 사용
         }
     }
 

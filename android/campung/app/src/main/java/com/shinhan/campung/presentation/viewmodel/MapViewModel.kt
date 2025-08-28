@@ -215,7 +215,7 @@ class MapViewModel @Inject constructor(
                 )
                 
                 // 거리는 더 짧게, 다른 조건들은 동일하게 체크
-                if (locationDistance < 100.0 &&  // 500m -> 100m로 변경
+                if (locationDistance < 50.0 &&  // 100m -> 50m로 변경 (더 민감하게)
                     lastParams.date == currentParams.date &&
                     lastParams.tags == currentParams.tags &&
                     lastParams.postType == currentParams.postType) {
@@ -227,9 +227,9 @@ class MapViewModel @Inject constructor(
             Log.d(TAG, "강제 로드 모드 - 중복 체크 무시")
         }
 
-        // 150ms 디바운스 적용 (안정성과 반응성 균형)
+        // 100ms 디바운스 적용 (반응성 개선)
         debounceJob = viewModelScope.launch {
-            delay(150)
+            delay(100)
 
             Log.d(TAG, "🚀 데이터 로드 시작 - 위치: (${latitude}, ${longitude}), 반경: ${radius ?: getDefaultRadius()}m")
 
@@ -261,13 +261,13 @@ class MapViewModel @Inject constructor(
 
                     Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 Content 마커, ${newRecords.size}개 Record 마커")
 
-                    // 데이터 업데이트
+                    // 데이터 업데이트 및 즉시 클러스터링 트리거
                     mapContents = newContents
                     mapRecords = newRecords
                     shouldUpdateClustering = true
 
-                    // 로딩 상태 해제 (UI 반응성 개선)
-                    _isLoading.value = false
+                    // 로딩 상태는 클러스터링 완료 후 해제하도록 변경
+                    // _isLoading.value = false
 
                     // ✅ 방금 등록한 ID가 있으면 자동으로 선택/하이라이트
                     pendingHighlightId?.let { id ->
@@ -678,6 +678,13 @@ class MapViewModel @Inject constructor(
 
     fun isRecordSelected(record: MapRecord): Boolean {
         return selectedRecord?.recordId == record.recordId
+    }
+
+    // 클러스터링 완료 콜백
+    fun onClusteringCompleted() {
+        shouldUpdateClustering = false
+        _isLoading.value = false // 클러스터링 완료 후 로딩 상태 해제
+        Log.d(TAG, "🎯 클러스터링 완료 - 로딩 상태 해제")
     }
 
     // ===== POI 관련 함수들 =====
