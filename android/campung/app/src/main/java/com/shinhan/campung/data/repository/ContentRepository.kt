@@ -18,6 +18,7 @@ interface ContentRepository {
     suspend fun toggleLike(contentId: Long): LikeResponse
     suspend fun postComment(contentId: Long, body: String, isAnonymous: Boolean)
     suspend fun postReply(contentId: Long, commentId: Long, body: String, isAnonymous: Boolean)
+    suspend fun deleteContent(contentId: Long)
 }
 
 @Singleton
@@ -120,6 +121,20 @@ class ContentRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             throw Exception("대댓글 작성 중 오류 발생: ${e.message}")
+        }
+    }
+
+    override suspend fun deleteContent(contentId: Long) {
+        try {
+            val response = contentApiService.deleteContent(
+                contentId = contentId
+            )
+            
+            if (!response.isSuccessful) {
+                throw Exception("게시글 삭제 실패: ${response.message()}")
+            }
+        } catch (e: Exception) {
+            throw Exception("게시글 삭제 중 오류 발생: ${e.message}")
         }
     }
 }

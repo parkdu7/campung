@@ -911,6 +911,8 @@ fun FullMapScreen(
                         selectedDate = mapViewModel.selectedDate,
                         onBackClick = { navController.popBackStack() },
                         onDateClick = { showDatePicker = true },
+                        onPreviousDate = { mapViewModel.selectPreviousDate() },
+                        onNextDate = { mapViewModel.selectNextDate() },
                         onFriendClick = { navController.navigate(Route.FRIEND) }
                     )
                 }

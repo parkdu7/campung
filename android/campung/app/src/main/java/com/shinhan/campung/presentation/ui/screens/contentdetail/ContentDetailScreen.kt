@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +30,7 @@ import com.shinhan.campung.presentation.ui.components.content.ContentTextSection
 import com.shinhan.campung.presentation.ui.components.content.InteractionBar
 import com.shinhan.campung.presentation.ui.components.content.MediaPagerSection
 import com.shinhan.campung.presentation.ui.components.content.TitleSection
+import com.shinhan.campung.presentation.ui.theme.CampusAccent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +80,15 @@ fun ContentDetailScreen(
         onClearReplyMode = {
             viewModel.clearReplyMode()
         },
+        onDeleteClick = {
+            viewModel.showDeleteDialog()
+        },
+        onDeleteConfirm = {
+            viewModel.deleteContent(contentId) { navController.popBackStack() }
+        },
+        onDeleteCancel = {
+            viewModel.hideDeleteDialog()
+        },
         focusRequester = focusRequester
     )
 }
@@ -92,6 +103,9 @@ private fun ContentDetailScreenContent(
     onSendComment: () -> Unit,
     onReplyClick: (Long) -> Unit,
     onClearReplyMode: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
+    onDeleteConfirm: () -> Unit = {},
+    onDeleteCancel: () -> Unit = {},
     focusRequester: FocusRequester = FocusRequester()
 ) {
     if (uiState.isLoading) {
@@ -132,8 +146,42 @@ private fun ContentDetailScreenContent(
                     }
                 },
                 actions = {
-                    // 우측 공간을 맞추기 위한 빈 공간
-                    Spacer(modifier = Modifier.width(48.dp))
+                    // 본인 게시글일 때만 더보기 메뉴 표시
+                    if (uiState.isMyContent) {
+                        var showMenu by remember { mutableStateOf(false) }
+                        
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    Icons.Default.MoreVert,
+                                    contentDescription = "더보기",
+                                    tint = Color.Black
+                                )
+                            }
+                            
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false },
+                                modifier = Modifier.background(Color.White)
+                            ) {
+                                DropdownMenuItem(
+                                    text = { 
+                                        Text(
+                                            "삭제",
+                                            color = CampusAccent
+                                        ) 
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        onDeleteClick()
+                                    }
+                                )
+                            }
+                        }
+                    } else {
+                        // 본인 게시글이 아닐 때는 빈 공간
+                        Spacer(modifier = Modifier.width(48.dp))
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = CampusBackground
@@ -302,6 +350,53 @@ private fun ContentDetailScreenContent(
                 )
             )
         }
+    }
+    
+    // 삭제 확인 다이얼로그
+    if (uiState.showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = onDeleteCancel,
+            title = { 
+                Text(
+                    "게시글 삭제",
+                    color = Color.Black
+                ) 
+            },
+            text = { 
+                Text(
+                    "정말로 이 게시글을 삭제하시겠습니까?",
+                    color = Color.Black
+                ) 
+            },
+            containerColor = Color.White,
+            confirmButton = {
+                if (uiState.isDeleting) {
+                    Box(
+                        modifier = Modifier.padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    }
+                } else {
+                    TextButton(
+                        onClick = onDeleteConfirm
+                    ) {
+                        Text("삭제", color = Color.Red)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDeleteCancel,
+                    enabled = !uiState.isDeleting
+                ) {
+                    Text(
+                        "취소",
+                        color = Color.Black
+                    )
+                }
+            }
+        )
     }
 }
 
