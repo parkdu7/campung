@@ -75,4 +75,10 @@ interface ContentsApiService {
     suspend fun toggleLike(
         @Path("contentId") contentId: Long
     ): Response<LikeResponse>
+
+    // 게시글 삭제
+    @DELETE("/api/contents/{contentId}")
+    suspend fun deleteContent(
+        @Path("contentId") contentId: Long
+    ): Response<Unit>
 }

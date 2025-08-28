@@ -2,22 +2,33 @@ package com.shinhan.campung.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.repository.ContentRepository
 import com.shinhan.campung.presentation.ui.screens.contentdetail.ContentDetailUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ContentDetailViewModel @Inject constructor(
-    private val contentRepository: ContentRepository
+    private val contentRepository: ContentRepository,
+    private val authDataStore: AuthDataStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ContentDetailUiState())
     val uiState: StateFlow<ContentDetailUiState> = _uiState.asStateFlow()
+
+    init {
+        // 현재 사용자 ID 로드
+        viewModelScope.launch {
+            val currentUserId = authDataStore.userIdFlow.first()
+            _uiState.value = _uiState.value.copy(currentUserId = currentUserId)
+        }
+    }
 
     fun loadContent(contentId: Long) {
         viewModelScope.launch {
@@ -148,5 +159,33 @@ class ContentDetailViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    fun showDeleteDialog() {
+        _uiState.value = _uiState.value.copy(showDeleteDialog = true)
+    }
+
+    fun hideDeleteDialog() {
+        _uiState.value = _uiState.value.copy(showDeleteDialog = false)
+    }
+
+    fun deleteContent(contentId: Long, onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isDeleting = true, error = null)
+            
+            try {
+                contentRepository.deleteContent(contentId)
+                _uiState.value = _uiState.value.copy(
+                    isDeleting = false,
+                    showDeleteDialog = false
+                )
+                onDeleted() // 삭제 성공 시 이전 화면으로 이동
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isDeleting = false,
+                    error = "게시글 삭제 중 오류가 발생했습니다: ${e.message}"
+                )
+            }
+        }
     }
 }

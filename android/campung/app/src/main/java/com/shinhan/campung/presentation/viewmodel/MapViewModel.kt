@@ -473,9 +473,20 @@ class MapViewModel @Inject constructor(
         lastRequestParams = null
 
         // 날짜가 변경되면 다시 로드
-        lastRequestLocation?.let { (lat, lng) ->
-            Log.d(TAG, "🔄 날짜 변경으로 인한 데이터 리로드")
-            loadMapContents(lat, lng, force = true)
+    }
+    
+    fun selectPreviousDate() {
+        val previousDate = selectedDate.minusDays(1)
+        updateSelectedDate(previousDate)
+    }
+    
+    fun selectNextDate() {
+        val nextDate = selectedDate.plusDays(1)
+        val today = LocalDate.now()
+        
+        // 오늘 날짜보다 미래로는 갈 수 없도록 제한
+        if (nextDate.isBefore(today) || nextDate.isEqual(today)) {
+            updateSelectedDate(nextDate)
         }
     }
 

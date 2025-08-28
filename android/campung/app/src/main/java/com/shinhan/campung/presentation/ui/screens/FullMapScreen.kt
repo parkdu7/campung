@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -66,7 +67,7 @@ import com.shinhan.campung.presentation.ui.map.MapCameraListener
 import com.shinhan.campung.presentation.ui.map.ClusterManagerInitializer
 import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
-import com.shinhan.campung.presentation.ui.components.DatePickerDialog
+import com.shinhan.campung.presentation.ui.components.KoreanDatePicker
 import com.shinhan.campung.presentation.ui.components.POIFilterTags
 import com.shinhan.campung.presentation.ui.components.POIDetailDialog
 import com.shinhan.campung.data.model.MapContent
@@ -910,6 +911,8 @@ fun FullMapScreen(
                         selectedDate = mapViewModel.selectedDate,
                         onBackClick = { navController.popBackStack() },
                         onDateClick = { showDatePicker = true },
+                        onPreviousDate = { mapViewModel.selectPreviousDate() },
+                        onNextDate = { mapViewModel.selectNextDate() },
                         onFriendClick = { navController.navigate(Route.FRIEND) }
                     )
                 }
@@ -946,15 +949,19 @@ fun FullMapScreen(
 
                 // 날짜 선택 다이얼로그
                 if (showDatePicker) {
-                    DatePickerDialog(
-                        selectedDate = mapViewModel.selectedDate,
-                        onDateSelected = { newDate ->
-                            mapViewModel.updateSelectedDate(newDate)
-                        },
-                        onDismiss = {
-                            showDatePicker = false
-                        }
-                    )
+                    Dialog(
+                        onDismissRequest = { showDatePicker = false }
+                    ) {
+                        KoreanDatePicker(
+                            selectedDate = mapViewModel.selectedDate,
+                            onDateSelected = { newDate ->
+                                mapViewModel.updateSelectedDate(newDate)
+                            },
+                            onDismiss = {
+                                showDatePicker = false
+                            }
+                        )
+                    }
                 }
 
                 if (showRecordDialog) {
