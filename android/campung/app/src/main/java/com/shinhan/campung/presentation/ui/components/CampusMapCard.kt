@@ -150,6 +150,7 @@ fun CampusMapCard(
         }
     }
     
+    
     LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
         val map = naverMapRef ?: return@LaunchedEffect
         
@@ -196,6 +197,7 @@ fun CampusMapCard(
                                     isScaleBarEnabled = false
                                     isCompassEnabled = false
                                     isLocationButtonEnabled = false
+                                    isLogoClickEnabled = false
                                 }
                                 
                                 val target = myLatLng ?: initialCamera

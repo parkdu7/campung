@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VolumeUp
@@ -37,6 +38,7 @@ fun AudioPlayer(
     authorName: String,
     createdAt: String,
     onClose: () -> Unit,
+    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -151,20 +153,36 @@ fun AudioPlayer(
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 음성 아이콘 배경
+                        // 재생/일시정지 버튼 (스피커 위치에)
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
+                                .clip(CircleShape)
                                 .background(
-                                    Color(0xFFFF6B6B).copy(alpha = 0.1f),
-                                    CircleShape
-                                ),
+                                    if (isPlaying) Color(0xFFFF6B6B) else Color(0xFF4CAF50)
+                                )
+                                .clickable {
+                                    try {
+                                        mediaPlayer?.let { mp ->
+                                            if (isPlaying) {
+                                                mp.pause()
+                                                isPlaying = false
+                                            } else {
+                                                mp.start()
+                                                isPlaying = true
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("AudioPlayer", "재생/일시정지 실패", e)
+                                        errorMessage = "재생 중 오류가 발생했습니다"
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Default.VolumeUp,
-                                contentDescription = "음성",
-                                tint = Color(0xFFFF6B6B),
+                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "일시정지" else "재생",
+                                tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -186,21 +204,45 @@ fun AudioPlayer(
                         }
                     }
                     
-                    // 닫기 버튼
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.1f))
-                            .clickable { onClose() },
-                        contentAlignment = Alignment.Center
+                    // 오른쪽 버튼들 (삭제 + 닫기)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "닫기",
-                            tint = Color(0xFF666666),
-                            modifier = Modifier.size(18.dp)
-                        )
+                        // 삭제 버튼
+                        if (onDelete != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFF6B6B).copy(alpha = 0.1f))
+                                    .clickable { onDelete() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "삭제",
+                                    tint = Color(0xFFFF6B6B),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        
+                        // 닫기 버튼
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.1f))
+                                .clickable { onClose() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "닫기",
+                                tint = Color(0xFF666666),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
                 
@@ -241,65 +283,25 @@ fun AudioPlayer(
                             }
                         }
                         
-                        // 재생 컨트롤
+                        // 시간 정보와 진행바만 표시
                         else -> {
                             Column(
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                // 재생 컨트롤 바
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // 재생/일시정지 버튼
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (isPlaying) Color(0xFFFF6B6B) else Color(0xFF4CAF50)
-                                            )
-                                            .clickable {
-                                                try {
-                                                    mediaPlayer?.let { mp ->
-                                                        if (isPlaying) {
-                                                            mp.pause()
-                                                            isPlaying = false
-                                                        } else {
-                                                            mp.start()
-                                                            isPlaying = true
-                                                        }
-                                                    }
-                                                } catch (e: Exception) {
-                                                    Log.e("AudioPlayer", "재생/일시정지 실패", e)
-                                                    errorMessage = "재생 중 오류가 발생했습니다"
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                            contentDescription = if (isPlaying) "일시정지" else "재생",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                    
-                                    // 시간 정보
-                                    Text(
-                                        text = if (duration > 0) {
-                                            "${formatTime(currentPosition)} / ${formatTime(duration)}"
-                                        } else {
-                                            "00:00 / 00:00"
-                                        },
-                                        fontSize = 13.sp,
-                                        color = Color(0xFF666666),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                // 시간 정보 (가운데 정렬)
+                                Text(
+                                    text = if (duration > 0) {
+                                        "${formatTime(currentPosition)} / ${formatTime(duration)}"
+                                    } else {
+                                        "00:00 / 00:00"
+                                    },
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF666666),
+                                    fontWeight = FontWeight.Medium
+                                )
                                 
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
                                 
                                 // 진행 바
                                 val progress = if (duration > 0) currentPosition.toFloat() / duration else 0f

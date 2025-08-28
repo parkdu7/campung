@@ -116,6 +116,40 @@ class POIRepository @Inject constructor(
     }
     
     /**
+     * 랜드마크 상세 정보 조회 (요약 포함)
+     */
+    suspend fun getLandmarkDetail(
+        landmarkId: Long
+    ): Result<POIData> = withContext(Dispatchers.IO) {
+        try {
+            val response = poiApi.getLandmarkDetail(landmarkId)
+            if (response.success) {
+                val landmarkData = response.data
+                val poiData = POIData(
+                    id = landmarkData.id,
+                    name = landmarkData.name,
+                    category = landmarkData.category,
+                    address = "", // 백엔드에서 제공하지 않음
+                    latitude = landmarkData.latitude,
+                    longitude = landmarkData.longitude,
+                    phone = null,
+                    rating = null,
+                    distance = null,
+                    isOpen = null,
+                    openHours = null,
+                    thumbnailUrl = landmarkData.thumbnailUrl,
+                    currentSummary = landmarkData.currentSummary ?: generateDummySummary(landmarkData.name, landmarkData.category)
+                )
+                Result.success(poiData)
+            } else {
+                Result.failure(Exception("Failed to get landmark detail"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
      * currentSummary가 없을 때 카테고리와 이름을 기반으로 더미 요약 생성
      */
     private fun generateDummySummary(name: String, category: String): String {
