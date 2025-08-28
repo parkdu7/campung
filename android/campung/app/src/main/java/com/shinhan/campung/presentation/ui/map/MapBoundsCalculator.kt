@@ -51,6 +51,48 @@ object MapBoundsCalculator {
     }
     
     /**
+     * 버퍼 영역이 포함된 반경 계산 (미리 로드용)
+     * @param naverMap 네이버 지도 인스턴스
+     * @param bufferMultiplier 버퍼 배수 (기본 1.8배)
+     * @return 버퍼가 포함된 반경(미터)
+     */
+    fun calculateBufferedRadius(naverMap: NaverMap, bufferMultiplier: Double = 1.8): Int {
+        val visibleRadius = calculateVisibleRadius(naverMap, marginRatio = 0.1) // 기본 여유분은 줄임
+        val bufferedRadius = (visibleRadius * bufferMultiplier).toInt()
+        
+        val finalRadius = bufferedRadius.coerceIn(MIN_RADIUS, MAX_RADIUS)
+        
+        Log.d(TAG, "버퍼 반경 계산: 화면반경=${visibleRadius}m, 버퍼반경=${finalRadius}m (${bufferMultiplier}배)")
+        return finalRadius
+    }
+    
+    /**
+     * 현재 화면이 로드된 영역을 벗어났는지 확인
+     * @param currentCenter 현재 화면 중심점
+     * @param loadedArea 이전에 로드된 영역 정보
+     * @param exitThresholdRatio 벗어남 임계값 비율 (기본 70%)
+     * @return 새로 로드가 필요한지 여부
+     */
+    fun isOutOfLoadedArea(
+        currentCenter: LatLng, 
+        loadedArea: LoadedArea?,
+        exitThresholdRatio: Double = 0.7
+    ): Boolean {
+        if (loadedArea == null) {
+            Log.d(TAG, "로드된 영역 없음 - 새로 로드 필요")
+            return true
+        }
+        
+        val distance = calculateDistance(currentCenter, loadedArea.center)
+        val exitThreshold = loadedArea.radius * exitThresholdRatio
+        
+        val shouldReload = distance > exitThreshold
+        
+        Log.d(TAG, "영역 벗어남 체크: 거리=${distance.toInt()}m, 임계값=${exitThreshold.toInt()}m, 재로드=$shouldReload")
+        return shouldReload
+    }
+    
+    /**
      * 줌 레벨 기반 예상 반경 계산 (참고용)
      */
     fun getExpectedRadiusByZoom(zoom: Double): Int {
@@ -125,5 +167,18 @@ data class VisibleAreaInfo(
             |  예상반경: ${expectedRadius}m
             |  경계: ${bounds.southWest} ~ ${bounds.northEast}
         """.trimMargin()
+    }
+}
+
+/**
+ * 로드된 영역 정보를 담는 데이터 클래스
+ */
+data class LoadedArea(
+    val center: LatLng,
+    val radius: Double,
+    val loadedAt: Long = System.currentTimeMillis()
+) {
+    override fun toString(): String {
+        return "LoadedArea(center=${center.latitude},${center.longitude}, radius=${radius}m, age=${System.currentTimeMillis() - loadedAt}ms)"
     }
 }
