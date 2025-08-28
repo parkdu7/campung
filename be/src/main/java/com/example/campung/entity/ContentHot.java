@@ -18,7 +18,7 @@ public class ContentHot {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "hot_id")
+    @Column(name = "hot_id", nullable = false)
     private Long hotId;
     
     @Column(name = "content_id")
