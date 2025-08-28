@@ -38,6 +38,8 @@ public class CampusTemperatureManager {
     private static final String CURRENT_TEMP_KEY = "campus:temperature:current";
     private static final String BASE_EMOTION_TEMP_KEY = "campus:temperature:base_emotion";
     private static final String TEMPERATURE_PROTECTION_KEY = "campus:temperature:protection_mode";
+    private static final String TODAY_MAX_TEMP_KEY = "campus:temperature:today_max";
+    private static final String TODAY_MIN_TEMP_KEY = "campus:temperature:today_min";
     
     /**
      * 메인 온도 조정 메서드 - 매시간 호출
@@ -167,8 +169,11 @@ public class CampusTemperatureManager {
         
         temperatureRepository.save(record);
         
-        // Redis에 캐시
+        // Redis에 현재 온도 캐시
         redisTemplate.opsForValue().set(CURRENT_TEMP_KEY, newTemp, Duration.ofMinutes(30));
+        
+        // 실시간 최고/최저 온도 업데이트
+        updateTodayMinMaxTemperature(newTemp);
         
         log.info("캠퍼스 온도 업데이트: {}도 (감정기준: {}도, 게시글조정: {:+.1f}도, 사유: {})", 
                 newTemp, baseEmotionTemp, postAdjustment, reason);
@@ -183,11 +188,63 @@ public class CampusTemperatureManager {
     }
     
     /**
+     * 감정 분석 결과를 받아서 온도를 업데이트하고 기록
+     */
+    public void updateTemperatureFromEmotionAnalysis(double emotionTemp) {
+        // 감정 기본 온도 설정
+        setBaseEmotionTemperature(emotionTemp);
+        
+        // 현재 온도를 감정 온도로 업데이트하고 DB에 기록
+        updateCampusTemperature(emotionTemp, 0, "emotion_analysis_update");
+        
+        log.info("감정 분석 결과로 온도 업데이트: {}도", emotionTemp);
+    }
+    
+    /**
      * 감정 기본 온도 조회
      */
     private double getBaseEmotionTemperature() {
         Double cached = (Double) redisTemplate.opsForValue().get(BASE_EMOTION_TEMP_KEY);
         return cached != null ? cached : 20.0;
+    }
+    
+    /**
+     * 오늘의 최고/최저 온도 실시간 업데이트
+     */
+    private void updateTodayMinMaxTemperature(double newTemp) {
+        // 현재 최고 온도 조회 및 업데이트
+        Double currentMax = (Double) redisTemplate.opsForValue().get(TODAY_MAX_TEMP_KEY);
+        if (currentMax == null || newTemp > currentMax) {
+            redisTemplate.opsForValue().set(TODAY_MAX_TEMP_KEY, newTemp, Duration.ofHours(24));
+            log.debug("오늘 최고 온도 갱신: {}도", newTemp);
+        }
+        
+        // 현재 최저 온도 조회 및 업데이트
+        Double currentMin = (Double) redisTemplate.opsForValue().get(TODAY_MIN_TEMP_KEY);
+        if (currentMin == null || newTemp < currentMin) {
+            redisTemplate.opsForValue().set(TODAY_MIN_TEMP_KEY, newTemp, Duration.ofHours(24));
+            log.debug("오늘 최저 온도 갱신: {}도", newTemp);
+        }
+    }
+    
+    /**
+     * 오늘의 최고/최저 온도 조회
+     */
+    public double[] getTodayMinMaxTemperature() {
+        Double maxTemp = (Double) redisTemplate.opsForValue().get(TODAY_MAX_TEMP_KEY);
+        Double minTemp = (Double) redisTemplate.opsForValue().get(TODAY_MIN_TEMP_KEY);
+        
+        // 데이터가 없으면 현재 온도로 초기화
+        if (maxTemp == null || minTemp == null) {
+            double currentTemp = getCurrentCampusTemperature();
+            maxTemp = maxTemp != null ? maxTemp : currentTemp;
+            minTemp = minTemp != null ? minTemp : currentTemp;
+            
+            redisTemplate.opsForValue().set(TODAY_MAX_TEMP_KEY, maxTemp, Duration.ofHours(24));
+            redisTemplate.opsForValue().set(TODAY_MIN_TEMP_KEY, minTemp, Duration.ofHours(24));
+        }
+        
+        return new double[]{maxTemp, minTemp};
     }
     
     /**
@@ -330,17 +387,32 @@ public class CampusTemperatureManager {
         log.info("일일 캠퍼스 데이터 저장 완료 - 날짜: {}, 게시글: {}개, 온도: {}-{}도", 
                 yesterday, totalPosts, minTemp, maxTemp);
         
-        // 30일 이상 된 온도 기록 정리
-        cleanupOldTemperatureRecords();
+        // 오늘의 최고/최저 온도 Redis 초기화 (새로운 하루 시작)
+        resetTodayMinMaxTemperature();
+        
+        // 온도 기록 영구 보존: cleanupOldTemperatureRecords() 호출 제거
     }
     
     /**
-     * 오래된 온도 기록 정리 (성능 최적화)
+     * 오늘의 최고/최저 온도 Redis 초기화
      */
-    @Transactional
-    public void cleanupOldTemperatureRecords() {
-        LocalDateTime cutoffTime = LocalDateTime.now().minusDays(30);
-        temperatureRepository.deleteByTimestampBefore(cutoffTime);
-        log.info("30일 이상 된 온도 기록 정리 완료");
+    private void resetTodayMinMaxTemperature() {
+        redisTemplate.delete(TODAY_MAX_TEMP_KEY);
+        redisTemplate.delete(TODAY_MIN_TEMP_KEY);
+        
+        // 현재 온도로 초기화
+        double currentTemp = getCurrentCampusTemperature();
+        redisTemplate.opsForValue().set(TODAY_MAX_TEMP_KEY, currentTemp, Duration.ofHours(24));
+        redisTemplate.opsForValue().set(TODAY_MIN_TEMP_KEY, currentTemp, Duration.ofHours(24));
+        
+        log.info("오늘의 최고/최저 온도 초기화 완료: {}도", currentTemp);
     }
+    
+    /**
+     * 특정 날짜의 DailyCampus 데이터 조회
+     */
+    public DailyCampus getDailyCampusData(LocalDate date) {
+        return dailyCampusRepository.findByDate(date).orElse(null);
+    }
+    
 }

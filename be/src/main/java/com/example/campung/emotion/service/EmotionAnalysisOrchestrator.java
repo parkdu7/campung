@@ -25,6 +25,7 @@ public class EmotionAnalysisOrchestrator {
     private final EmotionAnalysisService emotionAnalysisService;
     private final EmotionStatisticsService emotionStatisticsService;
     private final EmotionCalculatorService emotionCalculatorService;
+    private final CampusTemperatureManager temperatureManager;
 
     /**
      * 스케줄러용 매시간 감정 분석 실행
@@ -108,6 +109,15 @@ public class EmotionAnalysisOrchestrator {
         Double temperature = emotionCalculatorService.calculateEmotionTemperature(averageScores);
         temperature = emotionCalculatorService.roundTemperature(temperature);
         
+        // 감정 통계 서비스에 날씨와 온도 업데이트
         emotionStatisticsService.updateWeatherAndTemperature(weather.getKoreanName(), temperature);
+        
+        // 온도 매니저에 감정 분석 결과 전달 (campus_temperature 테이블 기록 및 실시간 최고/최저 업데이트)
+        if (temperature != null) {
+            temperatureManager.updateTemperatureFromEmotionAnalysis(temperature);
+            log.info("감정 분석 결과 온도 매니저 전달 완료 - 온도: {}도, 날씨: {}", temperature, weather.getKoreanName());
+        } else {
+            log.warn("감정 온도가 null이어서 온도 매니저 전달을 건너뜁니다");
+        }
     }
 }
