@@ -31,6 +31,7 @@ import kotlin.math.PI
 @Composable
 fun POIDetailDialog(
     poi: POIData,
+    isGeneratingSummary: Boolean = false,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -204,22 +205,64 @@ fun POIDetailDialog(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Current Summary (주요 정보)
-                    poi.currentSummary?.let { summary ->
-                        Text(
-                            text = summary,
-                            fontSize = 14.sp,
-                            color = Color.Black,
-                            lineHeight = 20.sp,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } ?: run {
-                        Text(
-                            text = "이 장소에 대한 정보가 준비 중입니다.",
-                            fontSize = 14.sp,
-                            color = Color.Gray,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                    if (isGeneratingSummary) {
+                        // 로딩 상태
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFF788CF7)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "상세 정보 로드 중...",
+                                fontSize = 14.sp,
+                                color = Color(0xFF788CF7),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        
+                        // 기존 요약도 함께 표시 (있다면)
+                        poi.currentSummary?.let { summary ->
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "기존 정보:",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = summary,
+                                fontSize = 14.sp,
+                                color = Color.Gray.copy(alpha = 0.7f),
+                                lineHeight = 20.sp,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else {
+                        // 일반 상태
+                        poi.currentSummary?.let { summary ->
+                            Text(
+                                text = summary,
+                                fontSize = 14.sp,
+                                color = Color.Black,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } ?: run {
+                            Text(
+                                text = "이 장소에 대한 정보가 준비 중입니다.",
+                                fontSize = 14.sp,
+                                color = Color.Gray,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             },

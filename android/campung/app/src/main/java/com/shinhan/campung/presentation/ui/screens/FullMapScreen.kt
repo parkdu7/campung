@@ -154,6 +154,7 @@ fun FullMapScreen(
     val isPOILoading by mapViewModel.isPOILoading.collectAsState()
     val selectedPOI by mapViewModel.selectedPOI.collectAsState()
     val showPOIDialog by mapViewModel.showPOIDialog.collectAsState()
+    val isLoadingPOIDetail by mapViewModel.isLoadingPOIDetail.collectAsState()
     val currentPlayingRecord by mapViewModel.currentPlayingRecord.collectAsState()
 
     // 위치 공유 브로드캐스트 수신
@@ -1024,6 +1025,7 @@ fun FullMapScreen(
             if (showPOIDialog) {
                 POIDetailDialog(
                     poi = poi,
+                    isGeneratingSummary = isLoadingPOIDetail,
                     onDismiss = { mapViewModel.dismissPOIDialog() }
                 )
             }
