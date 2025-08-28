@@ -8,6 +8,12 @@ data class ContentResponse(
     val data: ContentData
 )
 
+data class HotContentsResponse(
+    val success: Boolean,
+    val message: String,
+    val data: List<ContentData>
+)
+
 data class ContentData(
     val contentId: Long,
     val userId: String,
