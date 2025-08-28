@@ -62,8 +62,8 @@ class MapViewportManager(
         // 이전 Job 취소
         loadDataJob?.cancel()
         
-        // 새로운 Job 시작 (적응형 디바운스)
-        val debounceDelay = 100L // 일정한 디바운스 적용
+        // 새로운 Job 시작 (적응형 디바운스) - 줌 중에는 더 긴 딜레이
+        val debounceDelay = 500L // 100L → 500L로 증가 (줌 완료까지 기다림)
         
         loadDataJob = coroutineScope.launch {
             delay(debounceDelay)

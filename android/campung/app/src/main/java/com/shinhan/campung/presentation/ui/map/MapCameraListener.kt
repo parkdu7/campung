@@ -45,7 +45,7 @@ class MapCameraListener(
         }
         
         // 1. 줌 레벨 변경시 클러스터링 업데이트 - 더 큰 변화에만 반응하고 디바운스 적용
-        if (kotlin.math.abs(currentZoom - lastZoomLevel) > 1.0) { // 0.5 → 1.0으로 변경
+        if (kotlin.math.abs(currentZoom - lastZoomLevel) > 1.5) { // 1.0 → 1.5로 변경 (더 큰 줌 변경에만 반응)
             lastZoomLevel = currentZoom
             Log.d("MapCameraListener", "줌 변경: $currentZoom → 클러스터링 업데이트 예약")
             
