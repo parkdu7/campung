@@ -275,9 +275,10 @@ public class MapContentService {
         item.setUserId(content.getAuthor().getUserId());
         
         // Author 정보
+        String displayNickname = content.getIsAnonymous() ? "익명" : content.getAuthor().getNickname();
         AuthorInfo author = new AuthorInfo(
-                content.getAuthor().getNickname(),
-                false // 익명 여부는 추후 구현
+                displayNickname,
+                content.getIsAnonymous()
         );
         item.setAuthor(author);
 

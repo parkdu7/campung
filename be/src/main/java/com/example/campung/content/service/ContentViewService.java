@@ -58,10 +58,11 @@ public class ContentViewService {
         detail.setBody(content.getContent());
         
         // Author 정보 설정
+        String displayNickname = content.getIsAnonymous() ? "익명" : content.getAuthor().getNickname();
         ContentDetailRequest.AuthorInfo author = new ContentDetailRequest.AuthorInfo(
-                content.getAuthor().getNickname(),
+                displayNickname,
                 null, // profileImageUrl - 추후 구현
-                false // isAnonymous - 추후 구현
+                content.getIsAnonymous()
         );
         detail.setAuthor(author);
         

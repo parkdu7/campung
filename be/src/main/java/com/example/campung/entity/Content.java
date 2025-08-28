@@ -53,6 +53,9 @@ public class Content {
     
     private String emotion;
     
+    @Builder.Default
+    @Column(name = "is_anonymous", nullable = false)
+    private Boolean isAnonymous = false;
     
     @Builder.Default
     @Column(name = "like_count", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
