@@ -345,7 +345,7 @@ fun WritePostScreen(
                             boardTitle = selectedBoardTitle,
                             title = title,
                             body = content,
-                            isRealName = !isRealName,
+                            isRealName = isRealName,
                             emotionTag = null,
                             files = fileUris,
                             latitude = null,
