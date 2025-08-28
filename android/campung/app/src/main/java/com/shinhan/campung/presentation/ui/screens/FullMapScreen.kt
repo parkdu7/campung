@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -66,7 +67,7 @@ import com.shinhan.campung.presentation.ui.map.MapCameraListener
 import com.shinhan.campung.presentation.ui.map.ClusterManagerInitializer
 import com.shinhan.campung.presentation.ui.components.MapTopHeader
 import com.shinhan.campung.presentation.ui.components.HorizontalFilterTags
-import com.shinhan.campung.presentation.ui.components.DatePickerDialog
+import com.shinhan.campung.presentation.ui.components.KoreanDatePicker
 import com.shinhan.campung.presentation.ui.components.POIFilterTags
 import com.shinhan.campung.presentation.ui.components.POIDetailDialog
 import com.shinhan.campung.data.model.MapContent
@@ -628,6 +629,9 @@ fun FullMapScreen(
         }
     }
 
+
+    var isCenterOnMyLocation by remember { mutableStateOf(false) }
+
     Scaffold(
         modifier = Modifier.navigationBarsPadding()
     ) { innerPadding ->
@@ -664,7 +668,24 @@ fun FullMapScreen(
                                 }
                                 android.util.Log.d("FullMapScreen", "🏪 POI 마커 매니저 초기화 완료")
 
-                            // 지도 상호작용 컨트롤러 생성
+                                // 👇 카메라가 '움직이는 동안' 계속 호출됨: 아이콘 실시간 갱신
+                                map.addOnCameraChangeListener { _, _ ->
+                                    val me = myLatLng
+                                    if (me == null) {
+                                        if (isCenterOnMyLocation) isCenterOnMyLocation = false
+                                    } else {
+                                        val center = map.cameraPosition.target
+                                        val dist = distanceMeters(center, me)
+                                        val threshold = 30f
+                                        val nowCentered = dist <= threshold
+                                        if (isCenterOnMyLocation != nowCentered) {
+                                            isCenterOnMyLocation = nowCentered   // 🔁 즉시 토글 (btn_mylocation ↔ btn_location)
+                                        }
+                                    }
+                                }
+
+
+                                // 지도 상호작용 컨트롤러 생성
                             val interactionController = com.shinhan.campung.presentation.ui.map.MapInteractionController(mapViewModel).apply {
                                 setNaverMap(map)
                             }
@@ -709,46 +730,43 @@ fun FullMapScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // LocationButton - 바텀시트와 함께 움직임
+
+                // LocationButton - 바텀시트와 함께 움직임 (커스텀 아이콘 버전)
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(
                             start = 16.dp,
-                            bottom = 16.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이(30dp)만큼 위로
+                            bottom = 16.dp + dragHandleHeight
                         )
                         .offset(y = locationButtonOffsetY)
+                        .size(40.dp)     // 터치 영역 고정
+                        .zIndex(3f)      // 바텀시트/지도 위에 노출되도록
                 ) {
-                    AndroidView(
-                        factory = { ctx -> LocationButtonView(ctx) },
-                        update = { btn ->
-                            naverMapRef?.let { btn.map = it }
-                        }
-                    )
+                    val locationIcon = if (isCenterOnMyLocation) R.drawable.btn_mylocation else R.drawable.btn_location
 
-                    // 클릭 오버레이
-                    Box(
+                    Image(
+                        painter = painterResource(locationIcon),
+                        contentDescription = if (isCenterOnMyLocation) "내 위치 모드" else "내 위치",
                         modifier = Modifier
-                            .matchParentSize()
+                            .fillMaxSize()
                             .clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             ) {
                                 val pos = myLatLng
                                 if (pos != null) {
+                                    // 내 위치로 카메라 이동 + 오버레이 표시
                                     naverMapRef?.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
                                     naverMapRef?.locationOverlay?.apply {
                                         isVisible = true
                                         position = pos
                                     }
+                                    isCenterOnMyLocation = true   // 아이콘: btn_mylocation
                                 } else {
-                                    if (hasPermission) {
-                                        fetchMyLocationOnce()
-                                    } else {
-                                        locationPermissionManager.requestLocationPermission(
-                                            permissionLauncher
-                                        )
-                                    }
+                                    // 위치 없으면 한 번 더 시도/권한 요청
+                                    if (hasPermission) fetchMyLocationOnce()
+                                    else locationPermissionManager.requestLocationPermission(permissionLauncher)
                                 }
                             }
                     )
@@ -756,6 +774,29 @@ fun FullMapScreen(
 
                 // 플로팅 버튼 상태 관리
                 var isFabExpanded by remember { mutableStateOf(false) }
+
+                // ✅ 메인 FAB 아이콘 리소스 상태 (초기: btn_add2)
+                var mainFabIconRes by remember { mutableStateOf(R.drawable.btn_add2) }
+
+                // 회전 애니메이션 (열릴 때 45°, 닫힐 때 0°)
+                val rotationAngle by animateFloatAsState(
+                    targetValue = if (isFabExpanded) 45f else 0f,
+                    animationSpec = tween(300),
+                    label = "fab_rotation"
+                )
+
+                // ✅ 아이콘 전환 타이밍 제어 (복귀 없음)
+                LaunchedEffect(isFabExpanded) {
+                    if (isFabExpanded) {
+                        // 열 때: btn_add로 바꾸고 45° 회전 (animateFloatAsState가 회전)
+                        mainFabIconRes = R.drawable.btn_add
+                    } else {
+                        // 닫을 때: btn_add3로 바꾸고 0°까지 회전
+                        mainFabIconRes = R.drawable.btn_add2
+                        // 더 이상 btn_add2로 복귀하지 않음
+                    }
+                }
+
 
 
                 // 확장 가능한 플로팅 액션 버튼 - 우측 하단
@@ -848,13 +889,6 @@ fun FullMapScreen(
                             }
                         }
 
-                        // 메인 버튼 (+ 또는 X) - 가장 아래
-                        val rotationAngle by animateFloatAsState(
-                            targetValue = if (isFabExpanded) 45f else 0f,
-                            animationSpec = tween(300),
-                            label = "fab_rotation"
-                        )
-
                         Box(
                             modifier = Modifier
                                 .size(56.dp) // 메인 버튼은 조금 더 크게
@@ -867,7 +901,7 @@ fun FullMapScreen(
                                 }
                         ) {
                             Image(
-                                painter = painterResource(R.drawable.btn_add),
+                                painter = painterResource(mainFabIconRes),   // ✅ 여기!
                                 contentDescription = if (isFabExpanded) "메뉴 닫기" else "메뉴 열기",
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -910,6 +944,8 @@ fun FullMapScreen(
                         selectedDate = mapViewModel.selectedDate,
                         onBackClick = { navController.popBackStack() },
                         onDateClick = { showDatePicker = true },
+                        onPreviousDate = { mapViewModel.selectPreviousDate() },
+                        onNextDate = { mapViewModel.selectNextDate() },
                         onFriendClick = { navController.navigate(Route.FRIEND) }
                     )
                 }
@@ -946,15 +982,19 @@ fun FullMapScreen(
 
                 // 날짜 선택 다이얼로그
                 if (showDatePicker) {
-                    DatePickerDialog(
-                        selectedDate = mapViewModel.selectedDate,
-                        onDateSelected = { newDate ->
-                            mapViewModel.updateSelectedDate(newDate)
-                        },
-                        onDismiss = {
-                            showDatePicker = false
-                        }
-                    )
+                    Dialog(
+                        onDismissRequest = { showDatePicker = false }
+                    ) {
+                        KoreanDatePicker(
+                            selectedDate = mapViewModel.selectedDate,
+                            onDateSelected = { newDate ->
+                                mapViewModel.updateSelectedDate(newDate)
+                            },
+                            onDismiss = {
+                                showDatePicker = false
+                            }
+                        )
+                    }
                 }
 
                 if (showRecordDialog) {
@@ -1029,6 +1069,12 @@ fun FullMapScreen(
             }
         }
     }
+}
+
+private fun distanceMeters(a: com.naver.maps.geometry.LatLng, b: com.naver.maps.geometry.LatLng): Float {
+    val out = FloatArray(1)
+    android.location.Location.distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude, out)
+    return out[0]
 }
 
 /**
