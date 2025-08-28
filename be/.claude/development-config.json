@@ -1,0 +1,42 @@
+{
+  "development": {
+    "guidelines": {
+      "post_completion_checks": [
+        "./gradlew compileJava",
+        "./gradlew build"
+      ],
+      "execution_policy": "user_controlled",
+      "response_style": "concise"
+    },
+    "code_standards": {
+      "exception_handling": "custom_exceptions_only",
+      "dependency_injection": "constructor_injection",
+      "architecture": "solid_principles"
+    },
+    "emotion_analysis": {
+      "gpt_model": "gpt-5-mini",
+      "batch_size": 30,
+      "time_zone": "Asia/Seoul",
+      "redis_key_pattern": "emotion:daily:*"
+    },
+    "api_standards": {
+      "response_format": {
+        "success": "boolean",
+        "message": "string",
+        "data": "object"
+      },
+      "url_patterns": [
+        "GET /api/emotion/statistics",
+        "POST /api/emotion/analyze",
+        "POST /api/emotion/analyzeAll",
+        "POST /api/emotion/reset"
+      ]
+    }
+  },
+  "reminders": {
+    "always_build_after_completion": true,
+    "avoid_try_catch_blocks": true,
+    "use_solid_principles": true,
+    "keep_responses_concise": true
+  }
+}

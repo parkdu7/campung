@@ -1,14 +1,15 @@
 package com.example.campung.test.dto;
 
 import com.example.campung.global.enums.PostType;
+import com.example.campung.global.enums.EmotionTestType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public class TestContentRequest {
     
-    @Schema(description = "위도", example = "35.8", required = true)
+    @Schema(description = "위도", example = "36.1077", required = true)
     private Double latitude;
     
-    @Schema(description = "경도", example = "127.61", required = true)
+    @Schema(description = "경도", example = "128.419", required = true)
     private Double longitude;
     
     @Schema(description = "게시글 카테고리", example = "FREE", required = true)
@@ -16,6 +17,12 @@ public class TestContentRequest {
     
     @Schema(description = "사용자 ID", example = "test", required = true)
     private String userId;
+    
+    @Schema(description = "감정 테스트 타입", 
+            example = "BRIGHT", 
+            required = true,
+            allowableValues = {"DEPRESS", "BRIGHT", "NON_EMOTION_INFO", "ANGRY", "EXCITE", "RANDOM", "ALL_MIXED"})
+    private EmotionTestType emotionType;
     
     public Double getLatitude() {
         return latitude;
@@ -47,5 +54,13 @@ public class TestContentRequest {
     
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+    
+    public EmotionTestType getEmotionType() {
+        return emotionType;
+    }
+    
+    public void setEmotionType(EmotionTestType emotionType) {
+        this.emotionType = emotionType;
     }
 }
