@@ -81,8 +81,5 @@ id_rsa*
 deployment-status.json
 docker-compose.yml
 
-# Claude Code 관련
-.claude/
-
 # firebase 어카운트
 firebase-service-account.json
