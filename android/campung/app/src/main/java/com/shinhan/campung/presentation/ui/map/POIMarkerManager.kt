@@ -199,7 +199,7 @@ class POIMarkerManager(
      * Bitmap으로부터 POI 마커 아이콘 생성
      */
     private fun createPOIIconFromBitmap(originalBitmap: Bitmap): OverlayImage {
-        val size = 120 // 마커 크기를 80에서 120으로 증가 (약 40dp 추가)
+        val size = MarkerConfig.POI_MARKER_SIZE // 중앙 관리되는 마커 크기
         val borderWidth = 4f
         
         // 원본 비트맵을 정사각형으로 크롭하고 크기 조정

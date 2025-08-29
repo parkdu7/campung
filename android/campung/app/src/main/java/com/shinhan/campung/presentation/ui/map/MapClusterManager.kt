@@ -78,6 +78,13 @@ class MapClusterManager(
     private var lastMapContents: List<MapContent> = emptyList() // QuadTree 재사용을 위한 캐시
     private var lastMapRecords: List<MapRecord> = emptyList() // Record QuadTree 캐시
     
+    // 마커 크기는 MarkerConfig에서 중앙 관리
+    companion object {
+        private val MARKER_SIZE get() = MarkerConfig.BASE_MARKER_SIZE
+        private val SELECTED_MARKER_SCALE get() = MarkerConfig.SELECTED_SCALE
+        private val HIGHLIGHTED_MARKER_SCALE get() = MarkerConfig.HIGHLIGHTED_SCALE
+    }
+    
     // 아이콘 캐싱 시스템
     private val normalIconCache = mutableMapOf<String, OverlayImage>()
     private val selectedIconCache = mutableMapOf<String, OverlayImage>()
@@ -760,7 +767,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (80 * 1.5).toInt() // 기본 80에서 1.5배 크기 (선택 시 더 크게)
+        val size = (MARKER_SIZE * SELECTED_MARKER_SCALE).toInt() // 선택 시 더 크게
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -860,7 +867,7 @@ class MapClusterManager(
     }
 
     private fun createClusterIcon(count: Int, isSelected: Boolean = false): OverlayImage {
-        val size = if (isSelected) 96 else 80 // 선택 시 크기 증가
+        val size = if (isSelected) MarkerConfig.CLUSTER_SELECTED_SIZE else MarkerConfig.CLUSTER_BASE_SIZE
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
@@ -922,7 +929,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (80 * 1.4).toInt() // 기본 80에서 1.4배 크기
+        val size = (MARKER_SIZE * HIGHLIGHTED_MARKER_SCALE).toInt() // 하이라이트 크기
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -943,7 +950,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = 80 // 64 -> 80으로 크기 증가
+        val size = MARKER_SIZE // 기본 마커 크기
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888) // 높이를 약간 더 크게
         val canvas = Canvas(bitmap)
         
@@ -964,7 +971,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (80 * scale).toInt() // 기본 80에 스케일 적용
+        val size = (MARKER_SIZE * scale).toInt() // 기본 크기에 스케일 적용
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -1191,7 +1198,7 @@ class MapClusterManager(
     
     private fun createRecordMarkerIconInternal(isSelected: Boolean): OverlayImage {
         val drawable = ContextCompat.getDrawable(context, R.drawable.marker_record)
-        val size = if (isSelected) (80 * 1.5).toInt() else 80
+        val size = if (isSelected) (MARKER_SIZE * SELECTED_MARKER_SCALE).toInt() else MARKER_SIZE
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -1202,7 +1209,7 @@ class MapClusterManager(
     }
     
     private fun createRecordClusterIconInternal(count: Int, isSelected: Boolean): OverlayImage {
-        val size = if (isSelected) 96 else 80
+        val size = if (isSelected) MarkerConfig.CLUSTER_SELECTED_SIZE else MarkerConfig.CLUSTER_BASE_SIZE
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
@@ -1293,7 +1300,7 @@ class MapClusterManager(
     
     private fun createIntermediateRecordMarkerIcon(scale: Float): OverlayImage {
         val drawable = ContextCompat.getDrawable(context, R.drawable.marker_record)
-        val size = (80 * scale).toInt() // 기본 80에 스케일 적용
+        val size = (MARKER_SIZE * scale).toInt() // 기본 크기에 스케일 적용
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         

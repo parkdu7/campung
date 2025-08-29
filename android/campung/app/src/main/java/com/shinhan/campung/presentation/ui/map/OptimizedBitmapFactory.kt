@@ -27,9 +27,9 @@ class OptimizedBitmapFactory private constructor(
             }
         }
         
-        // 비트맵 설정
-        private const val MARKER_BASE_SIZE = 80
-        private const val CLUSTER_BASE_SIZE = 80
+        // 비트맵 설정 (MarkerConfig에서 중앙 관리)
+        private val MARKER_BASE_SIZE get() = MarkerConfig.BASE_MARKER_SIZE
+        private val CLUSTER_BASE_SIZE get() = MarkerConfig.CLUSTER_BASE_SIZE
         private val BITMAP_CONFIG = Bitmap.Config.ARGB_8888  // 고품질 유지
         
         // 성능 최적화 상수
@@ -105,7 +105,7 @@ class OptimizedBitmapFactory private constructor(
         isSelected: Boolean = false,
         useOptimizedPath: Boolean = true
     ): Bitmap {
-        val size = if (isSelected) 96 else CLUSTER_BASE_SIZE
+        val size = if (isSelected) MarkerConfig.CLUSTER_SELECTED_SIZE else CLUSTER_BASE_SIZE
         val bitmap = Bitmap.createBitmap(size, size, BITMAP_CONFIG)
         val canvas = Canvas(bitmap)
         
