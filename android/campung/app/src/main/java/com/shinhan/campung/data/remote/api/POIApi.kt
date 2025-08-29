@@ -1,7 +1,9 @@
 package com.shinhan.campung.data.remote.api
 
+import com.shinhan.campung.data.remote.response.LandmarkDetailResponse
 import com.shinhan.campung.data.remote.response.POIResponse
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface POIApi {
@@ -37,4 +39,13 @@ interface POIApi {
         @Query("lng") longitude: Double? = null,
         @Query("radius") radius: Int? = 5000
     ): POIResponse
+    
+    /**
+     * 랜드마크 상세 정보 조회 (요약 포함)
+     * @param landmarkId 랜드마크 ID
+     */
+    @GET("landmark/{landmarkId}")
+    suspend fun getLandmarkDetail(
+        @Path("landmarkId") landmarkId: Long
+    ): LandmarkDetailResponse
 }

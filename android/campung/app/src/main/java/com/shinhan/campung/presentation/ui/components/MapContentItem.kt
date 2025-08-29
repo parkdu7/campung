@@ -87,28 +87,26 @@ fun MapContentItem(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 제목과 카테고리
+                // 카테고리와 제목
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Icon(
+                        painter = painterResource(id = content.category.iconRes),
+                        contentDescription = content.category.displayName,
+                        modifier = Modifier.size(20.dp),
+                        tint = getCategoryColor(content.category)
+                    )
+                    
                     Text(
                         text = content.title,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                    )
-                    
-                    Icon(
-                        painter = painterResource(id = content.category.iconRes),
-                        contentDescription = content.category.displayName,
-                        modifier = Modifier.size(20.dp),
-                        tint = getCategoryColor(content.category)
+                        modifier = Modifier.weight(1f)
                     )
                 }
                 

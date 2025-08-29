@@ -8,6 +8,12 @@ data class ContentResponse(
     val data: ContentData
 )
 
+data class HotContentsResponse(
+    val success: Boolean,
+    val message: String,
+    val data: List<ContentData>
+)
+
 data class ContentData(
     val contentId: Long,
     val userId: String,
@@ -18,14 +24,14 @@ data class ContentData(
     val body: String,
     val mediaFiles: List<MediaFile>?,
     val likeInfo: LikeInfo?,
+    val commentCount: Int,
     val commentInfo: CommentInfo? = null,
     val hotContent: Boolean,
     val createdAt: String // API에서 제공하는 생성일시 (ISO 8601 형식)
 ) {
     // 호환성을 위한 computed properties - 기존 코드와의 호환성
     val likeCount: Int get() = likeInfo?.totalLikes ?: 0
-    val commentCount: Int get() = 0 // 현재 API에서 제공하지 않음
-    val reactions: Reactions get() = Reactions(likeInfo?.totalLikes ?: 0, 0)
+    val reactions: Reactions get() = Reactions(likeInfo?.totalLikes ?: 0, commentCount)
     // createdAt은 실제 필드를 사용 (위에서 정의됨)
     val expiresAt: String? get() = null
     val postTypeName: String get() = when(postType) {

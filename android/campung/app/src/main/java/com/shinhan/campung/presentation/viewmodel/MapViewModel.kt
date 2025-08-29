@@ -98,6 +98,9 @@ class MapViewModel @Inject constructor(
     private val _showPOIDialog = MutableStateFlow(false)
     val showPOIDialog: StateFlow<Boolean> = _showPOIDialog.asStateFlow()
 
+    private val _isLoadingPOIDetail = MutableStateFlow(false)
+    val isLoadingPOIDetail: StateFlow<Boolean> = _isLoadingPOIDetail.asStateFlow()
+
     // MapViewModel.kt - 상단 필드들 옆에 추가
     private val _serverWeather = MutableStateFlow<String?>(null)
     val serverWeather: StateFlow<String?> = _serverWeather
@@ -219,30 +222,40 @@ class MapViewModel @Inject constructor(
 //            }
 //        }
 
-        // ✅ 중복 요청 스킵 로직 개선
-        if (!force) {
+        // ✅ 스마트 중복 요청 스킵 로직
+        if (!force && !_isLoading.value) { // 로딩 중이 아닐 때만 중복 체크
             lastRequestParams?.let { lastParams ->
                 val locationDistance = calculateDistance(
                     lastParams.location.first, lastParams.location.second,
                     latitude, longitude
                 )
                 
-                // 거리는 더 짧게, 다른 조건들은 동일하게 체크
-                if (locationDistance < 100.0 &&  // 500m -> 100m로 변경
+                // 반경 기반 임계값 계산 (작은 반경일수록 더 민감하게)
+                val threshold = when {
+                    (radius ?: getDefaultRadius()) < 500 -> 25.0    // 500m 미만: 25m 임계값
+                    (radius ?: getDefaultRadius()) < 1500 -> 75.0   // 1.5km 미만: 75m 임계값
+                    else -> 150.0  // 1.5km 이상: 150m 임계값
+                }
+
+                if (locationDistance < threshold &&
                     lastParams.date == currentParams.date &&
                     lastParams.tags == currentParams.tags &&
                     lastParams.postType == currentParams.postType) {
-                    Log.d(TAG, "중복 요청 스킵 - 거리: ${locationDistance.toInt()}m")
+                    Log.d(TAG, "스마트 중복 요청 스킵 - 거리: ${locationDistance.toInt()}m < 임계값: ${threshold.toInt()}m")
                     return
                 }
             }
+        } else if (_isLoading.value) {
+            Log.d(TAG, "이미 로딩 중 - 새 요청 무시")
+            return
         } else {
             Log.d(TAG, "강제 로드 모드 - 중복 체크 무시")
         }
 
-        // 150ms 디바운스 적용 (안정성과 반응성 균형)
+        // 적응형 디바운스 적용 (강제 로드시 더 빠르게)
+        val debounceDelay = if (force) 50L else 100L
         debounceJob = viewModelScope.launch {
-            delay(150)
+            delay(debounceDelay)
 
             Log.d(TAG, "🚀 데이터 로드 시작 - 위치: (${latitude}, ${longitude}), 반경: ${radius ?: getDefaultRadius()}m")
 
@@ -274,13 +287,13 @@ class MapViewModel @Inject constructor(
 
                     Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 Content 마커, ${newRecords.size}개 Record 마커")
 
-                    // 데이터 업데이트
+                    // 데이터 업데이트 및 즉시 클러스터링 트리거
                     mapContents = newContents
                     mapRecords = newRecords
                     shouldUpdateClustering = true
 
-                    // 로딩 상태 해제 (UI 반응성 개선)
-                    _isLoading.value = false
+                    // 로딩 상태는 클러스터링 완료 후 해제하도록 변경
+                    // _isLoading.value = false
 
                     // ✅ 방금 등록한 ID가 있으면 자동으로 선택/하이라이트
                     pendingHighlightId?.let { id ->
@@ -418,10 +431,39 @@ class MapViewModel @Inject constructor(
     fun clearSelectedMarker() {
         selectedMarker = null
         _selectedMarkerId.value = null
-        _bottomSheetContents.value = emptyList()
-        _isBottomSheetExpanded.value = false
         _isLoading.value = false
         Log.d(TAG, "마커 선택 해제됨")
+
+        // 핫 콘텐츠로 복귀
+        loadHotContents()
+    }
+
+    fun loadHotContents() {
+        Log.d(TAG, "🔥 [FLOW] loadHotContents 시작 - 핫 게시글 로드")
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                mapContentRepository.getHotContents()
+                    .onSuccess { hotContents ->
+                        Log.d(TAG, "✅ [FLOW] 핫 콘텐츠 로드 성공 - ${hotContents.size}개")
+                        _bottomSheetContents.value = hotContents
+                        _isBottomSheetExpanded.value = true // 핫 콘텐츠 표시 시 확장
+                        _isLoading.value = false
+                    }
+                    .onFailure { e ->
+                        Log.e(TAG, "❌ [FLOW] 핫 콘텐츠 로드 실패", e)
+                        _bottomSheetContents.value = emptyList()
+                        _isBottomSheetExpanded.value = false
+                        _isLoading.value = false
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ [FLOW] 핫 콘텐츠 로드 중 예외", e)
+                _bottomSheetContents.value = emptyList()
+                _isBottomSheetExpanded.value = false
+                _isLoading.value = false
+            }
+        }
     }
 
     fun isMarkerSelected(mapContent: MapContent): Boolean {
@@ -462,8 +504,10 @@ class MapViewModel @Inject constructor(
     // 바텀시트 닫기
     fun clearSelection() {
         _selectedMarkerId.value = null
-        _bottomSheetContents.value = emptyList()
         _isBottomSheetExpanded.value = false
+
+        // 핫 콘텐츠로 복귀
+        loadHotContents()
     }
 
     fun clusteringUpdated() {
@@ -480,15 +524,27 @@ class MapViewModel @Inject constructor(
 
         // 선택된 마커도 클리어
         selectedMarker = null
-        clearSelectedMarker()
+        _selectedMarkerId.value = null
 
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
 
-        // 날짜가 변경되면 다시 로드
-        lastRequestLocation?.let { (lat, lng) ->
-            Log.d(TAG, "🔄 날짜 변경으로 인한 데이터 리로드")
-            loadMapContents(lat, lng, force = true)
+        // 핫 콘텐츠로 복귀
+        loadHotContents()
+    }
+
+    fun selectPreviousDate() {
+        val previousDate = selectedDate.minusDays(1)
+        updateSelectedDate(previousDate)
+    }
+
+    fun selectNextDate() {
+        val nextDate = selectedDate.plusDays(1)
+        val today = LocalDate.now()
+
+        // 오늘 날짜보다 미래로는 갈 수 없도록 제한
+        if (nextDate.isBefore(today) || nextDate.isEqual(today)) {
+            updateSelectedDate(nextDate)
         }
     }
 
@@ -513,7 +569,7 @@ class MapViewModel @Inject constructor(
 
         // 선택된 마커도 클리어
         selectedMarker = null
-        clearSelectedMarker()
+        _selectedMarkerId.value = null
 
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
@@ -521,6 +577,11 @@ class MapViewModel @Inject constructor(
         // 필터가 변경되면 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
+        }
+
+        // 마커 데이터가 없을 때 핫 콘텐츠로 복귀
+        if (mapContents.isEmpty()) {
+            loadHotContents()
         }
     }
 
@@ -534,7 +595,7 @@ class MapViewModel @Inject constructor(
 
         // 선택된 마커도 클리어
         selectedMarker = null
-        clearSelectedMarker()
+        _selectedMarkerId.value = null
 
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
@@ -542,6 +603,11 @@ class MapViewModel @Inject constructor(
         // postType 변경 시 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
+        }
+
+        // 마커 데이터가 없을 때 핫 콘텐츠로 복귀
+        if (mapContents.isEmpty()) {
+            loadHotContents()
         }
     }
 
@@ -721,6 +787,13 @@ class MapViewModel @Inject constructor(
         return selectedRecord?.recordId == record.recordId
     }
 
+    // 클러스터링 완료 콜백
+    fun onClusteringCompleted() {
+        shouldUpdateClustering = false
+        _isLoading.value = false // 클러스터링 완료 후 로딩 상태 해제
+        Log.d(TAG, "🎯 클러스터링 완료 - 로딩 상태 해제")
+    }
+
     fun isMyRecord(record: MapRecord, currentUserId: String?): Boolean {
         return currentUserId != null && record.userId == currentUserId
     }
@@ -848,6 +921,10 @@ class MapViewModel @Inject constructor(
 
         _selectedPOI.value = poi
         _showPOIDialog.value = true
+
+        // 상세 정보 및 요약 조회
+        loadPOIDetail(poi.id)
+
         Log.d(TAG, "🏪 POI 다이얼로그 표시")
     }
 
@@ -857,7 +934,34 @@ class MapViewModel @Inject constructor(
     fun dismissPOIDialog() {
         _showPOIDialog.value = false
         _selectedPOI.value = null
+        _isLoadingPOIDetail.value = false
         Log.d(TAG, "🏪 POI 다이얼로그 닫힘")
+    }
+
+    /**
+     * POI 상세 정보 조회 (요약 포함)
+     */
+    fun loadPOIDetail(landmarkId: Long) {
+        viewModelScope.launch {
+            _isLoadingPOIDetail.value = true
+
+            try {
+                poiRepository.getLandmarkDetail(
+                    landmarkId = landmarkId
+                ).onSuccess { detailedPOI ->
+                    // 현재 선택된 POI를 상세 정보로 업데이트
+                    _selectedPOI.value = detailedPOI
+                    Log.d(TAG, "🏪 POI 상세 정보 로드 성공: ${detailedPOI.name}, 요약: ${detailedPOI.currentSummary?.take(100)}...")
+                }.onFailure { error ->
+                    Log.e(TAG, "🏪 POI 상세 정보 로드 실패: ${error.message}", error)
+                    // 실패해도 기존 POI 정보는 유지
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "🏪 POI 상세 정보 로드 중 예외 발생: ${e.message}", e)
+            } finally {
+                _isLoadingPOIDetail.value = false
+            }
+        }
     }
 
     /**

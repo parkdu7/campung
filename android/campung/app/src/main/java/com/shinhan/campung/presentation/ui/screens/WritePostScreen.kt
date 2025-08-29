@@ -1,6 +1,7 @@
 package com.shinhan.campung.presentation.ui.screens
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,12 +38,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewModelScope
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.compose.LocalImageLoader
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
+import com.shinhan.campung.presentation.viewmodel.SessionViewModel
 import com.shinhan.campung.presentation.viewmodel.WritePostViewModel
 import kotlinx.coroutines.launch
 
@@ -54,6 +57,20 @@ fun WritePostScreen(
 ) {
     val viewModel: WritePostViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
+
+    // ✅ 세션 VM에서 닉네임 수집
+    val session: SessionViewModel = hiltViewModel()
+    val savedNickname by session.nickname.collectAsState()
+
+    var isRealName by rememberSaveable { mutableStateOf(false) } // false=익명, true=실명
+    var nickname by rememberSaveable { mutableStateOf("익명") }
+
+    // ✅ 처음 로드될 때 한 번만 savedNickname으로 초기화 (사용자가 수정하면 덮어쓰지 않음)
+    LaunchedEffect(savedNickname) {
+        if (nickname.isBlank() && savedNickname.isNotBlank()) {
+            nickname = savedNickname
+        }
+    }
 
     // 비디오 프레임 디코더 등록된 ImageLoader
     val context = LocalContext.current
@@ -88,9 +105,6 @@ fun WritePostScreen(
         boards.firstOrNull { it.title == selectedBoardTitle }
     }
 
-    var isAnonymous by rememberSaveable { mutableStateOf(true) }   // true = 익명, false = 실명
-    val displayName = "박승균"
-    var nickname by rememberSaveable { mutableStateOf("") }
     var title by rememberSaveable { mutableStateOf("") }
     var content by rememberSaveable { mutableStateOf("") }
 
@@ -177,44 +191,41 @@ fun WritePostScreen(
                     // 실명/익명 토글
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.End,
+                            .clip(RoundedCornerShape(999.dp))
+                            .clickable { isRealName = !isRealName }
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(999.dp))
-                                .clickable { isAnonymous = !isAnonymous }
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                tint = if (isAnonymous) accent else Color(0xFFBDBDBD)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(text = if (isAnonymous) "익명게시" else "실명게시")
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = if (isRealName) accent else Color(0xFFBDBDBD)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(text = if (isRealName) "익명게시" else "실명게시")
                     }
 
                     Spacer(Modifier.height(10.dp))
 
-                    // 닉네임(익명) 입력 - 서버 스펙엔 없지만 UI 보존
+                    // 닉네임(익명) 입력 - 실명 모드에선 실제 이름을 value로 보여줌
+                    val displayNameForField = if (isRealName) savedNickname else nickname
+
                     OutlinedTextField(
-                        value = nickname,
-                        onValueChange = { nickname = it },
-                        placeholder = {
-                            Text(text = if (isAnonymous)  displayName else "익명")
-                        },
+                        value = displayNameForField,
+                        onValueChange = {},                 // 변경 불가
+                        enabled = false,                    // 포커스/키보드/커서 전부 비활성
+                        readOnly = true,                    // 안전하게 읽기 전용까지
                         singleLine = true,
                         shape = fieldShape,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,   // 흐려보이지 않게
+                            disabledBorderColor = borderColor,
+                            disabledContainerColor = Color.White,
                             focusedBorderColor = borderColor,
                             unfocusedBorderColor = borderColor,
-                            disabledBorderColor = borderColor
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
                         )
                     )
 
@@ -224,7 +235,7 @@ fun WritePostScreen(
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
-                        placeholder = { Text("제목을 입력해주세요.") },
+                        placeholder = { Text("제목을 입력해주세요.", color = Color(0xFF9E9E9E)) },
                         singleLine = true,
                         shape = fieldShape,
                         modifier = Modifier.fillMaxWidth(),
@@ -255,15 +266,24 @@ fun WritePostScreen(
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         ) {
-                            if (content.isEmpty()) {
-                                Text("내용을 입력해주세요.", color = Color(0xFF9E9E9E))
-                            }
                             BasicTextField(
                                 value = content,
                                 onValueChange = { content = it },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .weight(1f, fill = false)
+                                    .weight(1f, fill = false),
+                                textStyle = LocalTextStyle.current.copy(color = Color(0xFF111111)),
+                                decorationBox = { innerTextField ->
+                                    Box(Modifier.fillMaxSize()) {
+                                        if (content.isEmpty()) {
+                                            Text(
+                                                text = "내용을 입력해주세요.",
+                                                color = Color(0xFF9E9E9E)
+                                            )
+                                        }
+                                        innerTextField() // 실제 입력 필드
+                                    }
+                                }
                             )
                         }
 
@@ -325,7 +345,7 @@ fun WritePostScreen(
                             boardTitle = selectedBoardTitle,
                             title = title,
                             body = content,
-                            isRealName = isAnonymous,
+                            isRealName = isRealName,
                             emotionTag = null,
                             files = fileUris,
                             latitude = null,

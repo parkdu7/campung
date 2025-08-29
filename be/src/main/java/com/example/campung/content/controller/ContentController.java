@@ -10,6 +10,7 @@ import com.example.campung.content.dto.ContentSearchRequest;
 import com.example.campung.content.dto.ContentSearchResponse;
 import com.example.campung.content.dto.ContentListRequest;
 import com.example.campung.content.dto.ContentListResponse;
+import com.example.campung.content.dto.ContentHotResponse;
 import com.example.campung.content.service.ContentCreateService;
 import com.example.campung.content.service.ContentViewService;
 import com.example.campung.content.service.ContentUpdateService;
@@ -206,6 +207,13 @@ public class ContentController {
         
         ContentListResponse response = contentListService.getContentsByDate(request);
         
+        return ResponseEntity.ok(response);
+    }
+    
+    @Operation(summary = "인기 게시글 목록 조회", description = "현재 인기 게시글 목록을 조회합니다.")
+    @GetMapping("/contents/hot")
+    public ResponseEntity<ContentHotResponse> getHotContents() {
+        ContentHotResponse response = contentHotService.getHotContents();
         return ResponseEntity.ok(response);
     }
     

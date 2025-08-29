@@ -5,6 +5,7 @@ import okhttp3.MultipartBody
 import com.shinhan.campung.data.remote.dto.CommentListResponse
 import com.shinhan.campung.data.remote.dto.CommentResponse
 import com.shinhan.campung.data.remote.dto.LikeResponse
+import com.shinhan.campung.data.model.HotContentsResponse
 import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
@@ -75,4 +76,14 @@ interface ContentsApiService {
     suspend fun toggleLike(
         @Path("contentId") contentId: Long
     ): Response<LikeResponse>
+
+    // 게시글 삭제
+    @DELETE("/api/contents/{contentId}")
+    suspend fun deleteContent(
+        @Path("contentId") contentId: Long
+    ): Response<Unit>
+    
+    // 핫 게시글 조회
+    @GET("/api/contents/hot")
+    suspend fun getHotContents(): Response<HotContentsResponse>
 }
