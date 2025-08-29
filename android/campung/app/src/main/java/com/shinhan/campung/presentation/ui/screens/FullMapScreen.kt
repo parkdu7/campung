@@ -870,7 +870,7 @@ fun FullMapScreen(
                                     // 내 위치로 카메라 이동 + 오버레이 표시
                                     naverMapRef?.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
                                     naverMapRef?.locationOverlay?.apply {
-                                        isVisible = true
+                                        isVisible = false4
                                         position = pos
                                     }
                                     isCenterOnMyLocation = true   // 아이콘: btn_mylocation

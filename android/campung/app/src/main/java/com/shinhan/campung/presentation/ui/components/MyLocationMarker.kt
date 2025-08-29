@@ -57,10 +57,10 @@ fun MyLocationMarker(
     Box(
         modifier = modifier
             .offset(
-                x = with(LocalDensity.current) { (screenCoord.x - 35f).toDp() },
-                y = with(LocalDensity.current) { (screenCoord.y - 35f).toDp() }
+                x = with(LocalDensity.current) { (screenCoord.x - 55f).toDp() },
+                y = with(LocalDensity.current) { (screenCoord.y - 55f).toDp() }
             )
-            .size(50.dp)
+            .size(70.dp)
             .zIndex(0f) // 지도 위에, 하지만 마커들 뒤에
     ) {
         composition?.let { comp ->
