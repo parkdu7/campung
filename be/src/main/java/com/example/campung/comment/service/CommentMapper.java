@@ -3,6 +3,7 @@ package com.example.campung.comment.service;
 import com.example.campung.comment.dto.CommentDto;
 import com.example.campung.comment.dto.CommentListResponse;
 import com.example.campung.entity.Comment;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -10,6 +11,9 @@ import java.util.stream.Collectors;
 
 @Component
 public class CommentMapper {
+    
+    @Value("${app.default-profile-image-url}")
+    private String defaultProfileImageUrl;
     
     public CommentListResponse toCommentListResponse(List<Comment> comments) {
         List<CommentDto> commentDtos = comments.stream()
@@ -37,7 +41,12 @@ public class CommentMapper {
     private CommentDto.AuthorDto toAuthorDto(Comment comment) {
         CommentDto.AuthorDto authorDto = new CommentDto.AuthorDto();
         authorDto.setNickname(comment.getAuthor().getNickname());
-        authorDto.setProfileImageUrl(null); // TODO: User 엔티티에 profileImageUrl 필드 추가 필요
+        
+        String profileImageUrl = null; // TODO: User 엔티티에 profileImageUrl 필드 추가 필요
+        if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
+            profileImageUrl = defaultProfileImageUrl;
+        }
+        authorDto.setProfileImageUrl(profileImageUrl);
         authorDto.setAnonymous(comment.getIsAnonymous());
         return authorDto;
     }
@@ -61,7 +70,12 @@ public class CommentMapper {
         
         CommentDto.AuthorDto authorDto = new CommentDto.AuthorDto();
         authorDto.setNickname(reply.getAuthor().getNickname());
-        authorDto.setProfileImageUrl(null); // TODO: User 엔티티에 profileImageUrl 필드 추가 필요
+        
+        String profileImageUrl = null; // TODO: User 엔티티에 profileImageUrl 필드 추가 필요
+        if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
+            profileImageUrl = defaultProfileImageUrl;
+        }
+        authorDto.setProfileImageUrl(profileImageUrl);
         authorDto.setAnonymous(reply.getIsAnonymous());
         replyDto.setAuthor(authorDto);
         

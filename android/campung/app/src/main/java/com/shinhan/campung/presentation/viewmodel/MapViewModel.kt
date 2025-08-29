@@ -9,6 +9,10 @@ import androidx.lifecycle.viewModelScope
 import com.naver.maps.map.NaverMap
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.model.MapRecord
+import com.shinhan.campung.data.model.MapItem
+import com.shinhan.campung.data.model.MapContentItem
+import com.shinhan.campung.data.model.MapRecordItem
+import com.shinhan.campung.data.model.createMixedMapItems
 import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
 import com.shinhan.campung.data.repository.POIRepository
@@ -57,6 +61,10 @@ class MapViewModel @Inject constructor(
     // UI States
     private val _bottomSheetContents = MutableStateFlow<List<MapContent>>(emptyList())
     val bottomSheetContents: StateFlow<List<MapContent>> = _bottomSheetContents.asStateFlow()
+    
+    // 통합 바텀시트 아이템 (MapItem 사용)
+    private val _bottomSheetItems = MutableStateFlow<List<MapItem>>(emptyList())
+    val bottomSheetItems: StateFlow<List<MapItem>> = _bottomSheetItems.asStateFlow()
 
     private val _selectedMarkerId = MutableStateFlow<Long?>(null)
     val selectedMarkerId: StateFlow<Long?> = _selectedMarkerId.asStateFlow()
@@ -351,91 +359,133 @@ class MapViewModel @Inject constructor(
 
     // 마커 선택 상태 관리 함수들
     fun selectMarker(mapContent: MapContent) {
-        Log.e(TAG, "🎯🎯🎯 [FLOW] selectMarker() 시작: ${mapContent.title} (ID: ${mapContent.contentId})")
-        Log.d(TAG, "🎯 [FLOW] selectMarker() 시작: ${mapContent.title} (ID: ${mapContent.contentId})")
-        
         selectedMarker = mapContent
-        Log.d(TAG, "📌 [FLOW] selectedMarker 상태 업데이트 완료")
         
-        // 바텀시트 데이터 로딩 - 기존 onMarkerClick 로직과 동일
+        // 바텀시트 데이터 로딩
         _selectedMarkerId.value = mapContent.contentId
-        Log.d(TAG, "🆔 [FLOW] selectedMarkerId 설정: ${mapContent.contentId}")
-        
         _isLoading.value = true
-        Log.d(TAG, "⏳ [FLOW] isLoading = true 설정")
-        
         _isBottomSheetExpanded.value = true
-        Log.d(TAG, "📈 [FLOW] isBottomSheetExpanded = true 설정")
+        
+        // 통합 바텀시트 아이템 초기화 (클러스터 선택 후 개별 마커 선택 시 중복 방지)
+        _bottomSheetItems.value = emptyList()
         
         viewModelScope.launch {
-            Log.d(TAG, "🚀 [FLOW] 코루틴 시작 - 데이터 로딩 시작")
-            // 단일 마커의 경우 해당 마커의 contentId만 사용
-            mapContentRepository.getContentsByIds(listOf(mapContent.contentId))
-                .onSuccess { contents ->
-                    Log.d(TAG, "✅ [FLOW] 데이터 로딩 성공: ${contents.size}개")
-                    _bottomSheetContents.value = contents
-                    _isLoading.value = false
-                    Log.d(TAG, "📊 [FLOW] bottomSheetContents 업데이트 완료, isLoading = false")
-                }
-                .onFailure {
-                    Log.e(TAG, "❌ [FLOW] 데이터 로딩 실패", it)
-                    _bottomSheetContents.value = emptyList()
-                    _isBottomSheetExpanded.value = false
-                    _isLoading.value = false
-                    Log.d(TAG, "🔄 [FLOW] 실패 처리 완료 - 상태 초기화")
-                }
+            try {
+                val result = mapContentRepository.getContentsByIds(listOf(mapContent.contentId))
+                
+                result
+                    .onSuccess { contents ->
+                        if (contents.isNotEmpty()) {
+                            _bottomSheetContents.value = contents
+                            _isLoading.value = false
+                        } else {
+                            handleEmptyDataFallback(mapContent)
+                        }
+                    }
+                    .onFailure { exception ->
+                        Log.e(TAG, "API 호출 실패: ${exception.message}")
+                        handleApiFailureFallback(mapContent, exception)
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "selectMarker 예외 발생: ${e.message}")
+                handleApiFailureFallback(mapContent, e)
+            }
         }
-        Log.d(TAG, "🔚 [FLOW] selectMarker() 완료")
     }
 
     // 클러스터 선택 처리
     fun selectCluster(clusterContents: List<MapContent>) {
-        Log.e(TAG, "🎯🎯🎯 [FLOW] selectCluster() 시작: ${clusterContents.size}개 컨텐츠")
-        Log.d(TAG, "🎯 [FLOW] selectCluster() 시작: ${clusterContents.size}개 컨텐츠")
-        
-        selectedMarker = null // 클러스터 선택 시에는 특정 마커 선택 없음
-        Log.d(TAG, "📌 [FLOW] selectedMarker = null 설정")
-        
+        selectedMarker = null
         _selectedMarkerId.value = null
-        Log.d(TAG, "🆔 [FLOW] selectedMarkerId = null 설정")
-        
         _isLoading.value = true
-        Log.d(TAG, "⏳ [FLOW] isLoading = true 설정")
-        
         _isBottomSheetExpanded.value = true
-        Log.d(TAG, "📈 [FLOW] isBottomSheetExpanded = true 설정")
+        
+        // 통합 바텀시트 아이템 초기화 (혼합 클러스터 선택 후 기존 클러스터 선택 시 중복 방지)
+        _bottomSheetItems.value = emptyList()
         
         viewModelScope.launch {
-            Log.d(TAG, "🚀 [FLOW] 코루틴 시작 - 클러스터 데이터 로딩 시작")
             val contentIds = clusterContents.map { it.contentId }
-            Log.d(TAG, "📋 [FLOW] 로딩할 컨텐츠 ID들: $contentIds")
             
             mapContentRepository.getContentsByIds(contentIds)
                 .onSuccess { contents ->
-                    Log.d(TAG, "✅ [FLOW] 클러스터 데이터 로딩 성공: ${contents.size}개")
                     _bottomSheetContents.value = contents
                     _isLoading.value = false
-                    Log.d(TAG, "📊 [FLOW] 클러스터 bottomSheetContents 업데이트 완료, isLoading = false")
                 }
-                .onFailure {
-                    Log.e(TAG, "❌ [FLOW] 클러스터 데이터 로딩 실패", it)
+                .onFailure { exception ->
+                    Log.e(TAG, "클러스터 데이터 로딩 실패", exception)
                     _bottomSheetContents.value = emptyList()
                     _isBottomSheetExpanded.value = false
                     _isLoading.value = false
-                    Log.d(TAG, "🔄 [FLOW] 클러스터 실패 처리 완료 - 상태 초기화")
                 }
         }
-        Log.d(TAG, "🔚 [FLOW] selectCluster() 완료")
+    }
+
+    // 통합 클러스터 선택 처리 (MapItem 사용)
+    fun selectMixedCluster(clusterItems: List<MapItem>) {
+        Log.d(TAG, "🎯 [MIXED] selectMixedCluster 호출: ${clusterItems.size}개 아이템")
+        
+        selectedMarker = null
+        _selectedMarkerId.value = null
+        _isLoading.value = true
+        _isBottomSheetExpanded.value = true
+        
+        // 기존 바텀시트 콘텐츠 초기화 (개별 마커 선택 후 클러스터 선택 시 중복 방지)
+        _bottomSheetContents.value = emptyList()
+        
+        viewModelScope.launch {
+            try {
+                // Content와 Record 분리
+                val contentItems = clusterItems.filterIsInstance<MapContentItem>()
+                val recordItems = clusterItems.filterIsInstance<MapRecordItem>()
+                
+                Log.d(TAG, "🔍 [MIXED] Content 아이템: ${contentItems.size}개, Record 아이템: ${recordItems.size}개")
+                
+                // Content는 서버에서 상세 정보를 가져와야 함 (기존 로직 유지)
+                val detailedContents = if (contentItems.isNotEmpty()) {
+                    val contentIds = contentItems.map { it.content.contentId }
+                    mapContentRepository.getContentsByIds(contentIds).getOrElse { 
+                        Log.e(TAG, "Content 상세 정보 로딩 실패")
+                        emptyList()
+                    }
+                } else {
+                    emptyList()
+                }
+                
+                // Record는 이미 전체 정보를 가지고 있음
+                val records = recordItems.map { it.record }
+                
+                // 통합 MapItem 리스트 생성 (createdAt 기준으로 정렬)
+                val mixedItems = createMixedMapItems(detailedContents, records)
+                
+                Log.d(TAG, "✅ [MIXED] 통합 아이템 생성 완료: ${mixedItems.size}개")
+                
+                // 기존 bottomSheetContents도 업데이트 (하위 호환성)
+                _bottomSheetContents.value = detailedContents
+                
+                // 새로운 통합 아이템 설정
+                _bottomSheetItems.value = mixedItems
+                
+                _isLoading.value = false
+                
+            } catch (exception: Exception) {
+                Log.e(TAG, "통합 클러스터 데이터 로딩 실패", exception)
+                _bottomSheetContents.value = emptyList()
+                _bottomSheetItems.value = emptyList()
+                _isBottomSheetExpanded.value = false
+                _isLoading.value = false
+            }
+        }
     }
 
     fun clearSelectedMarker() {
         selectedMarker = null
         _selectedMarkerId.value = null
         _isLoading.value = false
-        Log.d(TAG, "마커 선택 해제됨")
-
-        // 핫 콘텐츠로 복귀
-        loadHotContents()
+        
+        // 모든 바텀시트 데이터 초기화 (중복 표시 방지)
+        _bottomSheetContents.value = emptyList()
+        _bottomSheetItems.value = emptyList()
+        _isBottomSheetExpanded.value = false
     }
 
     fun loadHotContents() {
@@ -974,5 +1024,63 @@ class MapViewModel @Inject constructor(
         } else {
             Log.v(TAG, "🏪 POI 비활성화 상태 - 화면 이동 업데이트 스킵")
         }
+    }
+    
+    // ===== 폴백 처리 함수들 =====
+    
+    /**
+     * API는 성공했지만 빈 데이터를 받았을 때의 폴백 처리
+     */
+    private fun handleEmptyDataFallback(mapContent: MapContent) {
+        try {
+            // 현재 mapContents에서 해당 content 찾기
+            val localContent = mapContents.find { it.contentId == mapContent.contentId }
+            
+            if (localContent != null) {
+                _bottomSheetContents.value = listOf(localContent)
+                _isLoading.value = false
+            } else {
+                // 로컬에도 없으면 전달받은 mapContent 자체를 사용
+                _bottomSheetContents.value = listOf(mapContent)
+                _isLoading.value = false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "빈 데이터 폴백 처리 중 예외", e)
+            handleFallbackFailure()
+        }
+    }
+    
+    /**
+     * API 호출이 실패했을 때의 폴백 처리
+     */
+    private fun handleApiFailureFallback(mapContent: MapContent, exception: Throwable) {
+        try {
+            // 네트워크 오류나 서버 오류 시에도 로컬 데이터 사용 시도
+            val localContent = mapContents.find { it.contentId == mapContent.contentId }
+            
+            if (localContent != null) {
+                _bottomSheetContents.value = listOf(localContent)
+                _isLoading.value = false
+            } else {
+                _bottomSheetContents.value = listOf(mapContent)
+                _isLoading.value = false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "API 실패 폴백 처리 중 예외", e)
+            handleFallbackFailure()
+        }
+    }
+    
+    /**
+     * 모든 폴백이 실패했을 때의 최후 처리
+     */
+    private fun handleFallbackFailure() {
+        _bottomSheetContents.value = emptyList()
+        _isBottomSheetExpanded.value = false
+        _isLoading.value = false
+        
+        // 선택된 마커 상태도 해제
+        selectedMarker = null
+        _selectedMarkerId.value = null
     }
 }

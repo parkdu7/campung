@@ -14,6 +14,7 @@ import com.shinhan.campung.MainActivity
 import com.shinhan.campung.R
 import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.repository.AuthRepository
+import com.shinhan.campung.data.service.fcm.NotificationRouter
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,7 @@ class CampungFirebaseMessagingService : FirebaseMessagingService() {
 
     @Inject lateinit var authRepository: AuthRepository
     @Inject lateinit var authDataStore: AuthDataStore
+    @Inject lateinit var notificationRouter: NotificationRouter
 
     companion object {
         private const val TAG = "FCMService"
@@ -55,30 +57,29 @@ class CampungFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         
-        Log.d(TAG, "FCM 메시지 수신: ${remoteMessage.from}")
+        Log.d(TAG, "=== FCM 메시지 수신 시작 ===")
+        Log.d(TAG, "FCM 메시지 from: ${remoteMessage.from}")
+        Log.d(TAG, "FCM notification: ${remoteMessage.notification}")
+        Log.d(TAG, "FCM notification title: ${remoteMessage.notification?.title}")
+        Log.d(TAG, "FCM notification body: ${remoteMessage.notification?.body}")
         
         val data = remoteMessage.data
         val type = data["type"]
+        val contentId = data["contentId"]
         
         Log.d(TAG, "메시지 타입: $type")
-        Log.d(TAG, "메시지 데이터: $data")
+        Log.d(TAG, "메시지 contentId: $contentId")
+        Log.d(TAG, "전체 메시지 데이터: $data")
 
-        when (type) {
-            "location_share_request" -> {
-                handleLocationShareRequest(data, remoteMessage.notification)
-            }
-            "location_share" -> {
-                handleLocationShared(data, remoteMessage.notification)
-            }
-            "location_share_rejected" -> {
-                handleLocationShareRejected(data, remoteMessage.notification)
-            }
-            else -> {
-                handleGeneralNotification(data, remoteMessage.notification)
-            }
-        }
+        Log.d(TAG, "NotificationRouter에 위임 시작")
+        // 모든 알림을 NotificationRouter에 위임
+        notificationRouter.route(data, remoteMessage.notification)
+        Log.d(TAG, "=== FCM 메시지 수신 완료 ===")
     }
 
+    // 아래 메서드들은 NotificationRouter와 Handler들로 이동됨
+    // 혹시 모를 문제를 대비하여 주석 처리
+    /*
     private fun handleLocationShareRequest(data: Map<String, String>, notification: RemoteMessage.Notification?) {
         val fromUserName = data["fromUserName"] ?: "알 수 없는 사용자"
         val message = data["message"] ?: ""
@@ -175,6 +176,30 @@ class CampungFirebaseMessagingService : FirebaseMessagingService() {
         showNotification(title, body, intent, GENERAL_CHANNEL_ID)
     }
 
+    private fun handlePostNotification(data: Map<String, String>, notification: RemoteMessage.Notification?) {
+        val contentId = data["contentId"]?.toLongOrNull()
+        val userName = data["userName"] ?: "알 수 없는 사용자"
+        val type = data["type"] ?: ""
+        
+        Log.d(TAG, "게시글 알림 데이터 - contentId: $contentId, userName: $userName, type: $type")
+        
+        val title = notification?.title ?: when (type) {
+            "post_like" -> "좋아요 알림"
+            "post_comment" -> "댓글 알림"
+            else -> "게시글 알림"
+        }
+        
+        val body = notification?.body ?: when (type) {
+            "post_like" -> "$userName 님이 회원님의 게시글을 좋아합니다"
+            "post_comment" -> "$userName 님이 회원님의 게시글에 댓글을 남겼습니다"
+            else -> "$userName 님이 회원님의 게시글에 반응했습니다"
+        }
+        
+        // FCM 표준 방식: MainActivity에서 Intent extras로 처리
+        // contentId를 Intent에 포함하여 딥링크 처리
+        showSimpleNotification(title, body, GENERAL_CHANNEL_ID, contentId, type)
+    }
+
     private fun handleGeneralNotification(data: Map<String, String>, notification: RemoteMessage.Notification?) {
         val title = notification?.title ?: "캠핑 알림"
         val body = notification?.body ?: "새로운 알림이 도착했습니다"
@@ -261,6 +286,38 @@ class CampungFirebaseMessagingService : FirebaseMessagingService() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(System.currentTimeMillis().toInt(), notification)
     }
+
+    private fun showSimpleNotification(title: String, body: String, channelId: String, contentId: Long? = null, notificationType: String? = null) {
+        // FCM 데이터를 Intent에 명시적으로 포함
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            // contentId와 type을 Intent extras에 추가
+            contentId?.let { putExtra("contentId", it) }
+            notificationType?.let { putExtra("type", it) }
+            putExtra("fcm_notification", true) // FCM 알림임을 표시
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            System.currentTimeMillis().toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+    }
+    */
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

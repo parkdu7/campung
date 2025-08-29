@@ -10,16 +10,19 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -39,17 +42,26 @@ import com.shinhan.campung.presentation.ui.screens.WritePostScreen
 import kotlinx.coroutines.flow.first
 
 @Composable
-fun AppNav(authDataStore: AuthDataStore, sharedMapView: MapView) {
+fun AppNav(
+    authDataStore: AuthDataStore, 
+    sharedMapView: MapView,
+    onNavControllerReady: (NavController) -> Unit = {},
+    initialRoute: String? = null  // FCM에서 전달할 초기 라우트
+) {
     val navController = rememberNavController()
-
-    var start by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) {
-        val userId = authDataStore.userIdFlow.first()
-        start = if (userId.isNullOrBlank()) Route.LOGIN else Route.HOME
+    
+    // NavController가 준비되면 MainActivity에 전달
+    LaunchedEffect(navController) {
+        onNavControllerReady(navController)
     }
-    if (start == null) {
-        Box(Modifier.fillMaxSize()) { CircularProgressIndicator() }
-        return
+
+    // 1) 상태 수집: 로그인 상태
+    val userId by authDataStore.userIdFlow.collectAsState(initial = "")
+
+    // 2) startDestination 결정
+    val startRoute: String = when {
+        userId.isNullOrBlank() -> Route.LOGIN  // 미로그인 (첫 설치 포함)
+        else -> Route.HOME  // 로그인됨 (FCM은 LaunchedEffect에서 처리)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -58,7 +70,7 @@ fun AppNav(authDataStore: AuthDataStore, sharedMapView: MapView) {
 
         NavHost(
             navController = navController,
-            startDestination = start!!,
+            startDestination = startRoute,
             enterTransition = { fadeIn(animationSpec = tween(220, delayMillis = 90)) },
             popEnterTransition = { fadeIn(animationSpec = tween(220, delayMillis = 90)) },
         ) {
@@ -165,6 +177,31 @@ fun AppNav(authDataStore: AuthDataStore, sharedMapView: MapView) {
                     contentId = contentId,
                     navController = navController
                 )
+            }
+        }
+        
+        // FCM 라우트가 있으면 HOME 로드 후 네비게이션 스택에 추가
+        // launchMode="singleTop"으로 설정했으므로:
+        // - 앱 종료 상태에서 FCM 클릭: onCreate에서만 이 로직 실행
+        // - 앱 백그라운드에서 FCM 클릭: onNewIntent에서 처리
+        LaunchedEffect(navController, initialRoute) {
+            initialRoute?.let { route ->
+                if (startRoute == Route.HOME) {
+                    // HOME이 완전히 로드되길 기다림
+                    kotlinx.coroutines.delay(300)
+                    when {
+                        route.startsWith("content_detail/") -> {
+                            navController.navigate(route) {
+                                launchSingleTop = true
+                            }
+                        }
+                        route == "notification" -> {
+                            navController.navigate(Route.NOTIFICATION) {
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                }
             }
         }
     }
