@@ -102,7 +102,7 @@ fun rememberSharedLocationState(): SharedLocationState {
  */
 data class SharedLocationConfig(
     val showUserNames: Boolean = true,
-    val markerSize: Int = 80, // dp
+    val markerSize: Int = 100, // dp (기본 크기 증가)
     val captionSize: Float = 12f,
     val captionColor: Int = 0xFF0000FF.toInt(),
     val enableClickEvents: Boolean = true

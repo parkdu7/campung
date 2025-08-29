@@ -55,7 +55,7 @@ fun FullMapFriendLocationManager(
         map = map,
         config = SharedLocationConfig(
             showUserNames = true,
-            markerSize = 80,
+            markerSize = 100,
             enableClickEvents = true
         ),
         onFriendLocationClick = onFriendClick
@@ -74,7 +74,7 @@ fun CampusMapFriendLocationManager(
         map = map,
         config = SharedLocationConfig(
             showUserNames = false, // 작은 맵에서는 이름 숨김
-            markerSize = 60,
+            markerSize = 80, // CampusMap에서도 크기 증가
             captionSize = 10f,
             enableClickEvents = true
         ),
