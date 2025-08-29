@@ -1096,14 +1096,17 @@ fun FullMapScreen(
                 )
 
 
-                // 날씨/온도 표시 (오른쪽 상단, 필터 태그 아래)
-                // 표시
+                // 날씨/온도 표시 (왼쪽 하단, my_location 버튼 위)
                 WeatherTemperatureDisplay(
                     weather = uiWeather,
                     temperature = uiTemperature,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 110.dp, end = 8.dp)
+                        .align(Alignment.BottomStart)
+                        .padding(
+                            start = 16.dp,
+                            bottom = 70.dp + dragHandleHeight // my_location 버튼(40dp) + 간격(14dp) + 기존패딩(16dp)
+                        )
+                        .offset(y = locationButtonOffsetY)
                 )
 
                 // 애니메이션 툴팁 오버레이
