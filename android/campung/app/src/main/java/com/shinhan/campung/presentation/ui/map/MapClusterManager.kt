@@ -25,13 +25,17 @@ import com.naver.maps.map.overlay.OverlayImage
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.model.MapRecord
 import com.shinhan.campung.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlin.math.*
 
 class MapClusterManager(
     private val context: Context,
     val naverMap: NaverMap,
     private val mapContainer: ViewGroup? = null // 지도를 포함하는 컨테이너 뷰
-) {
+) : MarkerIconProvider {
 
     // 마커 클릭 콜백
     var onMarkerClick: ((MapContent) -> Unit)? = null
@@ -74,11 +78,24 @@ class MapClusterManager(
     private var lastMapContents: List<MapContent> = emptyList() // QuadTree 재사용을 위한 캐시
     private var lastMapRecords: List<MapRecord> = emptyList() // Record QuadTree 캐시
     
+    // 마커 크기는 MarkerConfig에서 중앙 관리
+    companion object {
+        private val MARKER_SIZE get() = MarkerConfig.BASE_MARKER_SIZE
+        private val SELECTED_MARKER_SCALE get() = MarkerConfig.SELECTED_SCALE
+        private val HIGHLIGHTED_MARKER_SCALE get() = MarkerConfig.HIGHLIGHTED_SCALE
+    }
+    
     // 아이콘 캐싱 시스템
     private val normalIconCache = mutableMapOf<String, OverlayImage>()
     private val selectedIconCache = mutableMapOf<String, OverlayImage>()
     private val highlightedIconCache = mutableMapOf<String, OverlayImage>()
     private val clusterIconCache = mutableMapOf<String, OverlayImage>()
+    
+    // 렌더링 최적화 시스템
+    private val markerPool = MarkerPool()
+    private val renderScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val markerRenderer = MarkerRenderer(naverMap, markerPool, renderScope)
+    private val bitmapFactory = OptimizedBitmapFactory.getInstance(context)
 
     // InfoWindow 관련 코드 제거됨 - 이제 Compose 툴팁 사용
 
@@ -214,7 +231,7 @@ class MapClusterManager(
         selectedClusterMarker?.let { clusterMarker ->
             Log.d("MapClusterManager", "클러스터 마커 선택 해제")
             val count = clusterMarker.captionText.replace("개 항목", "").toIntOrNull() ?: 1
-            clusterMarker.icon = getClusterIcon(count, false)
+            clusterMarker.icon = getClusterIconInternal(count, false)
             clusterMarker.zIndex = 0
         }
         selectedClusterMarker = null
@@ -265,8 +282,8 @@ class MapClusterManager(
     }
 
     private fun updateHighlightedMarker(newMarker: Marker?) {
-        // 선택된 마커가 있으면 하이라이트 변경 안함
-        if (selectedMarker != null) return
+        // 선택된 마커가 있거나 애니메이션 진행 중이면 하이라이트 변경 안함
+        if (selectedMarker != null || isAnimating) return
 
         // 이전 하이라이트가 새로운 마커와 같으면 중복 처리 방지
         if (highlightedMarker == newMarker) return
@@ -300,10 +317,64 @@ class MapClusterManager(
     }
 
     private var highlightedMarker: Marker? = null // 접근성을 위해 private으로 변경
+    private var isAnimating = false // 애니메이션 진행 중 플래그
 
-    fun updateMarkers(mapContents: List<MapContent>, mapRecords: List<MapRecord> = emptyList()) {
+    fun updateMarkers(mapContents: List<MapContent>, mapRecords: List<MapRecord> = emptyList(), onComplete: (() -> Unit)? = null) {
+        Log.d("MapClusterManager", "🔄 updateMarkers 호출 - Contents: ${mapContents.size}, Records: ${mapRecords.size}")
+        
+        // 대량 마커 처리시 점진적 렌더링 사용
+        if (mapContents.size + mapRecords.size > 100) {
+            updateMarkersProgressive(mapContents, mapRecords, onComplete)
+        } else {
+            updateMarkersLegacy(mapContents, mapRecords, onComplete)
+        }
+    }
+    
+    /**
+     * 점진적 마커 업데이트 (대량 마커 최적화)
+     */
+    private fun updateMarkersProgressive(mapContents: List<MapContent>, mapRecords: List<MapRecord>, onComplete: (() -> Unit)? = null) {
         // 선택된 마커 정보 백업
         val wasSelectedContent = selectedContent
+        val wasSelectedRecord = selectedRecord
+
+        clearAllMarkers()
+
+        Log.d("MapClusterManager", "🚀 점진적 마커 렌더링 시작 - Content: ${mapContents.size}, Record: ${mapRecords.size}")
+
+        // 비동기 점진적 렌더링
+        kotlinx.coroutines.MainScope().launch {
+            try {
+                markerRenderer.renderMarkersWithPriority(
+                    contents = mapContents,
+                    records = mapRecords,
+                    iconProvider = this@MapClusterManager,
+                    onProgress = { current, total ->
+                        Log.v("MapClusterManager", "렌더링 진행: $current/$total")
+                    },
+                    onComplete = {
+                        Log.d("MapClusterManager", "✅ 점진적 렌더링 완료")
+                        
+                        // 선택 상태 복원
+                        restoreMarkerSelection(wasSelectedContent, wasSelectedRecord, mapContents, mapRecords)
+                        
+                        onComplete?.invoke()
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e("MapClusterManager", "점진적 렌더링 오류", e)
+                onComplete?.invoke()
+            }
+        }
+    }
+    
+    /**
+     * 기존 마커 업데이트 방식 (소량 마커)
+     */
+    private fun updateMarkersLegacy(mapContents: List<MapContent>, mapRecords: List<MapRecord>, onComplete: (() -> Unit)? = null) {
+        // 선택된 마커 정보 백업 (Content와 Record 모두)
+        val wasSelectedContent = selectedContent
+        val wasSelectedRecord = selectedRecord
 
         clearAllMarkers()
 
@@ -320,11 +391,41 @@ class MapClusterManager(
             showClusteredRecords(mapRecords)
         }
 
-        // 이전에 선택된 마커가 있었다면 다시 선택
+        // 선택 상태 복원
+        restoreMarkerSelection(wasSelectedContent, wasSelectedRecord, mapContents, mapRecords)
+
+        // 클러스터링 완료 콜백 호출
+        onComplete?.invoke()
+    }
+    
+    /**
+     * 마커 선택 상태 복원
+     */
+    private fun restoreMarkerSelection(
+        wasSelectedContent: MapContent?,
+        wasSelectedRecord: MapRecord?, 
+        mapContents: List<MapContent>,
+        mapRecords: List<MapRecord>
+    ) {
+        // 이전에 선택된 Content 마커가 있었다면 다시 선택
         wasSelectedContent?.let { prevSelected ->
             val stillExists = mapContents.find { it.contentId == prevSelected.contentId }
             stillExists?.let { content ->
-                selectMarker(content)
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    selectMarker(content)
+                    Log.d("MapClusterManager", "Content 마커 선택 상태 복원: ${content.title}")
+                }, 50) // 마커 생성 후 짧은 딜레이
+            }
+        }
+
+        // 이전에 선택된 Record 마커가 있었다면 다시 선택
+        wasSelectedRecord?.let { prevSelected ->
+            val stillExists = mapRecords.find { it.recordId == prevSelected.recordId }
+            stillExists?.let { record ->
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    selectRecordMarker(record)
+                    Log.d("MapClusterManager", "Record 마커 선택 상태 복원: ${record.recordUrl}")
+                }, 50) // 마커 생성 후 짧은 딜레이
             }
         }
     }
@@ -421,7 +522,7 @@ class MapClusterManager(
                 val clusterMarker = Marker().apply {
                     position = LatLng(centerLat, centerLng)
                     captionText = "${cluster.size}개 항목"
-                    icon = getClusterIcon(cluster.size, false)
+                    icon = getClusterIconInternal(cluster.size, false)
                     map = naverMap
 
                     setOnClickListener {
@@ -436,13 +537,13 @@ class MapClusterManager(
                         // 이전 선택된 클러스터 해제
                         selectedClusterMarker?.let { oldCluster ->
                             val oldCount = oldCluster.captionText.replace("개 항목", "").toIntOrNull() ?: 1
-                            oldCluster.icon = getClusterIcon(oldCount, false)
+                            oldCluster.icon = getClusterIconInternal(oldCount, false)
                             oldCluster.zIndex = 0
                         }
                         
                         // 새로운 클러스터 선택
                         selectedClusterMarker = this
-                        this.icon = getClusterIcon(cluster.size, true)
+                        this.icon = getClusterIconInternal(cluster.size, true)
                         this.zIndex = 2000
 
                         // 클러스터 클릭 콜백 먼저 호출
@@ -541,12 +642,12 @@ class MapClusterManager(
 
     private fun getClusterDistance(): Double {
         return when {
-            naverMap.cameraPosition.zoom >= 21 -> 1.0    // 1m - 최대 줌 (거의 동일한 위치만)
-            naverMap.cameraPosition.zoom >= 20 -> 2.0    // 2m - 초초세밀
-            naverMap.cameraPosition.zoom >= 19 -> 3.0    // 3m - 초세밀
-            naverMap.cameraPosition.zoom >= 18 -> 5.0    // 5m - 매우 세밀
-            naverMap.cameraPosition.zoom >= 17 -> 8.0    // 8m - 세밀
-            naverMap.cameraPosition.zoom >= 16 -> 12.0   // 12m
+            naverMap.cameraPosition.zoom >= 21 -> 5.0    // 5m - 최대 줌에서도 적절한 클러스터링
+            naverMap.cameraPosition.zoom >= 20 -> 10.0   // 10m - 초세밀
+            naverMap.cameraPosition.zoom >= 19 -> 15.0   // 15m - 세밀
+            naverMap.cameraPosition.zoom >= 18 -> 25.0   // 25m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 17 -> 40.0   // 40m - 세밀
+            naverMap.cameraPosition.zoom >= 16 -> 60.0   // 60m
             naverMap.cameraPosition.zoom >= 15 -> 18.0   // 18m
             naverMap.cameraPosition.zoom >= 14 -> 28.0   // 28m
             naverMap.cameraPosition.zoom >= 13 -> 45.0   // 45m
@@ -557,17 +658,45 @@ class MapClusterManager(
         }
     }
 
+    // Record 전용 클러스터링 거리 - Content보다 더 세밀하게 쪼개기
+    private fun getRecordClusterDistance(): Double {
+        return when {
+            naverMap.cameraPosition.zoom >= 21 -> 2.0    // 2m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 20 -> 4.0    // 4m - 초세밀
+            naverMap.cameraPosition.zoom >= 19 -> 6.0    // 6m - 세밀
+            naverMap.cameraPosition.zoom >= 18 -> 10.0   // 10m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 17 -> 15.0   // 15m - 세밀
+            naverMap.cameraPosition.zoom >= 16 -> 25.0   // 25m
+            naverMap.cameraPosition.zoom >= 15 -> 35.0   // 35m
+            naverMap.cameraPosition.zoom >= 14 -> 50.0   // 50m
+            naverMap.cameraPosition.zoom >= 13 -> 75.0   // 75m
+            naverMap.cameraPosition.zoom >= 12 -> 120.0  // 120m
+            naverMap.cameraPosition.zoom >= 11 -> 200.0  // 200m
+            naverMap.cameraPosition.zoom >= 10 -> 350.0  // 350m
+            else -> 600.0 // 600m - 멀리서 볼 때도 Content보다 더 넓게
+        }
+    }
+
     private fun clearAllMarkers() {
-        markers.forEach { it.map = null }
+        Log.d("MapClusterManager", "🧹 clearAllMarkers 시작 - markers: ${markers.size}, records: ${recordMarkers.size}, clusters: ${clusterMarkers.size}, recordClusters: ${recordClusterMarkers.size}")
+        
+        // 각 마커를 지도에서 직접 제거 (마커풀 대신 직접 정리)
+        markers.forEach { marker ->
+            marker.map = null
+        }
+        recordMarkers.forEach { marker ->
+            marker.map = null  
+        }
+        clusterMarkers.forEach { marker ->
+            marker.map = null
+        }
+        recordClusterMarkers.forEach { marker ->
+            marker.map = null
+        }
+
         markers.clear()
-
-        recordMarkers.forEach { it.map = null }
         recordMarkers.clear()
-
-        clusterMarkers.forEach { it.map = null }
         clusterMarkers.clear()
-
-        recordClusterMarkers.forEach { it.map = null }
         recordClusterMarkers.clear()
 
         // QuadTree는 데이터가 실제로 변경될 때만 초기화 (재사용 최적화)
@@ -578,11 +707,53 @@ class MapClusterManager(
         // 단, 클러스터는 새로 생성되므로 참조 초기화
         selectedClusterMarker = null
         highlightedMarker = null
+        
+        Log.d("MapClusterManager", "🧹 clearAllMarkers 완료 - 모든 마커가 지도에서 제거됨")
     }
 
     fun clearMarkers() {
         clearAllMarkers()
         clearSelection()
+    }
+    
+    /**
+     * 리소스 정리 (메모리 누수 방지)
+     */
+    fun cleanup() {
+        Log.d("MapClusterManager", "MapClusterManager 정리 시작")
+        
+        // 렌더링 작업 취소
+        markerRenderer.cleanup()
+        
+        // 모든 마커 정리
+        clearAllMarkers()
+        
+        // 마커 풀 정리
+        markerPool.cleanup()
+        
+        // 비트맵 팩토리 정리
+        bitmapFactory.cleanup()
+        
+        // 아이콘 캐시 정리
+        normalIconCache.clear()
+        selectedIconCache.clear() 
+        highlightedIconCache.clear()
+        clusterIconCache.clear()
+        
+        // QuadTree 정리
+        quadTree = null
+        recordQuadTree = null
+        
+        // 콜백 정리
+        onMarkerClick = null
+        onRecordClick = null
+        onClusterClick = null
+        onRecordClusterClick = null
+        onCenterMarkerChanged = null
+        onShowTooltip = null
+        onHideTooltip = null
+        
+        Log.d("MapClusterManager", "MapClusterManager 정리 완료")
     }
 
     private fun createSelectedMarkerIcon(postType: String? = null): OverlayImage {
@@ -596,7 +767,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (80 * 1.5).toInt() // 기본 80에서 1.5배 크기 (선택 시 더 크게)
+        val size = (MARKER_SIZE * SELECTED_MARKER_SCALE).toInt() // 선택 시 더 크게
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -649,6 +820,9 @@ class MapClusterManager(
         val content = marker.tag as? MapContent
         
         if (isFocused) {
+            // 애니메이션 시작시 플래그 설정
+            isAnimating = true
+            
             // 포커스 시: 1.0 → 1.4 크기로 부드럽게 애니메이션
             val scaleAnimator = ObjectAnimator.ofFloat(1.0f, 1.4f)
             scaleAnimator.duration = 200
@@ -659,9 +833,18 @@ class MapClusterManager(
                 marker.icon = createIntermediateMarkerIcon(content?.postType, scale)
             }
             
+            scaleAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    isAnimating = false // 애니메이션 완료시 플래그 해제
+                }
+            })
+            
             scaleAnimator.start()
             
         } else {
+            // 애니메이션 시작시 플래그 설정
+            isAnimating = true
+            
             // 포커스 해제 시: 1.4 → 1.0으로 부드럽게 축소
             val scaleAnimator = ObjectAnimator.ofFloat(1.4f, 1.0f)
             scaleAnimator.duration = 150
@@ -675,6 +858,7 @@ class MapClusterManager(
             scaleAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     marker.icon = getNormalMarkerIcon(content?.postType)
+                    isAnimating = false // 애니메이션 완료시 플래그 해제
                 }
             })
             
@@ -683,7 +867,7 @@ class MapClusterManager(
     }
 
     private fun createClusterIcon(count: Int, isSelected: Boolean = false): OverlayImage {
-        val size = if (isSelected) 96 else 80 // 선택 시 크기 증가
+        val size = if (isSelected) MarkerConfig.CLUSTER_SELECTED_SIZE else MarkerConfig.CLUSTER_BASE_SIZE
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
@@ -745,7 +929,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (80 * 1.4).toInt() // 기본 80에서 1.4배 크기
+        val size = (MARKER_SIZE * HIGHLIGHTED_MARKER_SCALE).toInt() // 하이라이트 크기
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -766,7 +950,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = 80 // 64 -> 80으로 크기 증가
+        val size = MARKER_SIZE // 기본 마커 크기
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888) // 높이를 약간 더 크게
         val canvas = Canvas(bitmap)
         
@@ -787,7 +971,7 @@ class MapClusterManager(
         }
         
         val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (80 * scale).toInt() // 기본 80에 스케일 적용
+        val size = (MARKER_SIZE * scale).toInt() // 기본 크기에 스케일 적용
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -797,6 +981,31 @@ class MapClusterManager(
         return OverlayImage.fromBitmap(bitmap)
     }
     
+    // MarkerIconProvider 인터페이스 구현
+    override fun getNormalContentIcon(postType: String?): OverlayImage {
+        return getNormalMarkerIcon(postType)
+    }
+    
+    override fun getSelectedContentIcon(postType: String?): OverlayImage {
+        return getSelectedMarkerIcon(postType)
+    }
+    
+    override fun getHighlightedContentIcon(postType: String?): OverlayImage {
+        return getHighlightedMarkerIcon(postType)
+    }
+    
+    override fun getNormalRecordIcon(): OverlayImage {
+        return getRecordMarkerIcon(false)
+    }
+    
+    override fun getSelectedRecordIcon(): OverlayImage {
+        return getRecordMarkerIcon(true)
+    }
+    
+    override fun getClusterIcon(count: Int, isSelected: Boolean): OverlayImage {
+        return getClusterIconInternal(count, isSelected)
+    }
+
     // 캐시 접근 함수들 - 외부에서 사용
     private fun getNormalMarkerIcon(postType: String?): OverlayImage {
         val key = postType ?: "DEFAULT"
@@ -819,131 +1028,36 @@ class MapClusterManager(
         }
     }
     
-    private fun getClusterIcon(count: Int, isSelected: Boolean): OverlayImage {
+    private fun getClusterIconInternal(count: Int, isSelected: Boolean): OverlayImage {
         val key = if (isSelected) "selected_$count" else "normal_$count"
         return clusterIconCache[key] ?: createClusterIconInternal(count, isSelected).also {
             clusterIconCache[key] = it
         }
     }
 
-    // 내부 아이콘 생성 함수들 - 캐시 미스시에만 호출
+    // 내부 아이콘 생성 함수들 - 캐시 미스시에만 호출 (최적화된 버전)
     private fun createNormalMarkerIconInternal(postType: String?): OverlayImage {
-        val drawableRes = when(postType) {
-            "NOTICE" -> R.drawable.marker_notice
-            "INFO" -> R.drawable.marker_info
-            "MARKET" -> R.drawable.marker_market
-            "FREE" -> R.drawable.marker_free
-            "HOT" -> R.drawable.marker_hot
-            else -> R.drawable.marker_info // 기본값
-        }
-        
-        val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = 80 // 64 -> 80으로 크기 증가
-        val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888) // 높이를 약간 더 크게
-        val canvas = Canvas(bitmap)
-        
-        drawable?.setBounds(0, 0, size, (size * 1.125).toInt())
-        drawable?.draw(canvas)
-        
+        val bitmap = bitmapFactory.createMarkerBitmap(postType, scale = 1.0f)
         return OverlayImage.fromBitmap(bitmap)
     }
 
     private fun createSelectedMarkerIconInternal(postType: String?): OverlayImage {
-        val drawableRes = when(postType) {
-            "NOTICE" -> R.drawable.marker_notice
-            "INFO" -> R.drawable.marker_info
-            "MARKET" -> R.drawable.marker_market
-            "FREE" -> R.drawable.marker_free
-            "HOT" -> R.drawable.marker_hot
-            else -> R.drawable.marker_info // 기본값
-        }
-        
-        val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (80 * 1.5).toInt() // 기본 80에서 1.5배 크기 (선택 시 더 크게)
-        val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        
-        drawable?.setBounds(0, 0, size, (size * 1.125).toInt())
-        drawable?.draw(canvas)
-        
+        val bitmap = bitmapFactory.createMarkerBitmap(postType, scale = 1.5f)
         return OverlayImage.fromBitmap(bitmap)
     }
 
     private fun createHighlightedMarkerIconInternal(postType: String?): OverlayImage {
-        val drawableRes = when(postType) {
-            "NOTICE" -> R.drawable.marker_notice
-            "INFO" -> R.drawable.marker_info
-            "MARKET" -> R.drawable.marker_market
-            "FREE" -> R.drawable.marker_free
-            "HOT" -> R.drawable.marker_hot
-            else -> R.drawable.marker_info // 기본값
-        }
-        
-        val drawable = ContextCompat.getDrawable(context, drawableRes)
-        val size = (80 * 1.4).toInt() // 기본 80에서 1.4배 크기
-        val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        
-        drawable?.setBounds(0, 0, size, (size * 1.125).toInt())
-        drawable?.draw(canvas)
-        
+        val bitmap = bitmapFactory.createMarkerBitmap(postType, scale = 1.4f)
         return OverlayImage.fromBitmap(bitmap)
     }
     
     private fun createClusterIconInternal(count: Int, isSelected: Boolean): OverlayImage {
-        val size = if (isSelected) 96 else 80 // 선택 시 크기 증가
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-
-        // 배경 원 그리기
-        val paint = Paint().apply {
-            isAntiAlias = true
-            color = if (isSelected) Color.parseColor("#FF1976D2") else Color.parseColor("#FF3F51B5") // 선택 시 더 진한 파랑
-            style = Paint.Style.FILL
-        }
-
-        val radius = size / 2f - 2f
-        canvas.drawCircle(size / 2f, size / 2f, radius, paint)
-
-        // 테두리 그리기
-        paint.apply {
-            color = Color.WHITE
-            style = Paint.Style.STROKE
-            strokeWidth = if (isSelected) 6f else 4f // 선택 시 테두리 두께 증가
-        }
-        canvas.drawCircle(size / 2f, size / 2f, radius, paint)
-
-        // 선택 시 추가 외곽 테두리
-        if (isSelected) {
-            paint.apply {
-                color = Color.parseColor("#FFE91E63") // 핑크색 외곽 테두리
-                strokeWidth = 2f
-            }
-            canvas.drawCircle(size / 2f, size / 2f, radius + 4f, paint)
-        }
-
-        // 텍스트 그리기
-        paint.apply {
-            color = Color.WHITE
-            style = Paint.Style.FILL
-            textAlign = Paint.Align.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-            textSize = when {
-                count < 10 -> if (isSelected) 28f else 24f
-                count < 100 -> if (isSelected) 24f else 20f
-                else -> if (isSelected) 20f else 16f
-            }
-        }
-
-        val text = if (count > 999) "999+" else count.toString()
-        val textY = size / 2f + paint.textSize / 3f
-        canvas.drawText(text, size / 2f, textY, paint)
-
+        val bitmap = bitmapFactory.createClusterBitmap(count, isSelected, useOptimizedPath = true)
         return OverlayImage.fromBitmap(bitmap)
     }
     
     private fun showClusteredRecords(mapRecords: List<MapRecord>) {
-        val clusterDistance = getClusterDistance()
+        val clusterDistance = getRecordClusterDistance() // Record 전용 거리 함수 사용
         val clusters = clusterRecords(mapRecords, clusterDistance)
 
         Log.d("MapClusterManager", "줌: ${naverMap.cameraPosition.zoom}, Record 클러스터 거리: ${clusterDistance}m, 생성된 클러스터: ${clusters.size}개")
@@ -983,8 +1097,20 @@ class MapClusterManager(
                         // 클러스터 이동 플래그 설정
                         isClusterMoving = true
                         
+                        // 클러스터 크기에 따른 적절한 줌 레벨 계산 - 더 많이 확대
+                        val currentZoom = naverMap.cameraPosition.zoom
+                        val targetZoom = when {
+                            cluster.size <= 2 -> minOf(currentZoom + 3.0, 19.0)  // 매우 작은 클러스터: 3레벨 확대
+                            cluster.size <= 5 -> minOf(currentZoom + 2.5, 18.5)  // 작은 클러스터: 2.5레벨 확대
+                            cluster.size <= 15 -> minOf(currentZoom + 2.0, 18.0) // 중간 클러스터: 2레벨 확대  
+                            else -> minOf(currentZoom + 1.5, 17.5) // 큰 클러스터: 1.5레벨 확대
+                        }
+                        
+                        Log.d("MapClusterManager", "Record 클러스터 확대: ${cluster.size}개 → 줌 $currentZoom → $targetZoom")
+                        
+                        // 중앙 이동과 함께 확대
                         naverMap.moveCamera(
-                            CameraUpdate.scrollTo(position)
+                            CameraUpdate.scrollAndZoomTo(position, targetZoom)
                                 .animate(CameraAnimation.Easing)
                         )
                         
@@ -1072,7 +1198,7 @@ class MapClusterManager(
     
     private fun createRecordMarkerIconInternal(isSelected: Boolean): OverlayImage {
         val drawable = ContextCompat.getDrawable(context, R.drawable.marker_record)
-        val size = if (isSelected) (80 * 1.5).toInt() else 80
+        val size = if (isSelected) (MARKER_SIZE * SELECTED_MARKER_SCALE).toInt() else MARKER_SIZE
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -1083,7 +1209,7 @@ class MapClusterManager(
     }
     
     private fun createRecordClusterIconInternal(count: Int, isSelected: Boolean): OverlayImage {
-        val size = if (isSelected) 96 else 80
+        val size = if (isSelected) MarkerConfig.CLUSTER_SELECTED_SIZE else MarkerConfig.CLUSTER_BASE_SIZE
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
@@ -1174,7 +1300,7 @@ class MapClusterManager(
     
     private fun createIntermediateRecordMarkerIcon(scale: Float): OverlayImage {
         val drawable = ContextCompat.getDrawable(context, R.drawable.marker_record)
-        val size = (80 * scale).toInt() // 기본 80에 스케일 적용
+        val size = (MARKER_SIZE * scale).toInt() // 기본 크기에 스케일 적용
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         

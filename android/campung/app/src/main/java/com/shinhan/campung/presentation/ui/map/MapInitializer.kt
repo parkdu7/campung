@@ -21,8 +21,9 @@ class MapInitializer {
             isRotateGesturesEnabled = true
             isZoomControlEnabled = false
             isScaleBarEnabled = false
-            isCompassEnabled = true
+            isCompassEnabled = false
             isLocationButtonEnabled = false
+            setLogoMargin(-500, -500, 0, 0)
         }
     }
     
