@@ -140,7 +140,7 @@ fun FriendScreen(
                     Icon(
                         painter = painterResource(R.drawable.friend_plus),
                         contentDescription = "친구 추가",
-                        tint = Color.Black
+                        tint = Color.Unspecified
                     )
                 }
             },
