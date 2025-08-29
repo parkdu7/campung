@@ -12,6 +12,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,12 +24,19 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.shinhan.campung.R
 import com.shinhan.campung.presentation.ui.theme.CampusPrimary
 import com.shinhan.campung.presentation.ui.theme.CampusSecondary
+import com.shinhan.campung.presentation.viewmodel.SessionViewModel
 
 @Composable
 fun StudentCard() {
+    // ✅ WritePostScreen과 동일하게 세션에서 닉네임 수집
+    val session: SessionViewModel = hiltViewModel()
+    val savedNickname by session.nickname.collectAsState()
+    val displayName = if (savedNickname.isNotBlank()) savedNickname else "김신한" // fallback
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -47,7 +56,6 @@ fun StudentCard() {
                     )
                 )
                 .padding(40.dp),
-//            contentAlignment = Alignment.Center // 박스 안 전체 중앙정렬
         ) {
             Column {
                 Text(
@@ -55,13 +63,13 @@ fun StudentCard() {
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 16.sp
                 )
-                
+
                 Spacer(modifier = Modifier.height(20.dp))
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 프로필 이미지 자리 (간단한 캐릭터로 표현)
+                    // 프로필 이미지
                     Box(
                         modifier = Modifier
                             .size(80.dp)
@@ -74,9 +82,9 @@ fun StudentCard() {
                             tint = Color.Unspecified
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.width(16.dp))
-                    
+
                     Column {
                         Text(
                             "컴퓨터공학과, 재학 3학년",
@@ -84,24 +92,24 @@ fun StudentCard() {
                             fontSize = 14.sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
+                        // ✅ 학번은 그대로 유지
                         Text(
-                            "김신한 (2021001)",
+                            "$displayName (2021001)",
                             color = Color.White,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(33.dp))
-                
-                // QR 코드 버튼 영역
+
                 Row(
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally) // 전체 Column에서 중앙정렬
-                        .fillMaxWidth()                      // 가로 전체 차지
-                        .clip(RoundedCornerShape(10.dp)) // 둥근 모서리
-                        .background(Color.White.copy(alpha = 0.2f)) // 배경
+                        .align(Alignment.CenterHorizontally)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(alpha = 0.2f))
                         .padding(vertical = 18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
@@ -120,7 +128,6 @@ fun StudentCard() {
                         fontWeight = FontWeight.Medium
                     )
                 }
-
             }
         }
     }
