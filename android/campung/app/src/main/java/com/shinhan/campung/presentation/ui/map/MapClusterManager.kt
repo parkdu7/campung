@@ -24,6 +24,10 @@ import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.OverlayImage
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.model.MapRecord
+import com.shinhan.campung.data.model.MapItem
+import com.shinhan.campung.data.model.MapContentItem
+import com.shinhan.campung.data.model.MapRecordItem
+import com.shinhan.campung.data.model.createMixedMapItems
 import com.shinhan.campung.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +47,9 @@ class MapClusterManager(
     var onClusterClick: ((List<MapContent>) -> Unit)? = null
     var onRecordClusterClick: ((List<MapRecord>) -> Unit)? = null
     var onCenterMarkerChanged: ((MapContent?) -> Unit)? = null
+    
+    // 통합 클러스터 콜백 (새로 추가)
+    var onMixedClusterClick: ((List<MapItem>) -> Unit)? = null
     
     // 툴팁 콜백 (InfoWindow 대신 사용)
     var onShowTooltip: ((MapContent, com.shinhan.campung.presentation.ui.components.TooltipType) -> Unit)? = null
@@ -381,14 +388,21 @@ class MapClusterManager(
         val currentZoom = naverMap.cameraPosition.zoom
         Log.d("MapClusterManager", "현재 줌 레벨: $currentZoom, Content 마커: ${mapContents.size}개, Record 마커: ${mapRecords.size}개")
 
-        // Content 마커들 표시
-        Log.d("MapClusterManager", "클러스터링 모드 - Content (줌 레벨: $currentZoom)")
-        showClusteredMarkers(mapContents)
-        
-        // Record 마커들 표시
-        if (mapRecords.isNotEmpty()) {
-            Log.d("MapClusterManager", "클러스터링 모드 - Records (줌 레벨: $currentZoom)")
-            showClusteredRecords(mapRecords)
+        // 통합 클러스터링 모드 또는 개별 처리 모드 선택
+        if (onMixedClusterClick != null) {
+            // 새로운 통합 클러스터링 모드
+            Log.d("MapClusterManager", "통합 클러스터링 모드 (줌 레벨: $currentZoom)")
+            showMixedClusters(mapContents, mapRecords)
+        } else {
+            // 기존 개별 처리 모드 (하위 호환성)
+            Log.d("MapClusterManager", "개별 클러스터링 모드 - Content (줌 레벨: $currentZoom)")
+            showClusteredMarkers(mapContents)
+            
+            // Record 마커들 표시
+            if (mapRecords.isNotEmpty()) {
+                Log.d("MapClusterManager", "개별 클러스터링 모드 - Records (줌 레벨: $currentZoom)")
+                showClusteredRecords(mapRecords)
+            }
         }
 
         // 선택 상태 복원
@@ -660,38 +674,38 @@ class MapClusterManager(
 
     private fun getClusterDistance(): Double {
         return when {
-            naverMap.cameraPosition.zoom >= 21 -> 5.0    // 5m - 최대 줌에서도 적절한 클러스터링
-            naverMap.cameraPosition.zoom >= 20 -> 10.0   // 10m - 초세밀
-            naverMap.cameraPosition.zoom >= 19 -> 15.0   // 15m - 세밀
-            naverMap.cameraPosition.zoom >= 18 -> 25.0   // 25m - 매우 세밀
-            naverMap.cameraPosition.zoom >= 17 -> 40.0   // 40m - 세밀
-            naverMap.cameraPosition.zoom >= 16 -> 60.0   // 60m
-            naverMap.cameraPosition.zoom >= 15 -> 18.0   // 18m
-            naverMap.cameraPosition.zoom >= 14 -> 28.0   // 28m
-            naverMap.cameraPosition.zoom >= 13 -> 45.0   // 45m
-            naverMap.cameraPosition.zoom >= 12 -> 75.0   // 75m
-            naverMap.cameraPosition.zoom >= 11 -> 130.0  // 130m
-            naverMap.cameraPosition.zoom >= 10 -> 220.0  // 220m
-            else -> 450.0 // 450m - 멀리서 볼 때는 넓게 클러스터링
+            naverMap.cameraPosition.zoom >= 21 -> 2.0    // 2m - 매우 촘촘하게
+            naverMap.cameraPosition.zoom >= 20 -> 3.0    // 3m - 초세밀
+            naverMap.cameraPosition.zoom >= 19 -> 5.0    // 5m - 세밀  
+            naverMap.cameraPosition.zoom >= 18 -> 8.0    // 8m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 17 -> 12.0   // 12m - 세밀
+            naverMap.cameraPosition.zoom >= 16 -> 18.0   // 18m
+            naverMap.cameraPosition.zoom >= 15 -> 8.0    // 8m - 더 빨리 나뉘게
+            naverMap.cameraPosition.zoom >= 14 -> 12.0   // 12m
+            naverMap.cameraPosition.zoom >= 13 -> 18.0   // 18m
+            naverMap.cameraPosition.zoom >= 12 -> 30.0   // 30m
+            naverMap.cameraPosition.zoom >= 11 -> 60.0   // 60m
+            naverMap.cameraPosition.zoom >= 10 -> 120.0  // 120m
+            else -> 250.0 // 250m - 멀리서도 적당히
         }
     }
 
-    // Record 전용 클러스터링 거리 - Content보다 더 세밀하게 쪼개기
+    // Record 전용 클러스터링 거리 - Content보다 조금 더 촘촘하게
     private fun getRecordClusterDistance(): Double {
         return when {
-            naverMap.cameraPosition.zoom >= 21 -> 2.0    // 2m - 매우 세밀
-            naverMap.cameraPosition.zoom >= 20 -> 4.0    // 4m - 초세밀
-            naverMap.cameraPosition.zoom >= 19 -> 6.0    // 6m - 세밀
-            naverMap.cameraPosition.zoom >= 18 -> 10.0   // 10m - 매우 세밀
-            naverMap.cameraPosition.zoom >= 17 -> 15.0   // 15m - 세밀
-            naverMap.cameraPosition.zoom >= 16 -> 25.0   // 25m
-            naverMap.cameraPosition.zoom >= 15 -> 35.0   // 35m
-            naverMap.cameraPosition.zoom >= 14 -> 50.0   // 50m
-            naverMap.cameraPosition.zoom >= 13 -> 75.0   // 75m
-            naverMap.cameraPosition.zoom >= 12 -> 120.0  // 120m
-            naverMap.cameraPosition.zoom >= 11 -> 200.0  // 200m
-            naverMap.cameraPosition.zoom >= 10 -> 350.0  // 350m
-            else -> 600.0 // 600m - 멀리서 볼 때도 Content보다 더 넓게
+            naverMap.cameraPosition.zoom >= 21 -> 1.5    // 1.5m - 매우 촘촘하게
+            naverMap.cameraPosition.zoom >= 20 -> 2.5    // 2.5m - 초세밀  
+            naverMap.cameraPosition.zoom >= 19 -> 4.0    // 4m - 세밀
+            naverMap.cameraPosition.zoom >= 18 -> 6.0    // 6m - 매우 세밀
+            naverMap.cameraPosition.zoom >= 17 -> 9.0    // 9m - 세밀
+            naverMap.cameraPosition.zoom >= 16 -> 14.0   // 14m
+            naverMap.cameraPosition.zoom >= 15 -> 6.0    // 6m - 더 빨리 나뉘게
+            naverMap.cameraPosition.zoom >= 14 -> 9.0    // 9m
+            naverMap.cameraPosition.zoom >= 13 -> 14.0   // 14m
+            naverMap.cameraPosition.zoom >= 12 -> 25.0   // 25m
+            naverMap.cameraPosition.zoom >= 11 -> 50.0   // 50m
+            naverMap.cameraPosition.zoom >= 10 -> 100.0  // 100m
+            else -> 200.0 // 200m - 멀리서도 적당히
         }
     }
 
@@ -799,11 +813,274 @@ class MapClusterManager(
         onRecordClick = null
         onClusterClick = null
         onRecordClusterClick = null
+        onMixedClusterClick = null
         onCenterMarkerChanged = null
         onShowTooltip = null
         onHideTooltip = null
         
         Log.d("MapClusterManager", "MapClusterManager 완전 정리 완료")
+    }
+
+    /**
+     * Content와 Record를 통합해서 클러스터링하는 새로운 함수
+     */
+    private fun showMixedClusters(mapContents: List<MapContent>, mapRecords: List<MapRecord>) {
+        // MapItem으로 변환하고 통합
+        val mixedItems = createMixedMapItems(mapContents, mapRecords)
+        val clusterDistance = getClusterDistance()
+        val clusters = clusterMixedItems(mixedItems, clusterDistance)
+
+        Log.e("MapClusterManager", "🎯🎯🎯 [MIXED] showMixedClusters 시작!!!")
+        Log.d("MapClusterManager", "📊 [MIXED] 입력 데이터: ${mapContents.size}개 Content + ${mapRecords.size}개 Record = ${mixedItems.size}개 총합")
+        Log.d("MapClusterManager", "📊 [MIXED] 줌: ${naverMap.cameraPosition.zoom}, 클러스터 거리: ${clusterDistance}m, 생성된 클러스터: ${clusters.size}개")
+
+        clusters.forEachIndexed { index, cluster ->
+            Log.d("MapClusterManager", "📊 [MIXED] 클러스터 [$index]: ${cluster.size}개 아이템")
+
+            if (cluster.size == 1) {
+                // 단일 마커
+                val item = cluster[0]
+                Log.d("MapClusterManager", "📍 [MIXED] 단일 마커 생성: ${item.title} (ID: ${item.id}, 타입: ${item.type})")
+                
+                when (item) {
+                    is MapContentItem -> {
+                        val marker = createContentMarker(item.content)
+                        markers.add(marker)
+                        Log.d("MapClusterManager", "✅ [MIXED] Content 마커 추가 완료")
+                    }
+                    is MapRecordItem -> {
+                        val marker = createRecordMarker(item.record)
+                        recordMarkers.add(marker)
+                        Log.d("MapClusterManager", "✅ [MIXED] Record 마커 추가 완료")
+                    }
+                }
+            } else {
+                // 통합 클러스터 마커
+                val centerLat = cluster.map { it.location.latitude }.average()
+                val centerLng = cluster.map { it.location.longitude }.average()
+
+                // 클러스터 구성 분석
+                val contentCount = cluster.count { it.type == com.shinhan.campung.data.model.MapItemType.CONTENT }
+                val recordCount = cluster.count { it.type == com.shinhan.campung.data.model.MapItemType.RECORD }
+                
+                val clusterText = when {
+                    contentCount > 0 && recordCount > 0 -> "${cluster.size}개 (게시글 ${contentCount}, 녹음 ${recordCount})"
+                    contentCount > 0 -> "${cluster.size}개 게시글"
+                    else -> "${cluster.size}개 녹음"
+                }
+
+                val clusterMarker = Marker().apply {
+                    position = LatLng(centerLat, centerLng)
+                    captionText = clusterText
+                    icon = createMixedClusterIcon(cluster.size, contentCount, recordCount, false)
+                    map = naverMap
+
+                    setOnClickListener {
+                        Log.e("MapClusterManager", "🎯🎯🎯 [MIXED CLUSTER] 통합 클러스터 클릭!!!")
+                        Log.d("MapClusterManager", "🎯 [MIXED CLUSTER] 클릭된 클러스터: ${cluster.size}개 아이템 (Content: ${contentCount}, Record: ${recordCount})")
+                        
+                        // 개별 마커 선택 해제
+                        selectedMarker?.let { marker ->
+                            animateMarkerSelection(marker, false)
+                            marker.zIndex = 0
+                        }
+                        selectedMarker = null
+                        selectedContent = null
+                        
+                        selectedRecordMarker?.let { marker ->
+                            animateRecordMarkerSelection(marker, false)
+                            marker.zIndex = 0
+                        }
+                        selectedRecordMarker = null
+                        selectedRecord = null
+
+                        // 이전 선택된 클러스터 해제
+                        selectedClusterMarker?.let { oldCluster ->
+                            // 이전 클러스터 아이콘 복원 (믹스드 클러스터인지 확인 필요)
+                            oldCluster.icon = createMixedClusterIcon(cluster.size, contentCount, recordCount, false)
+                            oldCluster.zIndex = 0
+                        }
+                        
+                        // 새로운 클러스터 선택
+                        selectedClusterMarker = this
+                        this.icon = createMixedClusterIcon(cluster.size, contentCount, recordCount, true)
+                        this.zIndex = 2000
+
+                        // 통합 클러스터 클릭 콜백 호출
+                        onMixedClusterClick?.invoke(cluster)
+
+                        // 클러스터 이동 플래그 설정
+                        isClusterMoving = true
+                        
+                        // 줌 레벨 유지하면서 애니메이션으로 중앙 이동
+                        naverMap.moveCamera(
+                            CameraUpdate.scrollTo(position)
+                                .animate(CameraAnimation.Easing)
+                        )
+                        
+                        // 애니메이션 완료 후 플래그 해제 (1초 후)
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            isClusterMoving = false
+                        }, 1000)
+                        
+                        true
+                    }
+                }
+                clusterMarkers.add(clusterMarker)
+                Log.d("MapClusterManager", "✅ [MIXED] 통합 클러스터 마커 추가 완료")
+            }
+        }
+    }
+
+    /**
+     * Content 마커를 생성하는 헬퍼 함수
+     */
+    private fun createContentMarker(content: MapContent): Marker {
+        return Marker().apply {
+            position = LatLng(content.location.latitude, content.location.longitude)
+            icon = getNormalMarkerIcon(content.postType)
+            map = naverMap
+            tag = content
+
+            setOnClickListener {
+                Log.e("MapClusterManager", "🎯🎯🎯 [MIXED CONTENT] 개별 Content 마커 클릭!!!")
+                
+                if (selectedContent?.contentId == content.contentId) {
+                    clearSelection()
+                    onMarkerClick?.invoke(content)
+                } else {
+                    selectMarker(content)
+                    
+                    isClusterMoving = true
+                    
+                    naverMap.moveCamera(
+                        CameraUpdate.scrollTo(LatLng(content.location.latitude, content.location.longitude))
+                            .animate(CameraAnimation.Easing)
+                    )
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        isClusterMoving = false
+                    }, 1000)
+                    
+                    onMarkerClick?.invoke(content)
+                }
+                true
+            }
+        }
+    }
+
+    /**
+     * Record 마커를 생성하는 헬퍼 함수
+     */
+    private fun createRecordMarker(record: MapRecord): Marker {
+        return Marker().apply {
+            position = LatLng(record.location.latitude, record.location.longitude)
+            icon = getRecordMarkerIcon(false)
+            map = naverMap
+            tag = record
+
+            setOnClickListener {
+                Log.e("MapClusterManager", "🎯🎯🎯 [MIXED RECORD] 개별 Record 마커 클릭!!!")
+                onRecordClick?.invoke(record)
+                true
+            }
+        }
+    }
+
+    /**
+     * 통합 클러스터 아이콘 생성
+     */
+    private fun createMixedClusterIcon(totalCount: Int, contentCount: Int, recordCount: Int, isSelected: Boolean): OverlayImage {
+        val key = "mixed_${totalCount}_${contentCount}_${recordCount}_${if (isSelected) "selected" else "normal"}"
+        return clusterIconCache[key] ?: createMixedClusterIconInternal(totalCount, contentCount, recordCount, isSelected).also {
+            clusterIconCache[key] = it
+        }
+    }
+
+    private fun createMixedClusterIconInternal(totalCount: Int, contentCount: Int, recordCount: Int, isSelected: Boolean): OverlayImage {
+        val size = if (isSelected) MarkerConfig.CLUSTER_SELECTED_SIZE else MarkerConfig.CLUSTER_BASE_SIZE
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // 배경 원 그리기 (혼합 클러스터 전용 색상)
+        val paint = Paint().apply {
+            isAntiAlias = true
+            color = if (isSelected) Color.parseColor("#FF673AB7") else Color.parseColor("#FF9C27B0") // 보라색 계열 (혼합 표시)
+            style = Paint.Style.FILL
+        }
+
+        val radius = size / 2f - 2f
+        canvas.drawCircle(size / 2f, size / 2f, radius, paint)
+
+        // 테두리 그리기
+        paint.apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = if (isSelected) 6f else 4f
+        }
+        canvas.drawCircle(size / 2f, size / 2f, radius, paint)
+
+        // 선택 시 추가 외곽 테두리
+        if (isSelected) {
+            paint.apply {
+                color = Color.parseColor("#FFFF9800") // 오렌지색 외곽 테두리
+                strokeWidth = 2f
+            }
+            canvas.drawCircle(size / 2f, size / 2f, radius + 4f, paint)
+        }
+
+        // 텍스트 그리기 (간단하게 총 개수만)
+        paint.apply {
+            color = Color.WHITE
+            style = Paint.Style.FILL
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = when {
+                totalCount < 10 -> if (isSelected) 28f else 24f
+                totalCount < 100 -> if (isSelected) 24f else 20f
+                else -> if (isSelected) 20f else 16f
+            }
+        }
+
+        val text = if (totalCount > 999) "999+" else totalCount.toString()
+        val textY = size / 2f + paint.textSize / 3f
+        canvas.drawText(text, size / 2f, textY, paint)
+
+        return OverlayImage.fromBitmap(bitmap)
+    }
+
+    /**
+     * MapItem들을 클러스터링하는 함수
+     */
+    private fun clusterMixedItems(mixedItems: List<MapItem>, distance: Double): List<List<MapItem>> {
+        val clusters = mutableListOf<MutableList<MapItem>>()
+        val processed = mutableSetOf<MapItem>()
+
+        mixedItems.forEach { item ->
+            if (item in processed) return@forEach
+
+            val cluster = mutableListOf<MapItem>()
+            cluster.add(item)
+            processed.add(item)
+
+            // 반경 내의 다른 아이템들 검색
+            mixedItems.forEach { other ->
+                if (other != item && other !in processed) {
+                    val itemDistance = calculateDistance(
+                        item.location.latitude, item.location.longitude,
+                        other.location.latitude, other.location.longitude
+                    )
+                    if (itemDistance <= distance) {
+                        cluster.add(other)
+                        processed.add(other)
+                    }
+                }
+            }
+
+            clusters.add(cluster)
+        }
+
+        return clusters
     }
 
     private fun createSelectedMarkerIcon(postType: String? = null): OverlayImage {

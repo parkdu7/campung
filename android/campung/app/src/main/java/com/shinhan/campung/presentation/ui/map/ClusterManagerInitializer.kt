@@ -79,6 +79,12 @@ class ClusterManagerInitializer(
             manager.onRecordClusterClick = { clusterRecords ->
                 // Record 클러스터 클릭 시 목록 표시 등의 로직 추가 가능
             }
+            
+            // 통합 클러스터 클릭 이벤트 처리 (새로 추가)
+            manager.onMixedClusterClick = { mixedClusterItems ->
+                Log.d("ClusterManagerInitializer", "🎯 통합 클러스터 클릭: ${mixedClusterItems.size}개 아이템")
+                mapViewModel.selectMixedCluster(mixedClusterItems)
+            }
         }
     }
 }

@@ -9,6 +9,10 @@ import androidx.lifecycle.viewModelScope
 import com.naver.maps.map.NaverMap
 import com.shinhan.campung.data.model.MapContent
 import com.shinhan.campung.data.model.MapRecord
+import com.shinhan.campung.data.model.MapItem
+import com.shinhan.campung.data.model.MapContentItem
+import com.shinhan.campung.data.model.MapRecordItem
+import com.shinhan.campung.data.model.createMixedMapItems
 import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
 import com.shinhan.campung.data.repository.POIRepository
@@ -57,6 +61,10 @@ class MapViewModel @Inject constructor(
     // UI States
     private val _bottomSheetContents = MutableStateFlow<List<MapContent>>(emptyList())
     val bottomSheetContents: StateFlow<List<MapContent>> = _bottomSheetContents.asStateFlow()
+    
+    // 통합 바텀시트 아이템 (MapItem 사용)
+    private val _bottomSheetItems = MutableStateFlow<List<MapItem>>(emptyList())
+    val bottomSheetItems: StateFlow<List<MapItem>> = _bottomSheetItems.asStateFlow()
 
     private val _selectedMarkerId = MutableStateFlow<Long?>(null)
     val selectedMarkerId: StateFlow<Long?> = _selectedMarkerId.asStateFlow()
@@ -358,6 +366,9 @@ class MapViewModel @Inject constructor(
         _isLoading.value = true
         _isBottomSheetExpanded.value = true
         
+        // 통합 바텀시트 아이템 초기화 (클러스터 선택 후 개별 마커 선택 시 중복 방지)
+        _bottomSheetItems.value = emptyList()
+        
         viewModelScope.launch {
             try {
                 val result = mapContentRepository.getContentsByIds(listOf(mapContent.contentId))
@@ -389,6 +400,9 @@ class MapViewModel @Inject constructor(
         _isLoading.value = true
         _isBottomSheetExpanded.value = true
         
+        // 통합 바텀시트 아이템 초기화 (혼합 클러스터 선택 후 기존 클러스터 선택 시 중복 방지)
+        _bottomSheetItems.value = emptyList()
+        
         viewModelScope.launch {
             val contentIds = clusterContents.map { it.contentId }
             
@@ -406,13 +420,72 @@ class MapViewModel @Inject constructor(
         }
     }
 
+    // 통합 클러스터 선택 처리 (MapItem 사용)
+    fun selectMixedCluster(clusterItems: List<MapItem>) {
+        Log.d(TAG, "🎯 [MIXED] selectMixedCluster 호출: ${clusterItems.size}개 아이템")
+        
+        selectedMarker = null
+        _selectedMarkerId.value = null
+        _isLoading.value = true
+        _isBottomSheetExpanded.value = true
+        
+        // 기존 바텀시트 콘텐츠 초기화 (개별 마커 선택 후 클러스터 선택 시 중복 방지)
+        _bottomSheetContents.value = emptyList()
+        
+        viewModelScope.launch {
+            try {
+                // Content와 Record 분리
+                val contentItems = clusterItems.filterIsInstance<MapContentItem>()
+                val recordItems = clusterItems.filterIsInstance<MapRecordItem>()
+                
+                Log.d(TAG, "🔍 [MIXED] Content 아이템: ${contentItems.size}개, Record 아이템: ${recordItems.size}개")
+                
+                // Content는 서버에서 상세 정보를 가져와야 함 (기존 로직 유지)
+                val detailedContents = if (contentItems.isNotEmpty()) {
+                    val contentIds = contentItems.map { it.content.contentId }
+                    mapContentRepository.getContentsByIds(contentIds).getOrElse { 
+                        Log.e(TAG, "Content 상세 정보 로딩 실패")
+                        emptyList()
+                    }
+                } else {
+                    emptyList()
+                }
+                
+                // Record는 이미 전체 정보를 가지고 있음
+                val records = recordItems.map { it.record }
+                
+                // 통합 MapItem 리스트 생성 (createdAt 기준으로 정렬)
+                val mixedItems = createMixedMapItems(detailedContents, records)
+                
+                Log.d(TAG, "✅ [MIXED] 통합 아이템 생성 완료: ${mixedItems.size}개")
+                
+                // 기존 bottomSheetContents도 업데이트 (하위 호환성)
+                _bottomSheetContents.value = detailedContents
+                
+                // 새로운 통합 아이템 설정
+                _bottomSheetItems.value = mixedItems
+                
+                _isLoading.value = false
+                
+            } catch (exception: Exception) {
+                Log.e(TAG, "통합 클러스터 데이터 로딩 실패", exception)
+                _bottomSheetContents.value = emptyList()
+                _bottomSheetItems.value = emptyList()
+                _isBottomSheetExpanded.value = false
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun clearSelectedMarker() {
         selectedMarker = null
         _selectedMarkerId.value = null
         _isLoading.value = false
-
-        // 핫 콘텐츠로 복귀
-        loadHotContents()
+        
+        // 모든 바텀시트 데이터 초기화 (중복 표시 방지)
+        _bottomSheetContents.value = emptyList()
+        _bottomSheetItems.value = emptyList()
+        _isBottomSheetExpanded.value = false
     }
 
     fun loadHotContents() {
