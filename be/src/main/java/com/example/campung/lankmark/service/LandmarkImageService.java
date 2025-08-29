@@ -22,7 +22,9 @@ public class LandmarkImageService {
      * 이미지 업로드 및 썸네일 생성
      */
     public ImageUploadResult uploadLandmarkImage(MultipartFile imageFile) {
-        if (imageFile == null || imageFile.isEmpty()) {
+        if (imageFile == null || imageFile.isEmpty() || 
+            imageFile.getOriginalFilename() == null || imageFile.getOriginalFilename().trim().isEmpty()) {
+            log.info("이미지 파일이 없거나 비어있음 - 이미지 없이 랜드마크 생성");
             return new ImageUploadResult(null, null);
         }
 
