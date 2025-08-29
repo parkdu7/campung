@@ -3,9 +3,11 @@ package com.shinhan.campung.presentation.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,33 +17,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shinhan.campung.data.model.FilterTag
 import com.shinhan.campung.data.model.FilterTags
-
-//@Composable
-//fun HorizontalFilterTags(
-//    selectedTags: Set<String> = emptySet(),
-//    onTagClick: (String) -> Unit,
-//    modifier: Modifier = Modifier
-//) {
-//    LazyRow(
-//        modifier = modifier.fillMaxWidth(),
-//        horizontalArrangement = Arrangement.spacedBy(12.dp),
-//        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-//    ) {
-//        items(FilterTags.ALL_TAGS) { tag ->
-//            FilterTagItem(
-//                tag = tag,
-//                isSelected = selectedTags.contains(tag.id),
-//                onClick = { onTagClick(tag.id) }
-//            )
-//        }
-//    }
-//}
 
 @Composable
 fun HorizontalFilterTags(
@@ -49,24 +36,16 @@ fun HorizontalFilterTags(
     onTagClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val tags = FilterTags.ALL_TAGS.take(5) // 안전하게 5개만 사용
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        tags.forEach { tag ->
-            // 각 아이템을 1/5 폭으로
+        items(FilterTags.ALL_TAGS) { tag ->
             FilterTagItem(
                 tag = tag,
                 isSelected = selectedTags.contains(tag.id),
-                onClick = { onTagClick(tag.id) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp)          // 공통 높이(원하는 값으로)
-                    .fillMaxWidth()         // 칩/버튼이 셀을 가득 차도록
+                onClick = { onTagClick(tag.id) }
             )
         }
     }
@@ -118,7 +97,10 @@ private fun FilterTagItem(
             text = tag.name,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
-            color = fg
+            color = fg,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip
         )
     }
 }
