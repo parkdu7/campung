@@ -56,6 +56,7 @@ class LocationShareNotificationHandler @Inject constructor(
             putExtra("shareRequestId", shareRequestId)
             putExtra("fromUserName", fromUserName)
             putExtra("message", message)
+            putExtra("fcm_navigation", "notification")
         }
         
         if (hasActionButtons) {

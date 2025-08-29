@@ -42,8 +42,11 @@ class FcmNavigationHandler @Inject constructor() {
             if (contentId != null && contentId > 0) {
                 Log.d(TAG, "ContentDetailScreen으로 네비게이션 시도: $contentId")
                 navigateToContent(navController, contentId)
+            } else if (type == "location_share_request") {
+                Log.d(TAG, "위치 공유 요청 - NotificationScreen으로 네비게이션")
+                navigateToNotification(navController)
             } else {
-                Log.d(TAG, "contentId가 없거나 유효하지 않음: $contentId")
+                Log.d(TAG, "contentId가 없거나 유효하지 않음: $contentId, type: $type")
                 Log.d(TAG, "네비게이션 실행하지 않음")
             }
         } ?: run {
@@ -121,6 +124,25 @@ class FcmNavigationHandler @Inject constructor() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "네비게이션 실패", e)
+        }
+    }
+    
+    /**
+     * NotificationScreen으로 네비게이션 수행
+     */
+    private fun navigateToNotification(navController: NavController?) {
+        if (navController == null) {
+            Log.w(TAG, "NavController가 준비되지 않음")
+            return
+        }
+        
+        try {
+            Log.d(TAG, "NotificationScreen으로 네비게이션")
+            navController.navigate("notification") {
+                launchSingleTop = true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "알림 화면 네비게이션 실패", e)
         }
     }
     

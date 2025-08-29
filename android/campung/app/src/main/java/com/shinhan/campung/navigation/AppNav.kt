@@ -198,11 +198,20 @@ fun AppNav(
         // - 앱 백그라운드에서 FCM 클릭: onNewIntent에서 처리
         LaunchedEffect(navController, initialRoute) {
             initialRoute?.let { route ->
-                if (route.startsWith("content_detail/") && startRoute == Route.HOME) {
+                if (startRoute == Route.HOME) {
                     // HOME이 완전히 로드되길 기다림
                     kotlinx.coroutines.delay(300)
-                    navController.navigate(route) {
-                        launchSingleTop = true
+                    when {
+                        route.startsWith("content_detail/") -> {
+                            navController.navigate(route) {
+                                launchSingleTop = true
+                            }
+                        }
+                        route == "notification" -> {
+                            navController.navigate(Route.NOTIFICATION) {
+                                launchSingleTop = true
+                            }
+                        }
                     }
                 }
             }
