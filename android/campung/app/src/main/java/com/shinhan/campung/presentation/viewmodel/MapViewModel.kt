@@ -13,6 +13,7 @@ import com.shinhan.campung.data.repository.MapContentRepository
 import com.shinhan.campung.data.repository.MapRepository
 import com.shinhan.campung.data.repository.POIRepository
 import com.shinhan.campung.data.repository.RecordingRepository
+import com.shinhan.campung.data.local.AuthDataStore
 import com.shinhan.campung.data.mapper.ContentMapper
 import com.shinhan.campung.data.model.POIData
 import com.shinhan.campung.data.model.ContentCategory
@@ -22,6 +23,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import android.util.Log
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -38,10 +41,18 @@ class MapViewModel @Inject constructor(
     private val mapRepository: MapRepository,
     private val poiRepository: POIRepository,
     private val recordingRepository: RecordingRepository,
+    private val authDataStore: AuthDataStore,
     private val contentMapper: ContentMapper,
     val locationSharingManager: LocationSharingManager // public으로 노출
 ) : BaseViewModel() {
     fun getLastKnownLocation(): Pair<Double, Double>? = lastRequestLocation
+
+    // 현재 사용자 ID
+    val currentUserId: StateFlow<String?> = authDataStore.userIdFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = null
+    )
 
     // UI States
     private val _bottomSheetContents = MutableStateFlow<List<MapContent>>(emptyList())
@@ -222,10 +233,10 @@ class MapViewModel @Inject constructor(
                 // 반경 기반 임계값 계산 (작은 반경일수록 더 민감하게)
                 val threshold = when {
                     (radius ?: getDefaultRadius()) < 500 -> 25.0    // 500m 미만: 25m 임계값
-                    (radius ?: getDefaultRadius()) < 1500 -> 75.0   // 1.5km 미만: 75m 임계값  
+                    (radius ?: getDefaultRadius()) < 1500 -> 75.0   // 1.5km 미만: 75m 임계값
                     else -> 150.0  // 1.5km 이상: 150m 임계값
                 }
-                
+
                 if (locationDistance < threshold &&
                     lastParams.date == currentParams.date &&
                     lastParams.tags == currentParams.tags &&
@@ -422,15 +433,15 @@ class MapViewModel @Inject constructor(
         _selectedMarkerId.value = null
         _isLoading.value = false
         Log.d(TAG, "마커 선택 해제됨")
-        
+
         // 핫 콘텐츠로 복귀
         loadHotContents()
     }
-    
+
     fun loadHotContents() {
         Log.d(TAG, "🔥 [FLOW] loadHotContents 시작 - 핫 게시글 로드")
         _isLoading.value = true
-        
+
         viewModelScope.launch {
             try {
                 mapContentRepository.getHotContents()
@@ -494,7 +505,7 @@ class MapViewModel @Inject constructor(
     fun clearSelection() {
         _selectedMarkerId.value = null
         _isBottomSheetExpanded.value = false
-        
+
         // 핫 콘텐츠로 복귀
         loadHotContents()
     }
@@ -517,20 +528,20 @@ class MapViewModel @Inject constructor(
 
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
-        
+
         // 핫 콘텐츠로 복귀
         loadHotContents()
     }
-    
+
     fun selectPreviousDate() {
         val previousDate = selectedDate.minusDays(1)
         updateSelectedDate(previousDate)
     }
-    
+
     fun selectNextDate() {
         val nextDate = selectedDate.plusDays(1)
         val today = LocalDate.now()
-        
+
         // 오늘 날짜보다 미래로는 갈 수 없도록 제한
         if (nextDate.isBefore(today) || nextDate.isEqual(today)) {
             updateSelectedDate(nextDate)
@@ -567,7 +578,7 @@ class MapViewModel @Inject constructor(
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
         }
-        
+
         // 마커 데이터가 없을 때 핫 콘텐츠로 복귀
         if (mapContents.isEmpty()) {
             loadHotContents()
@@ -593,7 +604,7 @@ class MapViewModel @Inject constructor(
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
         }
-        
+
         // 마커 데이터가 없을 때 핫 콘텐츠로 복귀
         if (mapContents.isEmpty()) {
             loadHotContents()
@@ -783,6 +794,10 @@ class MapViewModel @Inject constructor(
         Log.d(TAG, "🎯 클러스터링 완료 - 로딩 상태 해제")
     }
 
+    fun isMyRecord(record: MapRecord, currentUserId: String?): Boolean {
+        return currentUserId != null && record.userId == currentUserId
+    }
+
     // ===== POI 관련 함수들 =====
 
     /**
@@ -906,10 +921,10 @@ class MapViewModel @Inject constructor(
 
         _selectedPOI.value = poi
         _showPOIDialog.value = true
-        
+
         // 상세 정보 및 요약 조회
         loadPOIDetail(poi.id)
-        
+
         Log.d(TAG, "🏪 POI 다이얼로그 표시")
     }
 
@@ -929,7 +944,7 @@ class MapViewModel @Inject constructor(
     fun loadPOIDetail(landmarkId: Long) {
         viewModelScope.launch {
             _isLoadingPOIDetail.value = true
-            
+
             try {
                 poiRepository.getLandmarkDetail(
                     landmarkId = landmarkId
