@@ -55,6 +55,15 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(org.springframework.dao.DataAccessException.class)
     public ResponseEntity<Map<String, Object>> handleDataAccessException(org.springframework.dao.DataAccessException e) {
+        // 로그에 상세 정보 기록
+        System.err.println("=== DATABASE ERROR ===");
+        System.err.println("Exception type: " + e.getClass().getSimpleName());
+        System.err.println("Message: " + e.getMessage());
+        if (e.getCause() != null) {
+            System.err.println("Cause: " + e.getCause().getMessage());
+        }
+        e.printStackTrace();
+        
         Map<String, Object> response = new HashMap<>();
         response.put("status", "error");
         response.put("error_type", "DATABASE_ERROR");
