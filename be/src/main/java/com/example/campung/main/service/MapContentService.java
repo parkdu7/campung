@@ -18,10 +18,12 @@ import com.example.campung.main.dto.MapContentResponse.LocationInfo;
 import com.example.campung.main.dto.MapContentResponse.MediaFileInfo;
 import com.example.campung.main.dto.MapContentResponse.ReactionInfo;
 import com.example.campung.main.dto.MapContentResponse.RecordItem;
+import com.example.campung.global.util.CampusDateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -49,16 +51,17 @@ public class MapContentService {
         System.out.println("radius: " + request.getRadius() + ", postType: " + request.getPostType());
         System.out.println("date: " + request.getDate());
 
-        // 날짜 처리
-        LocalDate targetDate = parseDate(request.getDate());
-        System.out.println("조회 대상 날짜: " + targetDate);
+        // 캠퍼스 날짜 처리 (05:00-05:00 사이클)
+        LocalDate targetCampusDate = CampusDateUtil.parseCampusDate(request.getDate());
+        System.out.println("조회 대상 캠퍼스 날짜: " + targetCampusDate);
+        System.out.println("캠퍼스 날짜 디버그: " + CampusDateUtil.debugCampusDate(LocalDateTime.now()));
 
-        // 위치 기반 콘텐츠 조회 (위치와 날짜 조건 적용)
-        List<Content> contents = findContentsByLocationAndDate(request, targetDate);
+        // 위치 기반 콘텐츠 조회 (위치와 캠퍼스 날짜 조건 적용)
+        List<Content> contents = findContentsByLocationAndDate(request, targetCampusDate);
         System.out.println("조회된 콘텐츠 수: " + contents.size());
 
         // 위치 기반 녹음파일 조회
-        List<Record> records = findRecordsByLocationAndDate(request, targetDate);
+        List<Record> records = findRecordsByLocationAndDate(request, targetCampusDate);
         System.out.println("조회된 녹음파일 수: " + records.size());
 
         // DTO 변환
@@ -73,8 +76,8 @@ public class MapContentService {
         MapContentData data = new MapContentData(contentItems, recordItems);
         
         // 날짜별 온도/날씨 데이터 설정
-        LocalDate today = LocalDate.now();
-        if (targetDate.equals(today)) {
+        LocalDate todayCampusDate = CampusDateUtil.getCurrentCampusDate();
+        if (targetCampusDate.equals(todayCampusDate)) {
             // 오늘 데이터: 현재 실시간 온도 및 감정 분석 결과 사용
             String emotionWeather = campusEmotionService.getCurrentEmotionWeather();
             Double currentTemperature = temperatureManager.getCurrentCampusTemperature();
@@ -95,7 +98,7 @@ public class MapContentService {
                              ", 최저온도: " + todayMinTemp);
         } else {
             // 과거 데이터: DailyCampus 테이블에서 조회
-            DailyCampus dailyData = temperatureManager.getDailyCampusData(targetDate);
+            DailyCampus dailyData = temperatureManager.getDailyCampusData(targetCampusDate);
             
             if (dailyData != null) {
                 // DailyCampus 데이터가 있는 경우: 최저, 최고, 평균온도, 마지막 날씨 반환
@@ -104,7 +107,7 @@ public class MapContentService {
                 data.setMaxTemperature(dailyData.getMaxTemperature());
                 data.setMinTemperature(dailyData.getMinTemperature());
                 
-                System.out.println("과거 데이터 (" + targetDate + ") - 날씨: " + dailyData.getWeatherType().name().toLowerCase() + 
+                System.out.println("과거 데이터 (" + targetCampusDate + ") - 날씨: " + dailyData.getWeatherType().name().toLowerCase() + 
                                  ", 평균온도: " + dailyData.getFinalTemperature() +
                                  ", 최고온도: " + dailyData.getMaxTemperature() +
                                  ", 최저온도: " + dailyData.getMinTemperature());
@@ -115,7 +118,7 @@ public class MapContentService {
                 data.setMaxTemperature(25.0);
                 data.setMinTemperature(15.0);
                 
-                System.out.println("과거 데이터 없음 (" + targetDate + ") - 기본값 사용");
+                System.out.println("과거 데이터 없음 (" + targetCampusDate + ") - 기본값 사용");
             }
         }
         
@@ -123,19 +126,10 @@ public class MapContentService {
     }
 
     private LocalDate parseDate(String dateStr) {
-        if (dateStr == null || dateStr.trim().isEmpty()) {
-            return LocalDate.now();
-        }
-
-        try {
-            return LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        } catch (DateTimeParseException e) {
-            System.out.println("날짜 파싱 실패, 오늘 날짜 사용: " + dateStr);
-            return LocalDate.now();
-        }
+        return CampusDateUtil.parseCampusDate(dateStr);
     }
 
-    private List<Content> findContentsByLocationAndDate(MapContentRequest request, LocalDate targetDate) {
+    private List<Content> findContentsByLocationAndDate(MapContentRequest request, LocalDate targetCampusDate) {
         double userLat = request.getLat();
         double userLng = request.getLng();
         int radiusInMeters = request.getRadius();
@@ -154,9 +148,11 @@ public class MapContentService {
 
         System.out.println("DB 검색 범위 - lat: " + minLat + "~" + maxLat + ", lng: " + minLng + "~" + maxLng);
 
-        // 날짜 범위 설정 (해당 날짜 하루 전체)
-        java.time.LocalDateTime startDateTime = targetDate.atStartOfDay();
-        java.time.LocalDateTime endDateTime = targetDate.plusDays(1).atStartOfDay();
+        // 캠퍼스 날짜 범위 설정 (05:00 ~ 다음날 04:59:59)
+        LocalDateTime startDateTime = CampusDateUtil.getCampusDateStartTime(targetCampusDate);
+        LocalDateTime endDateTime = CampusDateUtil.getCampusDateEndTime(targetCampusDate);
+        
+        System.out.println("캠퍼스 날짜 범위: " + startDateTime + " ~ " + endDateTime);
 
         List<Content> contents;
         if (postType != null) {
@@ -205,7 +201,7 @@ public class MapContentService {
         return filteredContents;
     }
     
-    private List<Record> findRecordsByLocationAndDate(MapContentRequest request, LocalDate targetDate) {
+    private List<Record> findRecordsByLocationAndDate(MapContentRequest request, LocalDate targetCampusDate) {
         double userLat = request.getLat();
         double userLng = request.getLng();
         int radiusInMeters = request.getRadius();
@@ -221,9 +217,9 @@ public class MapContentService {
         double minLng = userLng - searchRadiusInDegrees / Math.cos(Math.toRadians(userLat));
         double maxLng = userLng + searchRadiusInDegrees / Math.cos(Math.toRadians(userLat));
 
-        // 날짜 범위 설정 (해당 날짜 하루 전체)
-        java.time.LocalDateTime startDateTime = targetDate.atStartOfDay();
-        java.time.LocalDateTime endDateTime = targetDate.plusDays(1).atStartOfDay();
+        // 캠퍼스 날짜 범위 설정 (05:00 ~ 다음날 04:59:59)
+        LocalDateTime startDateTime = CampusDateUtil.getCampusDateStartTime(targetCampusDate);
+        LocalDateTime endDateTime = CampusDateUtil.getCampusDateEndTime(targetCampusDate);
 
         // 모든 녹음파일 조회 후 Java에서 필터링
         List<Record> allRecords = recordRepository.findAll();
@@ -404,9 +400,9 @@ public class MapContentService {
             }
         }
         
-        LocalDate targetDate = parseDate(date);
-        java.time.LocalDateTime startDateTime = targetDate.atStartOfDay();
-        java.time.LocalDateTime endDateTime = targetDate.plusDays(1).atStartOfDay();
+        LocalDate targetCampusDate = parseDate(date);
+        LocalDateTime startDateTime = CampusDateUtil.getCampusDateStartTime(targetCampusDate);
+        LocalDateTime endDateTime = CampusDateUtil.getCampusDateEndTime(targetCampusDate);
         
         List<Content> contents;
         if (postTypeEnum != null) {

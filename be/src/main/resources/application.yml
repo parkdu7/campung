@@ -44,6 +44,10 @@ firebase:
   config:
     path: firebase-service-account.json
 
+# 앱 설정
+app:
+  default-profile-image-url: "https://campung-media-storage.s3.ap-northeast-2.amazonaws.com/images/profiles/default/defaultImage.png"
+
 # Swagger/OpenAPI 설정 (간소화)
 springdoc:
   api-docs:
