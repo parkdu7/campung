@@ -49,15 +49,29 @@ public class LandmarkSearchService {
     }
     
     /**
+     * 개별 랜드마크 radius 기반 주변 랜드마크 조회
+     */
+    public List<Landmark> findLandmarksWithinTheirRadius(Double latitude, Double longitude) {
+        validationService.validateCoordinates(latitude, longitude);
+        return landmarkRepository.findLandmarksWithinTheirRadius(latitude, longitude);
+    }
+    
+    /**
      * 맵 POI 목록 조회
      */
     public MapPOIResponse getMapPOIs(MapPOIRequest request) {
         validationService.validateCoordinates(request.getLatitude(), request.getLongitude());
         
-        int searchRadius = request.getRadius() != null ? request.getRadius() : 1000; // 기본 1km
+        List<Landmark> landmarks;
         
-        List<Landmark> landmarks = landmarkRepository.findNearbyLandmarks(
-            request.getLatitude(), request.getLongitude(), searchRadius);
+        // radius가 지정되면 기존 방식 사용, 없으면 개별 랜드마크 radius 사용
+        if (request.getRadius() != null) {
+            landmarks = landmarkRepository.findNearbyLandmarks(
+                request.getLatitude(), request.getLongitude(), request.getRadius());
+        } else {
+            landmarks = landmarkRepository.findLandmarksWithinTheirRadius(
+                request.getLatitude(), request.getLongitude());
+        }
         
         // 카테고리 필터링 (선택사항)
         if (request.getCategory() != null && !request.getCategory().trim().isEmpty()) {
