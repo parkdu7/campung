@@ -106,7 +106,7 @@ public class ContentHotService {
                     item.setUserId(content.getAuthor() != null ? content.getAuthor().getUserId() : null);
                     item.setTitle(content.getTitle());
                     item.setContent(content.getContent());
-                    item.setPostType(content.getPostType().name());
+                    item.setPostType("HOT");
                     item.setCreatedAt(content.getCreatedAt().toString());
                     item.setHotScore(contentHot.getHotScore());
                     item.setLikeCount(content.getLikeCount());
