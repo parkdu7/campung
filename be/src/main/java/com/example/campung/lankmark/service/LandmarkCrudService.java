@@ -61,6 +61,7 @@ public class LandmarkCrudService {
                 formRequest.getLatitude(),
                 formRequest.getLongitude(),
                 formRequest.getCategory().name(),
+                formRequest.getRadius(),
                 formRequest.getImageFile()
         );
     }
@@ -70,7 +71,7 @@ public class LandmarkCrudService {
      */
     @Transactional
     public LandmarkCreateResponse createLandmarkWithImage(String name, String description, 
-            Double latitude, Double longitude, String categoryStr, 
+            Double latitude, Double longitude, String categoryStr, Integer radius,
             org.springframework.web.multipart.MultipartFile imageFile) {
         
         // 1. 입력 파라미터 유효성 검증
@@ -79,19 +80,23 @@ public class LandmarkCrudService {
         // 2. 카테고리 변환
         LandmarkCategory category = LandmarkCategory.valueOf(categoryStr.toUpperCase());
         
-        // 3. 중복 랜드마크 체크
+        // 3. radius 설정 (없으면 카테고리 기본값 사용)
+        int finalRadius = radius != null ? radius : category.getDefaultRadius();
+        
+        // 4. 중복 랜드마크 체크
         validationService.checkDuplicateLandmark(latitude, longitude, name);
         
-        // 4. 이미지 처리 (업로드 및 썸네일 생성)
+        // 5. 이미지 처리 (업로드 및 썸네일 생성)
         LandmarkImageService.ImageUploadResult imageResult = imageService.uploadLandmarkImage(imageFile);
         
-        // 5. 랜드마크 생성
+        // 6. 랜드마크 생성
         Landmark landmark = Landmark.builder()
                 .name(name)
                 .description(description)
                 .latitude(latitude)
                 .longitude(longitude)
                 .category(category)
+                .radius(finalRadius)
                 .imageUrl(imageResult.getImageUrl())
                 .thumbnailUrl(imageResult.getThumbnailUrl())
                 .build();
@@ -126,7 +131,10 @@ public class LandmarkCrudService {
         validationService.checkDuplicateLandmarkForUpdate(landmarkId, updateRequest.getLatitude(), 
                                        updateRequest.getLongitude(), updateRequest.getName());
         
-        // 4. 이미지 처리 (새 이미지가 있는 경우)
+        // 4. radius 설정 (없으면 카테고리 기본값 사용)
+        int finalRadius = updateRequest.getRadius() != null ? updateRequest.getRadius() : updateRequest.getCategory().getDefaultRadius();
+        
+        // 5. 이미지 처리 (새 이미지가 있는 경우)
         String newImageUrl = landmark.getImageUrl();
         String newThumbnailUrl = landmark.getThumbnailUrl();
         
@@ -140,7 +148,7 @@ public class LandmarkCrudService {
             newThumbnailUrl = imageResult.getThumbnailUrl();
         }
         
-        // 5. 랜드마크 정보 업데이트
+        // 6. 랜드마크 정보 업데이트
         Landmark updatedLandmark = Landmark.builder()
                 .id(landmark.getId())
                 .name(updateRequest.getName())
@@ -148,6 +156,7 @@ public class LandmarkCrudService {
                 .latitude(updateRequest.getLatitude())
                 .longitude(updateRequest.getLongitude())
                 .category(updateRequest.getCategory())
+                .radius(finalRadius)
                 .imageUrl(newImageUrl)
                 .thumbnailUrl(newThumbnailUrl)
                 .currentSummary(landmark.getCurrentSummary())

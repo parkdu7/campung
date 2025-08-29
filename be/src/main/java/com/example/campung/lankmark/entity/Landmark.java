@@ -43,6 +43,9 @@ public class Landmark {
     @Column(length = 500)
     private String thumbnailUrl;
     
+    @Column(nullable = false)
+    private Integer radius;
+    
     @Column(columnDefinition = "TEXT")
     private String currentSummary;
     
