@@ -125,8 +125,9 @@ public class CommentService {
             String message = commenterName + " 님이 " + contentTitle + " 글에 댓글을 작성했습니다.";
             String title = "댓글 알림";
             String type = "normal";
+            String data = "{\"contentId\":" + content.getContentId() + "}";
             
-            notificationService.createNotification(postAuthor, type, title, message, null);
+            notificationService.createNotification(postAuthor, type, title, message, data);
         } catch (Exception e) {
             System.err.println("댓글 알림 전송 중 오류 발생: " + e.getMessage());
         }
