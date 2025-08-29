@@ -18,9 +18,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.shinhan.campung.R
 import com.shinhan.campung.presentation.ui.theme.CampusPrimary
 import com.shinhan.campung.presentation.ui.theme.CampusSecondary
 
@@ -66,9 +68,11 @@ fun StudentCard() {
                             .clip(CircleShape)
                             .background(Color.White)
                     ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            drawStudentAvatar()
-                        }
+                        Icon(
+                            painter = painterResource(R.drawable.sol),
+                            contentDescription = null,
+                            tint = Color.Unspecified
+                        )
                     }
                     
                     Spacer(modifier = Modifier.width(16.dp))
@@ -89,7 +93,7 @@ fun StudentCard() {
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(30.dp))
+                Spacer(modifier = Modifier.height(33.dp))
                 
                 // QR 코드 버튼 영역
                 Row(
@@ -98,14 +102,14 @@ fun StudentCard() {
                         .fillMaxWidth()                      // 가로 전체 차지
                         .clip(RoundedCornerShape(10.dp)) // 둥근 모서리
                         .background(Color.White.copy(alpha = 0.2f)) // 배경
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AccountBox, // androidx.compose.material.icons.filled.QrCode 사용
+                        painter = painterResource(R.drawable.qr),
                         contentDescription = "QR",
-                        tint = Color.White,
+                        tint = Color.Unspecified,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))

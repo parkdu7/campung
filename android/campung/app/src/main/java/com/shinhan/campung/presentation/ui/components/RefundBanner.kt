@@ -1,5 +1,6 @@
 package com.shinhan.campung.presentation.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,9 +11,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.shinhan.campung.R
 import com.shinhan.campung.presentation.ui.theme.CampusRefundBackground
 
 @Composable
@@ -50,15 +54,14 @@ fun RefundBanner() {
             Box(
                 modifier = Modifier
                     .size(60.dp)
-                    .background(CampusRefundBackground, shape = RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
+                ,contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🎁", fontSize = 24.sp)
-                    Text(
-                        "혜택",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                    Image(
+                        painter = painterResource(id = R.drawable.money), // mipmap이면 R.mipmap.money
+                        contentDescription = "혜택 아이콘",
+                        modifier = Modifier.size(55.dp),
+                        contentScale = ContentScale.Fit
                     )
                 }
             }
