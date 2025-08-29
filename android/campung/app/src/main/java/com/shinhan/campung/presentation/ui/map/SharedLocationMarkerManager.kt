@@ -4,7 +4,9 @@ import androidx.compose.ui.graphics.Color
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.overlay.Marker
+import com.naver.maps.map.overlay.OverlayImage
 import com.shinhan.campung.data.model.SharedLocation
+import com.shinhan.campung.R
 import android.util.Log
 
 /**
@@ -51,8 +53,10 @@ class SharedLocationMarkerManager {
                 captionText = "${sharedLocation.userName}님의 위치"
                 captionTextSize = 12f
                 captionColor = 0xFF0000FF.toInt() // 파란색 고정값
-                width = 80
-                height = 80
+                width = 100
+                height = 100
+                // location_share 아이콘 적용
+                icon = OverlayImage.fromResource(R.drawable.location_share)
                 map = naverMap
                 
                 Log.d(TAG, "마커 속성 설정 완료 - 위치: (${sharedLocation.latitude}, ${sharedLocation.longitude})")

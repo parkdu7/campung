@@ -46,6 +46,7 @@ public class ContentHotResponse {
     
     public static class HotContentItem {
         private Long contentId;
+        private String userId;
         private AuthorInfo author;
         private String postType;
         private String title;
@@ -65,6 +66,14 @@ public class ContentHotResponse {
         
         public void setContentId(Long contentId) {
             this.contentId = contentId;
+        }
+        
+        public String getUserId() {
+            return userId;
+        }
+        
+        public void setUserId(String userId) {
+            this.userId = userId;
         }
         
         public AuthorInfo getAuthor() {

@@ -90,6 +90,7 @@ public class ContentHotService {
                     ContentHotResponse.HotContentItem item = new ContentHotResponse.HotContentItem();
                     
                     item.setContentId(content.getContentId());
+                    item.setUserId(content.getAuthor() != null ? content.getAuthor().getUserId() : null);
                     item.setTitle(content.getTitle());
                     item.setContent(content.getContent());
                     item.setPostType(content.getPostType().name());

@@ -54,6 +54,9 @@ class MapClusterManager(
     // 툴팁 콜백 (InfoWindow 대신 사용)
     var onShowTooltip: ((MapContent, com.shinhan.campung.presentation.ui.components.TooltipType) -> Unit)? = null
     var onHideTooltip: (() -> Unit)? = null
+    
+    // POI 충돌 방지를 위한 마커 위치 업데이트 콜백
+    var onMarkerPositionsUpdated: ((List<LatLng>, Double) -> Unit)? = null
 
     // 선택된 마커 상태 관리
     var selectedMarker: Marker? = null
@@ -237,7 +240,32 @@ class MapClusterManager(
         // 선택된 클러스터도 해제
         selectedClusterMarker?.let { clusterMarker ->
             Log.d("MapClusterManager", "클러스터 마커 선택 해제")
-            val count = clusterMarker.captionText.replace("개 항목", "").toIntOrNull() ?: 1
+            
+            // tag에서 실제 아이템 개수 가져오기 (더 정확한 방식)
+            val count = when (val tag = clusterMarker.tag) {
+                is List<*> -> tag.size // 클러스터 아이템 리스트
+                is Int -> tag // 직접 저장된 개수
+                else -> {
+                    // captionText에서 파싱 시도 (폴백)
+                    val captionText = clusterMarker.captionText
+                    Log.d("MapClusterManager", "클러스터 captionText: '$captionText'")
+                    when {
+                        captionText.contains("개 항목") -> captionText.replace("개 항목", "").toIntOrNull() ?: 1
+                        captionText.contains("개 게시글") -> captionText.replace("개 게시글", "").toIntOrNull() ?: 1
+                        captionText.contains("개 녹음") -> captionText.replace("개 녹음", "").toIntOrNull() ?: 1
+                        captionText.contains("개 (") -> {
+                            // "5개 (게시글 3, 녹음 2)" 형식 파싱
+                            captionText.substringBefore("개").toIntOrNull() ?: 1
+                        }
+                        else -> {
+                            Log.w("MapClusterManager", "알 수 없는 captionText 형식: '$captionText' - 기본값 1 사용")
+                            1
+                        }
+                    }
+                }
+            }
+            
+            Log.d("MapClusterManager", "클러스터 마커 선택 해제: ${count}개 아이템")
             clusterMarker.icon = getClusterIconInternal(count, false)
             clusterMarker.zIndex = 0
         }
@@ -408,6 +436,9 @@ class MapClusterManager(
         // 선택 상태 복원
         restoreMarkerSelection(wasSelectedContent, wasSelectedRecord, mapContents, mapRecords)
 
+        // POI 매니저에 현재 마커 위치들 전달 (충돌 방지용)
+        notifyMarkerPositions()
+
         // 클러스터링 완료 콜백 호출
         onComplete?.invoke()
     }
@@ -556,6 +587,7 @@ class MapClusterManager(
                     captionText = "${cluster.size}개 항목"
                     icon = getClusterIconInternal(cluster.size, false)
                     map = naverMap
+                    tag = cluster.size // 실제 아이템 개수 저장
 
                     setOnClickListener {
                         // 개별 마커 선택 해제
@@ -874,6 +906,7 @@ class MapClusterManager(
                     captionText = clusterText
                     icon = createMixedClusterIcon(cluster.size, contentCount, recordCount, false)
                     map = naverMap
+                    tag = cluster.size // 실제 아이템 개수 저장
 
                     setOnClickListener {
                         Log.e("MapClusterManager", "🎯🎯🎯 [MIXED CLUSTER] 통합 클러스터 클릭!!!")
@@ -1416,6 +1449,7 @@ class MapClusterManager(
                     captionText = "${cluster.size}개 녹음"
                     icon = getRecordClusterIcon(cluster.size, false)
                     map = naverMap
+                    tag = cluster.size // 실제 아이템 개수 저장
 
                     setOnClickListener {
                         // Record 클러스터 클릭 콜백
@@ -1638,4 +1672,37 @@ class MapClusterManager(
     }
     
     // 툴팁 뷰 생성 함수들 제거됨 - Compose 툴팁 사용
+    
+    /**
+     * POI 매니저에 현재 마커/클러스터 위치들을 전달
+     */
+    private fun notifyMarkerPositions() {
+        val currentZoom = naverMap.cameraPosition.zoom
+        val allPositions = mutableListOf<LatLng>()
+        
+        // 개별 마커 위치들 추가
+        markers.forEach { marker ->
+            allPositions.add(marker.position)
+        }
+        
+        // Record 마커 위치들 추가
+        recordMarkers.forEach { marker ->
+            allPositions.add(marker.position)
+        }
+        
+        // 클러스터 마커 위치들 추가
+        clusterMarkers.forEach { marker ->
+            allPositions.add(marker.position)
+        }
+        
+        // Record 클러스터 마커 위치들 추가
+        recordClusterMarkers.forEach { marker ->
+            allPositions.add(marker.position)
+        }
+        
+        Log.d("MapClusterManager", "🎯 POI 매니저에 마커 위치 전달: ${allPositions.size}개 위치, 줌: $currentZoom")
+        
+        // POI 매니저에 콜백으로 전달
+        onMarkerPositionsUpdated?.invoke(allPositions, currentZoom)
+    }
 }
