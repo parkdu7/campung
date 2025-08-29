@@ -78,7 +78,10 @@ class SharedLocationMarkerManager {
     fun removeSharedLocationMarker(shareId: String) {
         sharedLocationMarkers[shareId]?.let { marker ->
             marker.map = null
+            marker.onClickListener = null // 클릭 리스너 제거
+            marker.tag = null // 태그 제거
             sharedLocationMarkers.remove(shareId)
+            Log.d(TAG, "위치 공유 마커 제거 완료: shareId=$shareId")
         }
     }
     
@@ -86,10 +89,14 @@ class SharedLocationMarkerManager {
      * 모든 위치 공유 마커 제거
      */
     fun clearAllMarkers() {
+        val count = sharedLocationMarkers.size
         sharedLocationMarkers.values.forEach { marker ->
             marker.map = null
+            marker.onClickListener = null // 클릭 리스너 제거
+            marker.tag = null // 태그 제거
         }
         sharedLocationMarkers.clear()
+        Log.d(TAG, "위치 공유 마커 ${count}개 모두 제거됨 (리스너 및 태그 정리 완료)")
     }
     
     /**

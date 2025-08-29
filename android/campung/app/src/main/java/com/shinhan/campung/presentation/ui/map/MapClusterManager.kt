@@ -473,13 +473,21 @@ class MapClusterManager(
         val clusterDistance = getClusterDistance()
         val clusters = clusterMarkers(mapContents, clusterDistance)
 
-        Log.d("MapClusterManager", "줌: ${naverMap.cameraPosition.zoom}, 클러스터 거리: ${clusterDistance}m, 생성된 클러스터: ${clusters.size}개")
+        Log.e("MapClusterManager", "🎯🎯🎯 [MARKER] showClusteredMarkers 시작!!!")
+        Log.d("MapClusterManager", "📊 [MARKER] 입력 데이터: ${mapContents.size}개 콘텐츠")
+        Log.d("MapClusterManager", "📊 [MARKER] 줌: ${naverMap.cameraPosition.zoom}, 클러스터 거리: ${clusterDistance}m, 생성된 클러스터: ${clusters.size}개")
+        Log.d("MapClusterManager", "🔍 [MARKER] onMarkerClick 콜백 존재: ${onMarkerClick != null}")
 
-        clusters.forEach { cluster ->
+        clusters.forEachIndexed { index, cluster ->
+            Log.d("MapClusterManager", "📊 [MARKER] 클러스터 [$index]: ${cluster.size}개 아이템")
 
             if (cluster.size == 1) {
                 // 단일 마커
                 val content = cluster[0]
+                Log.d("MapClusterManager", "📍 [MARKER] 단일 마커 생성: ${content.title} (ID: ${content.contentId})")
+                Log.d("MapClusterManager", "📍 [MARKER] 위치: (${content.location.latitude}, ${content.location.longitude})")
+                Log.d("MapClusterManager", "🔗 [MARKER] 마커 생성 시점 onMarkerClick: ${onMarkerClick}")
+                
                 val marker = Marker().apply {
                     position = LatLng(content.location.latitude, content.location.longitude)
                     icon = getNormalMarkerIcon(content.postType)
@@ -487,11 +495,17 @@ class MapClusterManager(
                     tag = content // MapContent 저장
 
                     setOnClickListener {
+                        Log.e("MapClusterManager", "🎯🎯🎯 [CLICK] 마커 클릭됨!!!")
+                        Log.d("MapClusterManager", "🎯 [CLICK] 클릭된 마커: ${content.title} (ID: ${content.contentId})")
+                        Log.d("MapClusterManager", "🎯 [CLICK] onMarkerClick 콜백 존재: ${onMarkerClick != null}")
+                        
                         // 이미 선택된 마커를 다시 클릭하면 선택 해제
                         if (selectedContent?.contentId == content.contentId) {
+                            Log.d("MapClusterManager", "🎯 [CLICK] 이미 선택된 마커 - 선택 해제")
                             clearSelection()
                             onMarkerClick?.invoke(content)
                         } else {
+                            Log.d("MapClusterManager", "🎯 [CLICK] 새 마커 선택 - selectMarker 호출")
                             // 새로운 마커 선택 및 카메라 이동 (줌레벨 유지)
                             selectMarker(content)
                             
@@ -508,12 +522,16 @@ class MapClusterManager(
                                 isClusterMoving = false
                             }, 1000)
                             
+                            Log.d("MapClusterManager", "🎯 [CLICK] onMarkerClick 콜백 호출 시작")
                             onMarkerClick?.invoke(content)
+                            Log.d("MapClusterManager", "🎯 [CLICK] onMarkerClick 콜백 호출 완료")
                         }
                         true
                     }
                 }
                 markers.add(marker)
+                Log.d("MapClusterManager", "✅ [MARKER] 단일 마커 리스트에 추가 완료 - 총 마커 수: ${markers.size}")
+                Log.d("MapClusterManager", "✅ [MARKER] 마커가 지도에 추가됨: ${marker.map != null}")
             } else {
                 // 클러스터 마커
                 val centerLat = cluster.map { it.location.latitude }.average()
@@ -679,19 +697,24 @@ class MapClusterManager(
 
     private fun clearAllMarkers() {
         Log.d("MapClusterManager", "🧹 clearAllMarkers 시작 - markers: ${markers.size}, records: ${recordMarkers.size}, clusters: ${clusterMarkers.size}, recordClusters: ${recordClusterMarkers.size}")
+        Log.d("MapClusterManager", "🔗 [CLEAR] clearAllMarkers 호출 전 onMarkerClick: ${onMarkerClick}")
         
-        // 각 마커를 지도에서 직접 제거 (마커풀 대신 직접 정리)
+        // 각 마커를 지도에서 정리 (지도에서만 제거, 클릭 리스너는 유지)
         markers.forEach { marker ->
             marker.map = null
+            marker.tag = null  // 태그는 제거해도 됨
         }
         recordMarkers.forEach { marker ->
-            marker.map = null  
+            marker.map = null
+            marker.tag = null
         }
         clusterMarkers.forEach { marker ->
             marker.map = null
+            marker.tag = null
         }
         recordClusterMarkers.forEach { marker ->
             marker.map = null
+            marker.tag = null
         }
 
         markers.clear()
@@ -699,16 +722,19 @@ class MapClusterManager(
         clusterMarkers.clear()
         recordClusterMarkers.clear()
 
-        // QuadTree는 데이터가 실제로 변경될 때만 초기화 (재사용 최적화)
-        // quadTree = null  // 이 줄 제거!
-        // recordQuadTree = null  // 이 줄도 제거!
-
-        // 선택 상태는 유지 (selectedMarker, selectedContent는 그대로)
-        // 단, 클러스터는 새로 생성되므로 참조 초기화
+        // 선택 상태만 초기화 (콜백은 유지)
+        selectedMarker = null
+        selectedContent = null
+        selectedRecordMarker = null 
+        selectedRecord = null
         selectedClusterMarker = null
         highlightedMarker = null
         
-        Log.d("MapClusterManager", "🧹 clearAllMarkers 완료 - 모든 마커가 지도에서 제거됨")
+        // 클러스터링 상태도 초기화
+        isClusterMoving = false
+        
+        Log.d("MapClusterManager", "✅ clearAllMarkers 완료 - 마커 정리됨, 콜백 유지됨")
+        Log.d("MapClusterManager", "🔗 [CLEAR] clearAllMarkers 호출 후 onMarkerClick: ${onMarkerClick}")
     }
 
     fun clearMarkers() {
@@ -717,16 +743,40 @@ class MapClusterManager(
     }
     
     /**
-     * 리소스 정리 (메모리 누수 방지)
+     * 리소스 정리 (메모리 누수 방지) - 앱 종료 시만 사용
      */
     fun cleanup() {
-        Log.d("MapClusterManager", "MapClusterManager 정리 시작")
+        Log.d("MapClusterManager", "MapClusterManager 완전 정리 시작")
         
         // 렌더링 작업 취소
         markerRenderer.cleanup()
         
-        // 모든 마커 정리
-        clearAllMarkers()
+        // 모든 마커를 완전히 정리 (리스너 포함)
+        markers.forEach { marker ->
+            marker.map = null
+            marker.onClickListener = null  // cleanup 시에만 리스너 제거
+            marker.tag = null
+        }
+        recordMarkers.forEach { marker ->
+            marker.map = null
+            marker.onClickListener = null
+            marker.tag = null
+        }
+        clusterMarkers.forEach { marker ->
+            marker.map = null
+            marker.onClickListener = null
+            marker.tag = null
+        }
+        recordClusterMarkers.forEach { marker ->
+            marker.map = null
+            marker.onClickListener = null
+            marker.tag = null
+        }
+        
+        markers.clear()
+        recordMarkers.clear()
+        clusterMarkers.clear()
+        recordClusterMarkers.clear()
         
         // 마커 풀 정리
         markerPool.cleanup()
@@ -744,7 +794,7 @@ class MapClusterManager(
         quadTree = null
         recordQuadTree = null
         
-        // 콜백 정리
+        // 콜백 정리 (완전 종료 시에만)
         onMarkerClick = null
         onRecordClick = null
         onClusterClick = null
@@ -753,7 +803,7 @@ class MapClusterManager(
         onShowTooltip = null
         onHideTooltip = null
         
-        Log.d("MapClusterManager", "MapClusterManager 정리 완료")
+        Log.d("MapClusterManager", "MapClusterManager 완전 정리 완료")
     }
 
     private fun createSelectedMarkerIcon(postType: String? = null): OverlayImage {
@@ -1198,7 +1248,7 @@ class MapClusterManager(
     
     private fun createRecordMarkerIconInternal(isSelected: Boolean): OverlayImage {
         val drawable = ContextCompat.getDrawable(context, R.drawable.marker_record)
-        val size = if (isSelected) (MARKER_SIZE * SELECTED_MARKER_SCALE).toInt() else MARKER_SIZE
+        val size = if (isSelected) MarkerConfig.RECORD_SELECTED_SIZE else MarkerConfig.RECORD_MARKER_SIZE
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
@@ -1265,8 +1315,8 @@ class MapClusterManager(
         val record = marker.tag as? MapRecord
         
         if (isSelected) {
-            // 선택 시: 1.0 → 1.5 크기로 부드럽게 애니메이션
-            val scaleAnimator = ObjectAnimator.ofFloat(1.0f, 1.5f)
+            // 선택 시: 1.0 → RECORD_SELECTED_SCALE 크기로 부드럽게 애니메이션
+            val scaleAnimator = ObjectAnimator.ofFloat(1.0f, MarkerConfig.RECORD_SELECTED_SCALE)
             scaleAnimator.duration = 300
             scaleAnimator.interpolator = android.view.animation.OvershootInterpolator(1.8f)
             
@@ -1279,7 +1329,7 @@ class MapClusterManager(
             
         } else {
             // 해제 시: 현재 크기 → 1.0으로 부드럽게 축소
-            val scaleAnimator = ObjectAnimator.ofFloat(1.5f, 1.0f)
+            val scaleAnimator = ObjectAnimator.ofFloat(MarkerConfig.RECORD_SELECTED_SCALE, 1.0f)
             scaleAnimator.duration = 200
             scaleAnimator.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
             
@@ -1300,7 +1350,7 @@ class MapClusterManager(
     
     private fun createIntermediateRecordMarkerIcon(scale: Float): OverlayImage {
         val drawable = ContextCompat.getDrawable(context, R.drawable.marker_record)
-        val size = (MARKER_SIZE * scale).toInt() // 기본 크기에 스케일 적용
+        val size = (MarkerConfig.RECORD_MARKER_SIZE * scale).toInt() // 녹음 마커 기본 크기에 스케일 적용
         val bitmap = Bitmap.createBitmap(size, (size * 1.125).toInt(), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         

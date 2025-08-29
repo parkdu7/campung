@@ -1,7 +1,8 @@
 package com.shinhan.campung.presentation.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -26,10 +28,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 
 @Composable
 fun AnimatedMapTooltip(
@@ -39,30 +39,44 @@ fun AnimatedMapTooltip(
     type: TooltipType,
     modifier: Modifier = Modifier
 ) {
-    // 디버깅 로그 제거됨
+    // 부드러운 위치 애니메이션을 위한 애니메이션 상태
+    val targetOffset = Offset(
+        x = position.x - 190f, // 툴팁 중앙 정렬을 위한 오프셋
+        y = position.y - 320f // 마커 위쪽 250px
+    )
+    
+    val animatedOffset by animateOffsetAsState(
+        targetValue = targetOffset,
+        animationSpec = tween(
+            durationMillis = 200, // 빠른 응답성을 위해 200ms
+            easing = LinearOutSlowInEasing // 부드럽고 자연스러운 움직임
+        ),
+        label = "tooltip_position"
+    )
 
     Box(
         modifier = modifier
             .offset {
-                IntOffset(
-                    x = (position.x - 100).roundToInt(), // 툴팁 중앙 정렬을 위한 오프셋
-                    y = (position.y - 250).roundToInt() // 마커 위쪽 140px (더 위로)
+                // 소수점 위치를 그대로 사용하여 부드러운 움직임 구현
+                androidx.compose.ui.unit.IntOffset(
+                    x = animatedOffset.x.toInt(),
+                    y = animatedOffset.y.toInt()
                 )
             }
     ) {
         AnimatedVisibility(
             visible = visible,
             enter = fadeIn(
-                animationSpec = tween(250, easing = FastOutSlowInEasing) // 빠르게 250ms
+                animationSpec = tween(250, easing = LinearOutSlowInEasing)
             ) + scaleIn(
-                animationSpec = tween(250, easing = FastOutSlowInEasing),
-                initialScale = 0.7f // 좀 더 자연스러운 시작 스케일
+                animationSpec = tween(250, easing = LinearOutSlowInEasing),
+                initialScale = 0.8f // 더 자연스러운 시작 스케일
             ),
             exit = fadeOut(
-                animationSpec = tween(150) // 빠른 사라짐
+                animationSpec = tween(150)
             ) + scaleOut(
                 animationSpec = tween(150),
-                targetScale = 0.7f
+                targetScale = 0.8f
             )
         ) {
             // 말풍선 모양 툴팁 (Box + 꼬리)

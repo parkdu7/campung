@@ -100,9 +100,13 @@ class POIMarkerManager(
      */
     fun clearPOIMarkers() {
         val count = poiMarkers.size
-        poiMarkers.forEach { it.map = null }
+        poiMarkers.forEach { marker ->
+            marker.map = null
+            marker.onClickListener = null // 클릭 리스너 제거
+            marker.tag = null // 태그 제거
+        }
         poiMarkers.clear()
-        Log.d("POIMarkerManager", "🏪 POI 마커 ${count}개 모두 제거됨")
+        Log.d("POIMarkerManager", "🏪 POI 마커 ${count}개 모두 제거됨 (리스너 및 태그 정리 완료)")
     }
     
     /**

@@ -351,88 +351,65 @@ class MapViewModel @Inject constructor(
 
     // 마커 선택 상태 관리 함수들
     fun selectMarker(mapContent: MapContent) {
-        Log.e(TAG, "🎯🎯🎯 [FLOW] selectMarker() 시작: ${mapContent.title} (ID: ${mapContent.contentId})")
-        Log.d(TAG, "🎯 [FLOW] selectMarker() 시작: ${mapContent.title} (ID: ${mapContent.contentId})")
-        
         selectedMarker = mapContent
-        Log.d(TAG, "📌 [FLOW] selectedMarker 상태 업데이트 완료")
         
-        // 바텀시트 데이터 로딩 - 기존 onMarkerClick 로직과 동일
+        // 바텀시트 데이터 로딩
         _selectedMarkerId.value = mapContent.contentId
-        Log.d(TAG, "🆔 [FLOW] selectedMarkerId 설정: ${mapContent.contentId}")
-        
         _isLoading.value = true
-        Log.d(TAG, "⏳ [FLOW] isLoading = true 설정")
-        
         _isBottomSheetExpanded.value = true
-        Log.d(TAG, "📈 [FLOW] isBottomSheetExpanded = true 설정")
         
         viewModelScope.launch {
-            Log.d(TAG, "🚀 [FLOW] 코루틴 시작 - 데이터 로딩 시작")
-            // 단일 마커의 경우 해당 마커의 contentId만 사용
-            mapContentRepository.getContentsByIds(listOf(mapContent.contentId))
-                .onSuccess { contents ->
-                    Log.d(TAG, "✅ [FLOW] 데이터 로딩 성공: ${contents.size}개")
-                    _bottomSheetContents.value = contents
-                    _isLoading.value = false
-                    Log.d(TAG, "📊 [FLOW] bottomSheetContents 업데이트 완료, isLoading = false")
-                }
-                .onFailure {
-                    Log.e(TAG, "❌ [FLOW] 데이터 로딩 실패", it)
-                    _bottomSheetContents.value = emptyList()
-                    _isBottomSheetExpanded.value = false
-                    _isLoading.value = false
-                    Log.d(TAG, "🔄 [FLOW] 실패 처리 완료 - 상태 초기화")
-                }
+            try {
+                val result = mapContentRepository.getContentsByIds(listOf(mapContent.contentId))
+                
+                result
+                    .onSuccess { contents ->
+                        if (contents.isNotEmpty()) {
+                            _bottomSheetContents.value = contents
+                            _isLoading.value = false
+                        } else {
+                            handleEmptyDataFallback(mapContent)
+                        }
+                    }
+                    .onFailure { exception ->
+                        Log.e(TAG, "API 호출 실패: ${exception.message}")
+                        handleApiFailureFallback(mapContent, exception)
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "selectMarker 예외 발생: ${e.message}")
+                handleApiFailureFallback(mapContent, e)
+            }
         }
-        Log.d(TAG, "🔚 [FLOW] selectMarker() 완료")
     }
 
     // 클러스터 선택 처리
     fun selectCluster(clusterContents: List<MapContent>) {
-        Log.e(TAG, "🎯🎯🎯 [FLOW] selectCluster() 시작: ${clusterContents.size}개 컨텐츠")
-        Log.d(TAG, "🎯 [FLOW] selectCluster() 시작: ${clusterContents.size}개 컨텐츠")
-        
-        selectedMarker = null // 클러스터 선택 시에는 특정 마커 선택 없음
-        Log.d(TAG, "📌 [FLOW] selectedMarker = null 설정")
-        
+        selectedMarker = null
         _selectedMarkerId.value = null
-        Log.d(TAG, "🆔 [FLOW] selectedMarkerId = null 설정")
-        
         _isLoading.value = true
-        Log.d(TAG, "⏳ [FLOW] isLoading = true 설정")
-        
         _isBottomSheetExpanded.value = true
-        Log.d(TAG, "📈 [FLOW] isBottomSheetExpanded = true 설정")
         
         viewModelScope.launch {
-            Log.d(TAG, "🚀 [FLOW] 코루틴 시작 - 클러스터 데이터 로딩 시작")
             val contentIds = clusterContents.map { it.contentId }
-            Log.d(TAG, "📋 [FLOW] 로딩할 컨텐츠 ID들: $contentIds")
             
             mapContentRepository.getContentsByIds(contentIds)
                 .onSuccess { contents ->
-                    Log.d(TAG, "✅ [FLOW] 클러스터 데이터 로딩 성공: ${contents.size}개")
                     _bottomSheetContents.value = contents
                     _isLoading.value = false
-                    Log.d(TAG, "📊 [FLOW] 클러스터 bottomSheetContents 업데이트 완료, isLoading = false")
                 }
-                .onFailure {
-                    Log.e(TAG, "❌ [FLOW] 클러스터 데이터 로딩 실패", it)
+                .onFailure { exception ->
+                    Log.e(TAG, "클러스터 데이터 로딩 실패", exception)
                     _bottomSheetContents.value = emptyList()
                     _isBottomSheetExpanded.value = false
                     _isLoading.value = false
-                    Log.d(TAG, "🔄 [FLOW] 클러스터 실패 처리 완료 - 상태 초기화")
                 }
         }
-        Log.d(TAG, "🔚 [FLOW] selectCluster() 완료")
     }
 
     fun clearSelectedMarker() {
         selectedMarker = null
         _selectedMarkerId.value = null
         _isLoading.value = false
-        Log.d(TAG, "마커 선택 해제됨")
 
         // 핫 콘텐츠로 복귀
         loadHotContents()
@@ -974,5 +951,63 @@ class MapViewModel @Inject constructor(
         } else {
             Log.v(TAG, "🏪 POI 비활성화 상태 - 화면 이동 업데이트 스킵")
         }
+    }
+    
+    // ===== 폴백 처리 함수들 =====
+    
+    /**
+     * API는 성공했지만 빈 데이터를 받았을 때의 폴백 처리
+     */
+    private fun handleEmptyDataFallback(mapContent: MapContent) {
+        try {
+            // 현재 mapContents에서 해당 content 찾기
+            val localContent = mapContents.find { it.contentId == mapContent.contentId }
+            
+            if (localContent != null) {
+                _bottomSheetContents.value = listOf(localContent)
+                _isLoading.value = false
+            } else {
+                // 로컬에도 없으면 전달받은 mapContent 자체를 사용
+                _bottomSheetContents.value = listOf(mapContent)
+                _isLoading.value = false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "빈 데이터 폴백 처리 중 예외", e)
+            handleFallbackFailure()
+        }
+    }
+    
+    /**
+     * API 호출이 실패했을 때의 폴백 처리
+     */
+    private fun handleApiFailureFallback(mapContent: MapContent, exception: Throwable) {
+        try {
+            // 네트워크 오류나 서버 오류 시에도 로컬 데이터 사용 시도
+            val localContent = mapContents.find { it.contentId == mapContent.contentId }
+            
+            if (localContent != null) {
+                _bottomSheetContents.value = listOf(localContent)
+                _isLoading.value = false
+            } else {
+                _bottomSheetContents.value = listOf(mapContent)
+                _isLoading.value = false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "API 실패 폴백 처리 중 예외", e)
+            handleFallbackFailure()
+        }
+    }
+    
+    /**
+     * 모든 폴백이 실패했을 때의 최후 처리
+     */
+    private fun handleFallbackFailure() {
+        _bottomSheetContents.value = emptyList()
+        _isBottomSheetExpanded.value = false
+        _isLoading.value = false
+        
+        // 선택된 마커 상태도 해제
+        selectedMarker = null
+        _selectedMarkerId.value = null
     }
 }

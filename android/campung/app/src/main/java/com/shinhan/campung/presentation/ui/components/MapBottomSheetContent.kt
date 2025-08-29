@@ -38,10 +38,11 @@ fun MapBottomSheetContent(
     // 네비게이션 바와 상태바를 모두 제외한 사용 가능한 높이
     val availableHeight = screenHeight - navigationBarHeight - statusBarHeight
 
-    val expandedHeight = when (contents.size) {
-        0 -> 0.dp
-        1 -> itemHeight + (padding * 2)
-        2 -> (itemHeight * 2) + itemSpacing + (padding * 2)
+    val expandedHeight = when {
+        isLoading -> itemHeight + (padding * 2)  // 로딩 상태일 때는 로딩 UI 높이
+        contents.isEmpty() -> 0.dp  // 빈 상태일 때만 0.dp
+        contents.size == 1 -> itemHeight + (padding * 2)
+        contents.size == 2 -> (itemHeight * 2) + itemSpacing + (padding * 2)
         else -> availableHeight * 0.5f  // 실제 사용가능 높이의 50%
     }
 

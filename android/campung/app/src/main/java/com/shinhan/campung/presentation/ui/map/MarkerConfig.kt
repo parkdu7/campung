@@ -20,6 +20,11 @@ object MarkerConfig {
     // POI 마커 크기 (일반적으로 동일하게 설정)
     val POI_MARKER_SIZE: Int get() = BASE_MARKER_SIZE
     
+    // 녹음 마커 크기 (일반 마커보다 작게 - 약 20% 작음)
+    const val RECORD_MARKER_SIZE = 108  // 135 * 0.8 = 108
+    const val RECORD_SELECTED_SCALE = 1.4f  // 녹음 마커는 선택 시 적당히 커지도록
+    val RECORD_SELECTED_SIZE: Int get() = (RECORD_MARKER_SIZE * RECORD_SELECTED_SCALE).toInt()
+    
     // 클러스터 크기
     const val CLUSTER_BASE_SIZE = 80
     const val CLUSTER_SELECTED_SIZE = 96
