@@ -444,7 +444,11 @@ fun FullMapScreen(
             map.locationOverlay.isVisible = true
             map.locationOverlay.position = pos
 
-            // 초기 로드 - 강제로 데이터 로드하여 확실히 마커 표시
+            // 초기 로드 - 핫 콘텐츠를 먼저 로드
+            Log.d("FullMapScreen", "🔥 초기 진입 - 핫 콘텐츠 로드")
+            mapViewModel.loadHotContents()
+            
+            // 마커 데이터도 로드 (백그라운드)
             naverMapRef?.let { map ->
                 val radius = com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(map)
                 Log.d("FullMapScreen", "🎯 초기 위치 기반 마커 로드: (${pos.latitude}, ${pos.longitude}), 반경: ${radius}m")

@@ -420,10 +420,39 @@ class MapViewModel @Inject constructor(
     fun clearSelectedMarker() {
         selectedMarker = null
         _selectedMarkerId.value = null
-        _bottomSheetContents.value = emptyList()
-        _isBottomSheetExpanded.value = false
         _isLoading.value = false
         Log.d(TAG, "마커 선택 해제됨")
+        
+        // 핫 콘텐츠로 복귀
+        loadHotContents()
+    }
+    
+    fun loadHotContents() {
+        Log.d(TAG, "🔥 [FLOW] loadHotContents 시작 - 핫 게시글 로드")
+        _isLoading.value = true
+        
+        viewModelScope.launch {
+            try {
+                mapContentRepository.getHotContents()
+                    .onSuccess { hotContents ->
+                        Log.d(TAG, "✅ [FLOW] 핫 콘텐츠 로드 성공 - ${hotContents.size}개")
+                        _bottomSheetContents.value = hotContents
+                        _isBottomSheetExpanded.value = true // 핫 콘텐츠 표시 시 확장
+                        _isLoading.value = false
+                    }
+                    .onFailure { e ->
+                        Log.e(TAG, "❌ [FLOW] 핫 콘텐츠 로드 실패", e)
+                        _bottomSheetContents.value = emptyList()
+                        _isBottomSheetExpanded.value = false
+                        _isLoading.value = false
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ [FLOW] 핫 콘텐츠 로드 중 예외", e)
+                _bottomSheetContents.value = emptyList()
+                _isBottomSheetExpanded.value = false
+                _isLoading.value = false
+            }
+        }
     }
 
     fun isMarkerSelected(mapContent: MapContent): Boolean {
@@ -464,8 +493,10 @@ class MapViewModel @Inject constructor(
     // 바텀시트 닫기
     fun clearSelection() {
         _selectedMarkerId.value = null
-        _bottomSheetContents.value = emptyList()
         _isBottomSheetExpanded.value = false
+        
+        // 핫 콘텐츠로 복귀
+        loadHotContents()
     }
 
     fun clusteringUpdated() {
@@ -482,12 +513,13 @@ class MapViewModel @Inject constructor(
 
         // 선택된 마커도 클리어
         selectedMarker = null
-        clearSelectedMarker()
+        _selectedMarkerId.value = null
 
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
-
-        // 날짜가 변경되면 다시 로드
+        
+        // 핫 콘텐츠로 복귀
+        loadHotContents()
     }
     
     fun selectPreviousDate() {
@@ -526,7 +558,7 @@ class MapViewModel @Inject constructor(
 
         // 선택된 마커도 클리어
         selectedMarker = null
-        clearSelectedMarker()
+        _selectedMarkerId.value = null
 
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
@@ -534,6 +566,11 @@ class MapViewModel @Inject constructor(
         // 필터가 변경되면 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
+        }
+        
+        // 마커 데이터가 없을 때 핫 콘텐츠로 복귀
+        if (mapContents.isEmpty()) {
+            loadHotContents()
         }
     }
 
@@ -547,7 +584,7 @@ class MapViewModel @Inject constructor(
 
         // 선택된 마커도 클리어
         selectedMarker = null
-        clearSelectedMarker()
+        _selectedMarkerId.value = null
 
         // lastRequestParams 초기화로 새로운 요청 허용
         lastRequestParams = null
@@ -555,6 +592,11 @@ class MapViewModel @Inject constructor(
         // postType 변경 시 다시 로드
         lastRequestLocation?.let { (lat, lng) ->
             loadMapContents(lat, lng, force = true)
+        }
+        
+        // 마커 데이터가 없을 때 핫 콘텐츠로 복귀
+        if (mapContents.isEmpty()) {
+            loadHotContents()
         }
     }
 
