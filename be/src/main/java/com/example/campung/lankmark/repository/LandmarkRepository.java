@@ -62,4 +62,22 @@ public interface LandmarkRepository extends JpaRepository<Landmark, Long> {
      */
     @Query("SELECT l FROM Landmark l WHERE l.currentSummary IS NOT NULL AND l.currentSummary != ''")
     List<Landmark> findLandmarksWithSummary();
+    
+    /**
+     * 사용자 위치가 각 랜드마크의 개별 radius 범위 내에 있는 랜드마크들을 조회
+     * 각 랜드마크마다 설정된 radius를 사용하여 범위 확인
+     */
+    @Query(value = """
+        SELECT *, 
+               (6371000 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * 
+                              cos(radians(longitude) - radians(:longitude)) + 
+                              sin(radians(:latitude)) * sin(radians(latitude)))) AS distance
+        FROM landmarks
+        HAVING distance <= radius
+        ORDER BY distance
+        """, nativeQuery = true)
+    List<Landmark> findLandmarksWithinTheirRadius(
+        @Param("latitude") Double latitude,
+        @Param("longitude") Double longitude
+    );
 }

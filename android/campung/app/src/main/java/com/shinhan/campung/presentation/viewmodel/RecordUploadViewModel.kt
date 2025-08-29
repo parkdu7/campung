@@ -14,6 +14,13 @@ import javax.inject.Inject
 class RecordUploadViewModel @Inject constructor(
     private val repository: RecordingRepository
 ) : ViewModel() {
+    
+    // 업로드 성공 콜백
+    private var onUploadSuccessCallback: ((Double, Double) -> Unit)? = null
+    
+    fun setOnUploadSuccessCallback(callback: (Double, Double) -> Unit) {
+        onUploadSuccessCallback = callback
+    }
 
     data class UiState(
         val isUploading: Boolean = false,
@@ -34,6 +41,9 @@ class RecordUploadViewModel @Inject constructor(
                         isUploading = false,
                         successMessage = res.message.ifBlank { "녹음이 등록되었습니다." }
                     )
+                    
+                    // 업로드 성공 시 콜백 호출 (위치 정보와 함께)
+                    onUploadSuccessCallback?.invoke(latitude, longitude)
                 } else {
                     _ui.value = UiState(
                         isUploading = false,
