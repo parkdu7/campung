@@ -166,6 +166,8 @@ class NotificationViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     error = e.message ?: "위치 공유 요청 수락에 실패했습니다."
                 )
+                // 에러가 발생해도 UI에서 해당 알림을 제거
+                markAsReadAndRemove(notificationId)
             }
         }
     }
@@ -193,6 +195,8 @@ class NotificationViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     error = e.message ?: "위치 공유 요청 거절에 실패했습니다."
                 )
+                // 에러가 발생해도 UI에서 해당 알림을 제거
+                markAsReadAndRemove(notificationId)
             }
         }
     }

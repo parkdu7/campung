@@ -57,6 +57,8 @@ public class ContentHotResponse {
         private Integer commentCount;
         private String buildingName;
         private String emotion;
+        private String thumbnailUrl;
+        private String userProfileUrl;
         
         public HotContentItem() {}
         
@@ -154,6 +156,22 @@ public class ContentHotResponse {
         
         public void setEmotion(String emotion) {
             this.emotion = emotion;
+        }
+        
+        public String getThumbnailUrl() {
+            return thumbnailUrl;
+        }
+        
+        public void setThumbnailUrl(String thumbnailUrl) {
+            this.thumbnailUrl = thumbnailUrl;
+        }
+        
+        public String getUserProfileUrl() {
+            return userProfileUrl;
+        }
+        
+        public void setUserProfileUrl(String userProfileUrl) {
+            this.userProfileUrl = userProfileUrl;
         }
     }
     
