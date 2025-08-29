@@ -32,6 +32,7 @@ import com.shinhan.campung.presentation.ui.components.content.MediaPagerSection
 import com.shinhan.campung.presentation.ui.components.content.TitleSection
 import com.shinhan.campung.presentation.ui.theme.CampusAccent
 
+@androidx.media3.common.util.UnstableApi
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContentDetailScreen(
@@ -93,6 +94,7 @@ fun ContentDetailScreen(
     )
 }
 
+@androidx.media3.common.util.UnstableApi
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ContentDetailScreenContent(

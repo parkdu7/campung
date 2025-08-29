@@ -32,6 +32,7 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.shinhan.campung.data.model.MediaFile
 
+@androidx.media3.common.util.UnstableApi
 @Composable
 fun MediaPagerSection(
     mediaFiles: List<MediaFile>,
@@ -150,6 +151,7 @@ private fun FullScreenImageDialog(
     }
 }
 
+@androidx.media3.common.util.UnstableApi
 @Composable
 private fun VideoPlayerView(
     videoUrl: String,

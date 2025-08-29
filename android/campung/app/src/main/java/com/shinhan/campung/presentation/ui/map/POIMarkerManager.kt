@@ -149,6 +149,7 @@ class POIMarkerManager(
                 map = naverMap
                 tag = poi
                 zIndex = 500 // 일반 마커보다 낮게 설정하여 겹치지 않도록
+                alpha = 0f // 처음에는 투명하게 (이미지 로드 후 보이게)
                 
                 setOnClickListener {
                     Log.d("POIMarkerManager", "🏪 마커 클릭: ${poi.name}")
@@ -220,6 +221,7 @@ class POIMarkerManager(
         // 캐시에서 먼저 확인
         imageCache[imageUrl]?.let { cachedBitmap ->
             marker.icon = createPOIIconFromBitmap(cachedBitmap)
+            marker.alpha = 1f // 캐시된 이미지 사용 시에도 보이게
             return
         }
         
@@ -235,6 +237,7 @@ class POIMarkerManager(
                     // 메인 스레드에서 마커 아이콘 업데이트
                     withContext(Dispatchers.Main) {
                         marker.icon = createPOIIconFromBitmap(bitmap)
+                        marker.alpha = 1f // 이미지 로드 완료 후 보이게
                         Log.d("POIMarkerManager", "🏪 이미지 로드 완료: $imageUrl")
                     }
                 } else {

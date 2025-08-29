@@ -49,7 +49,7 @@ private val LatLngSaver: Saver<LatLng?, String> = Saver(
 
 @Composable
 fun CampusMapCard(
-    mapView: MapView, // 외부에서 주입받음
+    mapView: MapView, // 사용하지 않음 (호환성 유지용)
     modifier: Modifier = Modifier,
     initialCamera: LatLng = LatLng(37.5666102, 126.9783881),
     onExpandRequest: () -> Unit,
@@ -59,14 +59,15 @@ fun CampusMapCard(
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
-    DisposableEffect(lifecycle, mapView) {
+    // CampusMapCard 전용 MapView 생성 (충돌 방지)
+    val campusMapView = remember { MapView(context).apply { onCreate(Bundle()) } }
+    DisposableEffect(lifecycle, campusMapView) {
         val observer = object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) { mapView.onStart() }
-            override fun onResume(owner: LifecycleOwner) { mapView.onResume() }
-            override fun onPause(owner: LifecycleOwner) { mapView.onPause() }
-            override fun onStop(owner: LifecycleOwner) { mapView.onStop() }
-            override fun onDestroy(owner: LifecycleOwner) { mapView.onDestroy() }
+            override fun onStart(owner: LifecycleOwner) { campusMapView.onStart() }
+            override fun onResume(owner: LifecycleOwner) { campusMapView.onResume() }
+            override fun onPause(owner: LifecycleOwner) { campusMapView.onPause() }
+            override fun onStop(owner: LifecycleOwner) { campusMapView.onStop() }
+            override fun onDestroy(owner: LifecycleOwner) { campusMapView.onDestroy() }
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
@@ -165,6 +166,17 @@ fun CampusMapCard(
         }
     }
 
+    // 화면 재진입 시 마커 업데이트를 위한 추가 LaunchedEffect
+    LaunchedEffect(Unit) {
+        // Compose 재구성 시 기존 데이터 확인하여 마커 업데이트
+        if (naverMapRef != null && clusterManager != null) {
+            if (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty()) {
+                android.util.Log.d("CampusMapCard", "🏠 HomeScreen 재구성 - 기존 데이터로 마커 업데이트")
+                clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords)
+            }
+        }
+    }
+
     Card(
         modifier = modifier,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -186,9 +198,17 @@ fun CampusMapCard(
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
                     AndroidView(
-                        factory = { mapView },
+                        factory = { campusMapView },
                         modifier = Modifier.fillMaxSize(),
                         update = { mv ->
+                            // 맵이 이미 초기화되어 있고 데이터가 있으면 마커 업데이트 (뒤로가기 후 재진입 시)
+                            if (naverMapRef != null && clusterManager != null) {
+                                if (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty()) {
+                                    android.util.Log.d("CampusMapCard", "🔄 화면 재진입 - 기존 데이터로 마커 업데이트: contents=${mapViewModel.mapContents.size}, records=${mapViewModel.mapRecords.size}")
+                                    clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords)
+                                }
+                            }
+                            
                             if (naverMapRef == null) {
                                 mv.getMapAsync { map ->
                                     naverMapRef = map

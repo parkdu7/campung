@@ -195,14 +195,14 @@ fun FullMapScreen(
         val intentFilter = IntentFilter("com.shinhan.campung.LOCATION_SHARED")
         android.util.Log.d("FullMapScreen", "브로드캐스트 수신기 등록 중 - action: com.shinhan.campung.LOCATION_SHARED")
 
-        // 전역 브로드캐스트 수신기 등록
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
-            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API 33+)")
-        } else {
-            context.registerReceiver(receiver, intentFilter)
-            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API <33)")
-        }
+        // 전역 브로드캐스트 수신기 등록 (ContextCompat 사용으로 모든 API 레벨 호환)
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            receiver,
+            intentFilter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (ContextCompat 사용)")
 
         // LocalBroadcastManager도 등록 (더 안전함)
         try {
@@ -1048,7 +1048,8 @@ fun FullMapScreen(
                     screenHeight = screenHeight,
                     availableHeight = availableHeight,
                     contentHeight = dynamicContentHeight,
-                    dragHandleHeight = dragHandleHeight
+                    dragHandleHeight = dragHandleHeight,
+                    modifier = Modifier.zIndex(2f) // Lottie(1f)보다 높게 설정
                 ) {
                     // 통합 바텀시트 사용 (기존 방식 하위 호환성 유지)
                     if (bottomSheetItems.isNotEmpty()) {
