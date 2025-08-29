@@ -86,6 +86,9 @@ public class ContentLikeService {
         // 총 좋아요 수 조회
         int totalLikes = contentLikeRepository.countByContentId(contentId);
         
+        // Content 테이블의 like_count 필드 업데이트
+        contentRepository.updateLikeCount(contentId, totalLikes);
+        
         // Redis에서 Hot 랭킹 업데이트
         long currentLikes24h = contentHotTrackingService.getLike24hCount(contentId);
         contentHotTrackingService.updateHotRanking(contentId, currentLikes24h);

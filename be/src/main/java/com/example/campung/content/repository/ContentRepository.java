@@ -42,6 +42,19 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
                                                   @Param("startDate") LocalDateTime startDate,
                                                   @Param("endDate") LocalDateTime endDate,
                                                   @Param("postType") PostType postType);
+
+    @Query("SELECT c FROM Content c WHERE " +
+           "c.latitude BETWEEN :minLat AND :maxLat AND " +
+           "c.longitude BETWEEN :minLng AND :maxLng AND " +
+           "c.createdAt BETWEEN :startDate AND :endDate AND " +
+           "c.isHot = true " +
+           "ORDER BY c.createdAt DESC")
+    List<Content> findByLocationAndDateAndIsHot(@Param("minLat") double minLat,
+                                               @Param("maxLat") double maxLat,
+                                               @Param("minLng") double minLng,
+                                               @Param("maxLng") double maxLng,
+                                               @Param("startDate") LocalDateTime startDate,
+                                               @Param("endDate") LocalDateTime endDate);
     
     @Query("SELECT c FROM Content c WHERE " +
            "c.latitude BETWEEN :minLat AND :maxLat AND " +
@@ -101,4 +114,11 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
     @Modifying
     @Query("UPDATE Content c SET c.isHot = false")
     void updateAllIsHotToFalse();
+    
+    /**
+     * 콘텐츠의 좋아요 수 업데이트
+     */
+    @Modifying
+    @Query("UPDATE Content c SET c.likeCount = :likeCount WHERE c.contentId = :contentId")
+    void updateLikeCount(@Param("contentId") Long contentId, @Param("likeCount") int likeCount);
 }
