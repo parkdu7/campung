@@ -185,7 +185,7 @@ class MarkerPool {
     private fun resetMarker(marker: Marker) {
         marker.apply {
             // 기본값으로 리셋
-            zIndex = 0
+            zIndex = 50
             alpha = 1.0f
             angle = 0.0f
             width = Marker.SIZE_AUTO

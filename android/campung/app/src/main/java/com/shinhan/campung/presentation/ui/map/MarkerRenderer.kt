@@ -252,7 +252,7 @@ class MarkerRenderer(
             icon = iconProvider.getNormalContentIcon(content.postType)
             map = naverMap
             tag = content
-            zIndex = 0
+            zIndex = 50
         }
     }
     
@@ -269,7 +269,7 @@ class MarkerRenderer(
             icon = iconProvider.getNormalRecordIcon()
             map = naverMap
             tag = record
-            zIndex = 0
+            zIndex = 50
         }
     }
     
