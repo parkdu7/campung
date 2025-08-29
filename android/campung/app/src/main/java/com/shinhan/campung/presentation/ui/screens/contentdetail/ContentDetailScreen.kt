@@ -221,7 +221,7 @@ private fun ContentDetailScreenContent(
                 // 본문
                 item {
                     Box(Modifier.fillMaxWidth().padding(start = 15.dp)) {
-                        ContentTextSection(content = content.body)
+                        ContentTextSection(content = content.body ?: "")
                     }
                 }
 

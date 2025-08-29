@@ -97,7 +97,7 @@ fun MapContentItem(
                         painter = painterResource(id = content.category.iconRes),
                         contentDescription = content.category.displayName,
                         modifier = Modifier.size(20.dp),
-                        tint = getCategoryColor(content.category)
+                        tint = Color.Unspecified
                     )
                     
                     Text(
@@ -112,7 +112,7 @@ fun MapContentItem(
                 
                 // 본문 내용
                 Text(
-                    text = content.content,
+                    text = content.content ?: "",
                     fontSize = 14.sp,
                     color = Color.Gray,
                     maxLines = 2,
