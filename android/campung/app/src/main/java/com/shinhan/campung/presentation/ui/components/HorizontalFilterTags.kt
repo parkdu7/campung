@@ -116,7 +116,7 @@ private fun FilterTagItem(
         )
         Text(
             text = tag.name,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             color = fg
         )
