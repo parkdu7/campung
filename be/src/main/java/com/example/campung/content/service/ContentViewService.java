@@ -63,7 +63,7 @@ public class ContentViewService {
         
         // Author 정보 설정
         String displayNickname = content.getIsAnonymous() ? "익명" : content.getAuthor().getNickname();
-        String profileImageUrl = null; // TODO: User 엔티티에 profileImageUrl 필드 추가 필요
+        String profileImageUrl = content.getAuthor().getProfileImageUrl();
         if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
             profileImageUrl = defaultProfileImageUrl;
         }

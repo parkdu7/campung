@@ -66,7 +66,7 @@ public class Content {
     private Integer commentCount = 0;
     
     @Builder.Default
-    @Column(name = "is_hot", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    @Column(name = "is_hot", nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
     private Boolean isHot = false;
     
     @CreationTimestamp
