@@ -77,15 +77,14 @@ import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
 import com.shinhan.campung.presentation.ui.components.AnimatedMapTooltip
+import com.shinhan.campung.presentation.ui.components.MyLocationMarker
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.shinhan.campung.R
@@ -442,7 +441,7 @@ fun FullMapScreen(
         val pos = myLatLng
         if (map != null && pos != null) {
             map.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
-            map.locationOverlay.isVisible = true
+            map.locationOverlay.isVisible = false
             map.locationOverlay.position = pos
 
             // 초기 로드 - 핫 콘텐츠를 먼저 로드
@@ -594,7 +593,7 @@ fun FullMapScreen(
                 clusterManager?.clearSelection()
             }
             else -> {
-                // 아무것도 선택되어 있지 않으면 화면 나가기
+                // 아무것도 선택되어 있지 않으면 이전 화면으로 돌아가기
                 navController.popBackStack()
             }
         }
@@ -733,7 +732,7 @@ fun FullMapScreen(
                             }
                         } else {
                             naverMapRef?.let { map ->
-                                mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
+                                mapInitializer.setupLocationOverlay(map, mapView, hasPermission, myLatLng)
 
                                 // 위치 공유 마커 업데이트 (모듈화된 매니저 사용)
                                 sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
@@ -743,6 +742,16 @@ fun FullMapScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
+                // 내 위치 Lottie 애니메이션 마커
+                myLatLng?.let { currentLocation ->
+                    naverMapRef?.let { map ->
+                        MyLocationMarker(
+                            map = map,
+                            location = currentLocation,
+                            modifier = Modifier.zIndex(1f) // 지도 위에, UI 요소들 아래에
+                        )
+                    }
+                }
 
                 // LocationButton - 바텀시트와 함께 움직임 (커스텀 아이콘 버전)
                 Box(

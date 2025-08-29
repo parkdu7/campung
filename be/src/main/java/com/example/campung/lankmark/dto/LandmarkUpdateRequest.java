@@ -39,6 +39,9 @@ public class LandmarkUpdateRequest {
     @Schema(description = "랜드마크 카테고리", example = "LIBRARY")
     private LandmarkCategory category;
     
+    @Schema(description = "검색 반경 (미터). 값이 없으면 카테고리 기본값 사용", example = "300")
+    private Integer radius;
+    
     @Schema(description = "이미지 파일 (새 이미지로 교체할 경우)")
     private MultipartFile imageFile;
 }

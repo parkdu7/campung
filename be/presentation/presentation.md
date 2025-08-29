@@ -13,22 +13,25 @@
 ```
 Backend: Spring Boot 3.5.4 + Java 17
 Database: MariaDB + Redis (캐싱)
-AI Integration: OpenAI GPT-4 API
+AI Integration: OpenAI GPT-5 API
 Cloud Services: AWS S3, Firebase FCM
 Real-time: WebSocket, Spring WebFlux
 Location Services: Geohash 알고리즘
 Documentation: Swagger/OpenAPI 3.0
+Server Infrastructure: Self-Hosted Ubuntu Live Server
+Web Server: Nginx (Reverse Proxy)
+Container: Docker + Docker Compose
 ```
 
 ### 주요 도메인 모듈
-1. **사용자 관리** (`user`) - 회원가입/로그인/프로필
-2. **콘텐츠 관리** (`content`) - 게시물 CRUD, 파일 업로드
-3. **감정 분석** (`emotion`) - AI 기반 실시간 감정 분석 시스템
-4. **위치 서비스** (`geo`, `locationShare`) - 실시간 위치 공유
-5. **소셜 기능** (`friendship`, `comment`) - 친구 관계, 댓글 시스템
-6. **알림 시스템** (`notification`) - Firebase 기반 푸시 알림
-7. **랜드마크** (`landmark`) - AI 기반 장소 정보 자동 생성
-8. **테스트 시스템** (`test`) - 감정별 자동화 테스트 데이터
+1. **사용자 관리** (`user`) - 회원가입/로그인/프로필 (User Entity)
+2. **콘텐츠 관리** (`content`) - 게시물 CRUD, 파일 업로드 (Content, Comment, ContentLike, ContentHot, Attachment Entity)
+3. **감정 분석** (`emotion`) - GPT-5 기반 실시간 감정 분석 시스템 (CampusTemperature, DailyCampus Entity)
+4. **위치 서비스** (`locationShare`) - 실시간 위치 공유 (Location, LocationRequest, LocationShare Entity)
+5. **소셜 기능** (`friendship`) - 친구 관계 시스템 (Friendship Entity)
+6. **알림 시스템** (`notification`) - Firebase FCM 기반 푸시 알림 (Notification, NotificationSetting Entity)
+7. **랜드마크** (`landmark`) - AI 기반 장소 정보 자동 생성 (Landmark Entity)
+8. **기록 및 신고** (`record`, `report`) - 사용자 활동 기록 및 신고 시스템 (Record, Report Entity)
 
 ---
 
@@ -38,25 +41,26 @@ Documentation: Swagger/OpenAPI 3.0
 **"대학 캠퍼스의 실시간 감정 상태를 AI로 측정하는 세계 최초의 시스템"**
 
 #### 혁신 포인트:
-- **OpenAI GPT-4** 기반 실시간 감정 분석
-- **7가지 감정 지표** 자동 추출 (기쁨, 슬픔, 분노, 두려움, 놀라움, 혐오, 신뢰)
-- **캠퍼스 온도계 시스템**: 감정을 온도와 날씨로 시각화
-- **자동 스케줄링**: 매시간 자동 분석 및 업데이트
+- **OpenAI GPT-5** 기반 실시간 감정 분석
+- **6가지 감정 지표** 자동 추출 (우울함, 밝음, 신남, 화남, 슬픔, 흥분된)
+- **캠퍼스 온도계 시스템**: 감정을 온도와 날씨로 시각화 (CampusTemperature Entity)
+- **자동 스케줄링**: EmotionAnalysisScheduler를 통한 자동 분석 및 업데이트
 
 #### 기술적 차별점:
 ```java
 // 감정 분석 파이프라인
-텍스트 → GPT-4 분석 → 7차원 감정 점수 → 온도 변환 → 날씨 매핑
+텍스트 → GPT-5 분석 → 6차원 감정 점수 → 온도 변환 → 날씨 매핑
+// EmotionAnalysisService -> EmotionPromptBuilder -> GPT5ApiService -> EmotionResponseParser
 ```
 
-### 2. 🔬 혁신적인 개발 도구 생태계
-**"AI 개발 효율성을 10배 향상시키는 도구 체인"**
+### 2. 🗺️ 혁신적인 위치 기반 소셜 서비스
+**"실시간 위치 공유와 Geohash 기반 알림 시스템"**
 
 #### 구현 성과:
-- **MCP 브리지 시스템**: Claude Code ↔ Gemini AI 연동
-- **할당량 최적화**: 토큰 사용량 99% 절약 달성
-- **자동화 스크립트**: 배치 파일, PowerShell 스크립트
-- **완전 자동화**: 검색, 분석, 문서화 원클릭 처리
+- **실시간 위치 공유**: LocationShareController를 통한 친구 위치 공유
+- **Geohash 기반 알림**: GeohashService와 WebSocket을 이용한 실시간 알림
+- **Firebase FCM**: FCMService를 통한 푸시 알림 시스템
+- **지도 기반 커니티**: 지도 중심의 위치 기반 소셜 네트워크
 
 ### 3. 📊 감정 데이터 기반 인사이트
 **"데이터로 증명하는 캠퍼스 심리 건강 지표"**
@@ -85,14 +89,14 @@ Documentation: Swagger/OpenAPI 3.0
 
 #### A. 실시간 감정 온도계 (2분)
 - 현재 캠퍼스 온도: 24.7°C (맑음)
-- 7가지 감정 지표 실시간 표시
+- 6가지 감정 지표 실시간 표시 (우울함, 밝음, 신남, 화남, 슬픔, 흥분된)
 - 시간대별 감정 변화 그래프
 
 #### B. AI 감정 분석 과정 (3분)
 ```
 입력: "시험 때문에 너무 스트레스받아요 😭"
-↓ OpenAI GPT-4 분석
-출력: {슬픔: 0.8, 두려움: 0.6, 분노: 0.3...}
+↓ OpenAI GPT-5 분석
+출력: {슬픔: 80, 우울함: 60, 화남: 30...} (1-100점 척도)
 ↓ 온도 변환
 결과: -2.3°C 감소 → 흐림 날씨
 ```
@@ -106,18 +110,18 @@ Documentation: Swagger/OpenAPI 3.0
 **슬라이드 9-13**
 
 #### A. AI 통합 아키텍처 (3분)
-- OpenAI GPT-4 API 최적화 연동
+- OpenAI GPT-5 API 최적화 연동 (GPT5ApiService)
 - 실시간 배치 처리 시스템
 - Redis 기반 캐싱 전략
 - 스케줄러 기반 자동화
 
-#### B. 개발 도구 혁신 (2분)
-- MCP(Model Context Protocol) 브리지 개발
-- 할당량 99% 절약하는 최적화 스크립트
-- 자동화된 문서 생성 시스템
+#### B. 실시간 위치 기반 서비스 (2분)
+- Geohash와 WebSocket을 이용한 실시간 알림
+- 친구 위치 공유 시스템 (LocationShareController)
+- Firebase FCM을 통한 푸시 알림 시스템
 
 #### C. 데이터 모델링 (2분)
-- 7차원 감정 벡터 설계
+- 6차원 감정 벡터 설계 (EmotionCalculatorService)
 - 온도-감정 매핑 알고리즘
 - 시계열 데이터 분석 모델
 
@@ -125,11 +129,12 @@ Documentation: Swagger/OpenAPI 3.0
 **슬라이드 14-16**
 
 #### 정량적 성과:
-- **19개 REST API** 완전 구현
-- **81개 테스트 데이터** 감정별 분류
-- **99% 토큰 절약** 달성
-- **실시간 분석** (< 3초 응답)
-- **7x24 자동 모니터링** 시스템
+- **20개 컨트롤러** 완전 구현
+- **50+ REST API** 완전 구현
+- **16개 Entity, 14개 Repository, 40+개 Service** 구현
+- **6가지 감정별** 테스트 데이터 분류
+- **GPT-5 기반** 실시간 감정 분석
+- **자동 스케줄링** 시스템 (EmotionAnalysisScheduler)
 
 #### 라이브 데모:
 1. 실시간 감정 대시보드
@@ -161,8 +166,8 @@ Documentation: Swagger/OpenAPI 3.0
 
 ### 1. 기술적 우수성
 - **"세계 최초의 캠퍼스 감정 AI 시스템"**
-- **"99% 효율성 향상을 달성한 개발 도구"**
-- **"실시간 7차원 감정 분석 엔진"**
+- **"GPT-5 기반 실시간 감정 분석 시스템"**
+- **"실시간 6차원 감정 분석 엔진"**
 
 ### 2. 실용적 가치
 - **"데이터 기반 학생 복지 정책 수립 지원"**
@@ -182,16 +187,16 @@ Documentation: Swagger/OpenAPI 3.0
 ```
 1. 현재 캠퍼스 온도계 확인: 25.2°C (맑음)
 2. 새 게시물 작성: "오늘 시험 잘 봤어요! 너무 기분 좋네요 😊"
-3. 3초 후 분석 결과: 기쁨 +0.15, 온도 +0.8°C 상승
+3. 3초 후 분석 결과: 밝음 +0.15, 온도 +0.8°C 상승
 4. 실시간 대시보드 업데이트 확인
 ```
 
 ### 시나리오 2: 감정별 테스트 데이터
 ```
 1. Swagger UI 접속
-2. /api/test/contents POST 요청
-3. emotionType: "BRIGHT" 선택 (드롭다운)
-4. 10개의 긍정적인 게시물 자동 생성
+2. /api/contents POST 요청으로 게시물 작성
+3. 감정 분석 자동 실행 (EmotionAnalysisService)
+4. 긍정적인 게시물에 대한 감정 분석
 5. 감정 분석 결과: 평균 온도 +3.2°C 상승
 ```
 
@@ -212,13 +217,17 @@ Documentation: Swagger/OpenAPI 3.0
 Framework: Spring Boot 3.5.4
 Language: Java 17
 Database: MariaDB + Redis
-AI: OpenAI GPT-4 API
+AI: OpenAI GPT-5 API
 File Storage: AWS S3
 Push Notification: Firebase FCM
 Real-time: WebSocket + Spring WebFlux
 Location: Geohash Algorithm
 Documentation: Swagger/OpenAPI 3.0
 Testing: JUnit 5 + H2 Database
+Server: Self-Hosted Ubuntu Live Server
+Web Server: Nginx (Reverse Proxy)
+Container: Docker + Docker Compose
+CI/CD: GitHub Actions
 ```
 
 ### Key Dependencies
@@ -233,11 +242,12 @@ implementation 'com.github.davidmoten:geo'
 ```
 
 ### API Statistics
-- **총 컨트롤러**: 19개
-- **REST 엔드포인트**: 67개
+- **총 컨트롤러**: 20개
+- **총 Entity**: 16개
+- **총 Service**: 40+개
+- **총 Repository**: 14개
+- **REST 엔드포인트**: 50+개
 - **감정 분석 API**: 6개
-- **테스트 API**: 3개
-- **관리자 API**: 8개
 
 ---
 
@@ -267,20 +277,20 @@ implementation 'com.github.davidmoten:geo'
 
 ### 예상 질문 및 답변
 **Q: 감정 분석의 정확도는?**
-A: OpenAI GPT-4 기반으로 90% 이상의 정확도를 보이며, 실제 테스트에서도 사용자 감정과 95% 일치율을 보였습니다.
+A: OpenAI GPT-5 기반으로 6가지 감정 카테고리를 1-100점 척도로 분석하며, EmotionPromptBuilder를 통해 최적화된 프롬프트로 일관된 분석 결과를 제공합니다.
 
 **Q: 개인정보 보호는?**
 A: 모든 게시물은 익명화되며, 개인 식별 정보는 저장하지 않습니다. GDPR 및 국내 개인정보보호법을 완전 준수합니다.
 
 **Q: 서버 비용은?**
-A: AWS 프리티어 + OpenAI API 비용으로 월 50달러 이하로 운영 가능하며, 대학교 규모 확장 시에도 월 300달러 이하 예상됩니다.
+A: Self-Hosted Ubuntu 서버를 사용하여 인프라 비용을 최소화하고, Docker + Nginx로 효율적인 자원 관리를 구현했습니다. GPT-5 API 비용과 AWS S3 스토리지 비용만 추가적으로 발생합니다.
 
 ---
 
 ## 🎉 마무리 메시지
 
 ### 핵심 메시지
-> **"AI 기술로 대학 캠퍼스의 정신 건강을 혁신하고, 개발 생산성까지 10배 향상시킨 완전한 솔루션을 구현했습니다."**
+> **"GPT-5 AI 기술로 대학 캠퍼스의 감정 상태를 실시간으로 분석하고, 위치 기반 소셜 네트워크를 구현한 완전한 솔루션을 개발했습니다."**
 
 ### Call to Action
 - GitHub 오픈소스 공개 예정
@@ -292,9 +302,10 @@ A: AWS 프리티어 + OpenAI API 비용으로 월 50달러 이하로 운영 가�
 ## 📈 성공 지표 (KPI)
 
 ### 기술적 성과
-- [x] **API 완성도**: 67개 엔드포인트 100% 구현
-- [x] **AI 정확도**: 감정 분석 95% 정확도 달성  
-- [x] **성능 최적화**: 99% 토큰 사용량 절약
+- [x] **API 완성도**: 50+개 엔드포인트 구현
+- [x] **AI 모델**: GPT-5로 최신 AI 기술 적용
+- [x] **감정 분석**: 6가지 감정 카테고리 분석 시스템
+- [x] **캠퍼스 온도 시스템**: 실시간 감정 상태 시각화
 - [x] **자동화 수준**: 완전 자동화된 분석 파이프라인
 
 ### 비즈니스 임팩트
