@@ -56,24 +56,12 @@ fun AppNav(
     }
 
     // 1) 상태 수집: 로그인 상태
-    val userId by authDataStore.userIdFlow.collectAsState(initial = null)
+    val userId by authDataStore.userIdFlow.collectAsState(initial = "")
 
-    // 2) startDestination 결정 (항상 HOME 기본)
-    val startRoute: String? = when {
-        userId == null -> null  // 로딩 중 → 스플래시
-        userId!!.isBlank() -> Route.LOGIN  // 미로그인
-        else -> Route.HOME  // 항상 HOME으로 시작 (FCM은 LaunchedEffect에서 처리)
-    }
-
-    // 3) startRoute 확정 전까지 NavHost 렌더링 안함 (플리커 방지)
-    if (startRoute == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-        return
+    // 2) startDestination 결정
+    val startRoute: String = when {
+        userId.isNullOrBlank() -> Route.LOGIN  // 미로그인 (첫 설치 포함)
+        else -> Route.HOME  // 로그인됨 (FCM은 LaunchedEffect에서 처리)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -198,11 +186,20 @@ fun AppNav(
         // - 앱 백그라운드에서 FCM 클릭: onNewIntent에서 처리
         LaunchedEffect(navController, initialRoute) {
             initialRoute?.let { route ->
-                if (route.startsWith("content_detail/") && startRoute == Route.HOME) {
+                if (startRoute == Route.HOME) {
                     // HOME이 완전히 로드되길 기다림
                     kotlinx.coroutines.delay(300)
-                    navController.navigate(route) {
-                        launchSingleTop = true
+                    when {
+                        route.startsWith("content_detail/") -> {
+                            navController.navigate(route) {
+                                launchSingleTop = true
+                            }
+                        }
+                        route == "notification" -> {
+                            navController.navigate(Route.NOTIFICATION) {
+                                launchSingleTop = true
+                            }
+                        }
                     }
                 }
             }

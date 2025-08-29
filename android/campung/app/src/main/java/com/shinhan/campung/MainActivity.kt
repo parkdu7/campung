@@ -104,16 +104,24 @@ class MainActivity : ComponentActivity() {
     private fun extractFcmRoute(intent: Intent): String? {
         intent.extras?.let { extras ->
             Log.d("MainActivity", "FCM 라우트 추출 중...")
+            Log.d("MainActivity", "=== Intent extras 전체 로깅 시작 ===")
+            for (key in extras.keySet()) {
+                Log.d("MainActivity", "Intent extras: $key = ${extras.get(key)}")
+            }
+            Log.d("MainActivity", "=== Intent extras 전체 로깅 끝 ===")
             
             // contentId 추출 (FcmNavigationHandler와 동일한 로직 사용)
             val contentId = extractContentIdFromExtras(extras)
-            val type = extras.getString("type")
+            val type = extractTypeFromExtras(extras)
             
             Log.d("MainActivity", "추출된 데이터 - contentId: $contentId, type: $type")
             
             if (contentId != null && contentId > 0) {
                 Log.d("MainActivity", "FCM 라우트 생성: content_detail/$contentId")
                 return "content_detail/$contentId"
+            } else if (type == "location_share_request") {
+                Log.d("MainActivity", "위치 공유 요청 FCM 라우트 생성: notification")
+                return "notification"
             }
         }
         
@@ -122,7 +130,7 @@ class MainActivity : ComponentActivity() {
     }
     
     /**
-     * Bundle에서 contentId 추출 (FcmNavigationHandler와 동일한 로직)
+     * Bundle에서 contentId 추출 (FcmNavigationHandler와 동일한 로직 + 백그라운드 처리)
      */
     private fun extractContentIdFromExtras(extras: android.os.Bundle): Long? {
         // 1. Long 타입으로 전달된 경우
@@ -139,7 +147,30 @@ class MainActivity : ComponentActivity() {
             return stringValue
         }
         
-        // 3. Object 타입으로 전달된 경우
+        // 3. FCM 백그라운드에서 data 필드가 JSON으로 전달되는 경우
+        val dataField = extras.getString("data")
+        if (dataField != null) {
+            try {
+                Log.d("MainActivity", "data 필드 발견: $dataField")
+                val jsonObject = org.json.JSONObject(dataField)
+                val contentId = jsonObject.optLong("contentId", 0L)
+                if (contentId > 0) {
+                    Log.d("MainActivity", "data JSON에서 contentId 추출 성공: $contentId")
+                    return contentId
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "data JSON 파싱 실패: $dataField", e)
+            }
+        }
+        
+        // 4. FCM 백그라운드에서 각 data 키가 개별적으로 전달되는 경우
+        val fcmContentId = extras.getString("gcm.notification.data.contentId")?.toLongOrNull()
+        if (fcmContentId != null && fcmContentId > 0) {
+            Log.d("MainActivity", "FCM gcm.notification.data.contentId에서 추출: $fcmContentId")
+            return fcmContentId
+        }
+        
+        // 5. Object 타입으로 전달된 경우
         val objectValue = extras.get("contentId")?.toString()?.toLongOrNull()
         if (objectValue != null && objectValue > 0) {
             Log.d("MainActivity", "contentId를 Object로 추출: $objectValue")
@@ -147,6 +178,44 @@ class MainActivity : ComponentActivity() {
         }
         
         Log.d("MainActivity", "contentId를 찾을 수 없음")
+        return null
+    }
+    
+    /**
+     * Bundle에서 type 추출 (FCM 백그라운드 처리 포함)
+     */
+    private fun extractTypeFromExtras(extras: android.os.Bundle): String? {
+        // 1. 직접적으로 전달된 경우
+        val directType = extras.getString("type")
+        if (directType != null) {
+            Log.d("MainActivity", "type을 직접 추출: $directType")
+            return directType
+        }
+        
+        // 2. FCM 백그라운드에서 data 필드가 JSON으로 전달되는 경우
+        val dataField = extras.getString("data")
+        if (dataField != null) {
+            try {
+                Log.d("MainActivity", "data 필드에서 type 추출 시도: $dataField")
+                val jsonObject = org.json.JSONObject(dataField)
+                val type = jsonObject.optString("type", null)
+                if (type != null) {
+                    Log.d("MainActivity", "data JSON에서 type 추출 성공: $type")
+                    return type
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "data JSON에서 type 파싱 실패: $dataField", e)
+            }
+        }
+        
+        // 3. FCM 백그라운드에서 각 data 키가 개별적으로 전달되는 경우
+        val fcmType = extras.getString("gcm.notification.data.type")
+        if (fcmType != null) {
+            Log.d("MainActivity", "FCM gcm.notification.data.type에서 추출: $fcmType")
+            return fcmType
+        }
+        
+        Log.d("MainActivity", "type을 찾을 수 없음")
         return null
     }
     
