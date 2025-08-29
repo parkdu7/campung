@@ -42,7 +42,7 @@ public class CommentMapper {
         CommentDto.AuthorDto authorDto = new CommentDto.AuthorDto();
         authorDto.setNickname(comment.getAuthor().getNickname());
         
-        String profileImageUrl = null; // TODO: User 엔티티에 profileImageUrl 필드 추가 필요
+        String profileImageUrl = comment.getAuthor().getProfileImageUrl();
         if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
             profileImageUrl = defaultProfileImageUrl;
         }
@@ -71,7 +71,7 @@ public class CommentMapper {
         CommentDto.AuthorDto authorDto = new CommentDto.AuthorDto();
         authorDto.setNickname(reply.getAuthor().getNickname());
         
-        String profileImageUrl = null; // TODO: User 엔티티에 profileImageUrl 필드 추가 필요
+        String profileImageUrl = reply.getAuthor().getProfileImageUrl();
         if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
             profileImageUrl = defaultProfileImageUrl;
         }
