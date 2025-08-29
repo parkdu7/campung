@@ -159,7 +159,7 @@ fun AudioPlayer(
                                 .size(40.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (isPlaying) Color(0xFFFF6B6B) else Color(0xFF4CAF50)
+                                    if (isPlaying) Color(0xFF485494) else Color(0xFF73A5FE)
                                 )
                                 .clickable {
                                     try {
@@ -318,12 +318,7 @@ fun AudioPlayer(
                                             .fillMaxWidth(progress)
                                             .fillMaxHeight()
                                             .background(
-                                                Brush.horizontalGradient(
-                                                    colors = listOf(
-                                                        Color(0xFFFF6B6B),
-                                                        Color(0xFFFF8E8E)
-                                                    )
-                                                ),
+                                                Color(0xFF73A5FE),
                                                 RoundedCornerShape(2.dp)
                                             )
                                     )
