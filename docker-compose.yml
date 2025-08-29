@@ -30,7 +30,7 @@ services:
     container_name: campung-redis
     volumes:
       - redis_data:/data
-    command: [ "redis-server", "--requirepass", "sequence" ]
+    command: [ "redis-server", "--requirepass", "campung1234" ]
 volumes:
   mariadb_data:
   redis_data:

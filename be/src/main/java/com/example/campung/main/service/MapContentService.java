@@ -44,6 +44,9 @@ public class MapContentService {
     
     @Autowired
     private CampusTemperatureManager temperatureManager;
+    
+    @Autowired
+    private com.example.campung.content.service.ContentHotService contentHotService;
 
     public MapContentResponse getMapContents(MapContentRequest request) {
         System.out.println("=== 지도 콘텐츠 조회 시작 ===");
@@ -155,7 +158,12 @@ public class MapContentService {
         System.out.println("캠퍼스 날짜 범위: " + startDateTime + " ~ " + endDateTime);
 
         List<Content> contents;
-        if (postType != null) {
+        if (postType != null && postType == PostType.HOT) {
+            // HOT postType 요청 시 isHot = true인 게시글 조회
+            contents = contentRepository.findByLocationAndDateAndIsHot(
+                    minLat, maxLat, minLng, maxLng, startDateTime, endDateTime
+            );
+        } else if (postType != null) {
             contents = contentRepository.findByLocationAndDateAndPostType(
                     minLat, maxLat, minLng, maxLng, startDateTime, endDateTime, postType
             );
@@ -287,10 +295,23 @@ public class MapContentService {
             item.setLocation(location);
         }
 
-        // PostType 정보
-        item.setPostType(content.getPostType().name());
-        item.setPostTypeName(content.getPostType().getDescription());
-        item.setMarkerType(MarkerType.fromPostType(content.getPostType()).getMarkerType());
+        // PostType 정보 (HOT 게시글 체크)
+        boolean isHotContent = contentHotService.isHotContent(content.getContentId());
+        System.out.println("Content ID " + content.getContentId() + " - isHot: " + isHotContent + 
+                          ", originalPostType: " + content.getPostType().name());
+        
+        if (isHotContent) {
+            // HOT 게시글인 경우 postType을 HOT으로 변경
+            item.setPostType("HOT");
+            item.setPostTypeName("인기글");
+            item.setMarkerType(MarkerType.fromPostType(com.example.campung.global.enums.PostType.HOT).getMarkerType());
+            System.out.println("→ HOT 게시글로 변경됨");
+        } else {
+            // 일반 게시글인 경우 원래 postType 사용
+            item.setPostType(content.getPostType().name());
+            item.setPostTypeName(content.getPostType().getDescription());
+            item.setMarkerType(MarkerType.fromPostType(content.getPostType()).getMarkerType());
+        }
         
         // ContentScope는 현재 구현에서는 모두 "MAP"으로 설정
         item.setContentScope("MAP");
