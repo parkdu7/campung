@@ -107,8 +107,9 @@ public class ContentLikeService {
             String message = likerName + " 님이 " + contentTitle + " 글을 좋아합니다.";
             String title = "좋아요 알림";
             String type = "normal";
+            String data = "{\"contentId\":" + content.getContentId() + "}";
             
-            notificationService.createNotification(postAuthor, type, title, message, null);
+            notificationService.createNotification(postAuthor, type, title, message, data);
         } catch (Exception e) {
             System.err.println("좋아요 알림 전송 중 오류 발생: " + e.getMessage());
         }

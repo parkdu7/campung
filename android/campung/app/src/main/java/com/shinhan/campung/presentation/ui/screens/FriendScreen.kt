@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.shinhan.campung.R
 import com.shinhan.campung.presentation.viewmodel.FriendViewModel
@@ -47,6 +49,7 @@ fun FriendScreen(
 
     // 검색 상태
     var searchQuery by remember { mutableStateOf("") }
+    var isSearchFocused by remember { mutableStateOf(false) }
 
     // 검색된 친구 목록 (FriendResponse를 Friend로 변환)
     val filteredFriends = remember(searchQuery, friends) {
@@ -88,13 +91,15 @@ fun FriendScreen(
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = {
-                        Text(
-                            text = "이름으로 친구를 검색하세요.",
-                            color = Color.Gray,
-                            fontSize = 16.sp
-                        )
-                    },
+                    placeholder = if (!isSearchFocused && searchQuery.isEmpty()) {
+                        {
+                            Text(
+                                text = "이름으로 친구를 검색하세요.",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+                        }
+                    } else null,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.White.copy(alpha = 0.1f),
                         unfocusedContainerColor = Color.White.copy(alpha = 0.1f),
@@ -103,9 +108,15 @@ fun FriendScreen(
                         focusedTextColor = Color.Black,
                         unfocusedTextColor = Color.Black
                     ),
+                    textStyle = TextStyle(fontSize = 14.sp),
                     shape = RoundedCornerShape(20.dp),
+
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            isSearchFocused = focusState.isFocused
+                        },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -127,7 +138,10 @@ fun FriendScreen(
                 )
             },
             navigationIcon = {
-                IconButton(onClick = onBackClick) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.padding(start = 10.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "뒤로가기",
@@ -136,11 +150,15 @@ fun FriendScreen(
                 }
             },
             actions = {
-                IconButton(onClick = { showAddFriendDialog = true }) {
+                IconButton(
+                    onClick = { showAddFriendDialog = true },
+                    modifier = Modifier.padding(end = 10.dp)
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.friend_plus),
                         contentDescription = "친구 추가",
-                        tint = Color.Black
+                        modifier = Modifier.size(40.dp),
+                        tint = Color.Unspecified
                     )
                 }
             },

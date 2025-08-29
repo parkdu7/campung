@@ -1,0 +1,204 @@
+// Entities
+Table "user" {
+  "id" bigint [pk, increment]
+  "user_id" varchar [unique, not null]
+  "password_hash" varchar [not null]
+  "nickname" varchar [not null]
+  "fcm_token" varchar
+}
+
+Table "content" {
+  "content_id" bigint [pk, increment]
+  "title" varchar [not null]
+  "content" text [not null]
+  "author_id" bigint [not null]
+  "post_type" varchar [not null]
+  "status" varchar [default: "board"]
+  "latitude" decimal(10, 8)
+  "longitude" decimal(11, 8)
+  "building_name" varchar
+  "emotion" varchar
+  "is_anonymous" boolean [not null, default: false]
+  "like_count" int [not null, default: 0]
+  "comment_count" int [not null, default: 0]
+  "created_at" datetime
+  "updated_at" datetime
+}
+
+Table "comment" {
+  "comment_id" bigint [pk, increment]
+  "content_id" bigint [not null]
+  "author_id" bigint [not null]
+  "parent_comment_id" bigint
+  "comment_content" text [not null]
+  "is_anonymous" boolean [not null, default: false]
+  "created_at" datetime
+  "updated_at" datetime
+}
+
+Table "content_like" {
+  "content_like_id" bigint [pk, increment]
+  "content_id" bigint [not null]
+  "user_id" bigint [not null]
+  "created_at" datetime
+  Indexes {
+    (content_id, user_id) [unique]
+  }
+}
+
+Table "attachment" {
+  "attachment_id" bigint [pk, increment]
+  "content_id" bigint
+  "original_name" varchar [not null]
+  "file_type" varchar [not null]
+  "file_size" int [not null]
+  "url" varchar [not null]
+  "thumbnail_url" varchar
+  "idx" int [not null]
+  "created_at" datetime
+}
+
+Table "friendship" {
+  "friendship_id" bigint [pk, increment]
+  "requester_id" bigint [not null]
+  "addressee_id" bigint [not null]
+  "status" varchar [default: "pending"]
+  "created_at" datetime
+  "updated_at" datetime
+  Indexes {
+    (requester_id, addressee_id) [unique]
+  }
+}
+
+Table "location" {
+  "location_id" bigint [pk, increment]
+  "user_id" bigint [not null]
+  "latitude" decimal(10, 8) [not null]
+  "longitude" decimal(11, 8) [not null]
+  "accuracy" decimal(5, 2)
+  "is_at_target" boolean [default: false]
+  "created_at" datetime
+}
+
+Table "location_request" {
+  "location_request_id" bigint [pk, increment]
+  "from_user_id" bigint [not null]
+  "to_user_id" bigint [not null]
+  "message" text
+  "status" varchar [default: "pending"]
+  "expires_at" datetime
+  "responded_at" datetime
+  "created_at" datetime
+}
+
+Table "location_share" {
+  "location_share_id" bigint [pk, increment]
+  "location_request_id" bigint [not null]
+  "shared_latitude" decimal(10, 8)
+  "shared_longitude" decimal(11, 8)
+  "message" text
+  "display_until" datetime
+  "created_at" datetime
+}
+
+Table "notification" {
+  "notification_id" bigint [pk, increment]
+  "user_id" bigint [not null]
+  "type" varchar [not null]
+  "title" varchar [not null]
+  "message" text [not null]
+  "data" json
+  "is_read" boolean [default: false]
+  "created_at" datetime
+}
+
+Table "notification_setting" {
+  "notification_setting_id" bigint [pk, increment]
+  "user_id" bigint [unique, not null]
+  "push_token" varchar
+  "likes" boolean [default: true]
+  "comments" boolean [default: true]
+  "location" boolean [default: false]
+  "created_at" datetime
+}
+
+Table "report" {
+  "report_id" bigint [pk, increment]
+  "reporter_id" bigint [not null]
+  "reported_content_id" bigint
+  "reported_comment_id" bigint
+  "reported_user_id" bigint
+  "reason" varchar [not null]
+  "description" text
+  "status" varchar [default: "pending"]
+  "reviewed_by" bigint
+  "reviewed_at" datetime
+  "created_at" datetime
+}
+
+Table "record" {
+  "record_id" bigint [pk, increment]
+  "user_id" bigint [not null]
+  "record_url" varchar(255) [not null]
+  "latitude" decimal(10, 8)
+  "longitude" decimal(11, 8)
+  "created_at" datetime
+}
+
+Table "content_hot" {
+  "hot_id" bigint [pk, increment]
+  "content_id" bigint
+  "hot_score" bigint [default: 0]
+  "created_at" datetime
+  "updated_at" datetime
+}
+
+Table "campus_temperature" {
+  "id" bigint [pk, increment]
+  "timestamp" datetime [not null]
+  "current_temperature" double [not null]
+  "base_emotion_temperature" double [not null]
+  "post_count_adjustment" double [not null]
+  "current_hour_post_count" int [not null]
+  "expected_hourly_average" double [not null]
+  "adjustment_reason" varchar
+  "created_at" datetime
+}
+
+Table "daily_campus" {
+  "id" bigint [pk, increment]
+  "date" date [unique, not null]
+  "final_temperature" double [not null]
+  "weather_type" varchar [not null]
+  "total_post_count" int [not null]
+  "average_hourly_post_count" double [not null]
+  "max_temperature" double [not null]
+  "min_temperature" double [not null]
+  "created_at" datetime
+  "updated_at" datetime
+}
+
+
+// Relationships
+Ref: "content"."author_id" < "user"."id"
+Ref: "comment"."content_id" < "content"."content_id"
+Ref: "comment"."author_id" < "user"."id"
+Ref: "comment"."parent_comment_id" < "comment"."comment_id"
+Ref: "content_like"."content_id" < "content"."content_id"
+Ref: "content_like"."user_id" < "user"."id"
+Ref: "attachment"."content_id" < "content"."content_id"
+Ref: "friendship"."requester_id" < "user"."id"
+Ref: "friendship"."addressee_id" < "user"."id"
+Ref: "location"."user_id" < "user"."id"
+Ref: "location_request"."from_user_id" < "user"."id"
+Ref: "location_request"."to_user_id" < "user"."id"
+Ref: "location_share"."location_request_id" < "location_request"."location_request_id"
+Ref: "notification"."user_id" < "user"."id"
+Ref: "notification_setting"."user_id" - "user"."id"
+Ref: "report"."reporter_id" < "user"."id"
+Ref: "report"."reported_content_id" < "content"."content_id"
+Ref: "report"."reported_comment_id" < "comment"."comment_id"
+Ref: "report"."reported_user_id" < "user"."id"
+Ref: "report"."reviewed_by" < "user"."id"
+Ref: "record"."user_id" < "user"."id"
+Ref: "content_hot"."content_id" - "content"."content_id"

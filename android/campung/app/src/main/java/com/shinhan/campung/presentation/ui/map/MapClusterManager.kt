@@ -178,7 +178,7 @@ class MapClusterManager(
         // 이전 Content 마커 선택 해제
         selectedMarker?.let { marker ->
             animateMarkerSelection(marker, false)
-            marker.zIndex = 0
+            marker.zIndex = 50
         }
         selectedMarker = null
         selectedContent = null
@@ -186,7 +186,7 @@ class MapClusterManager(
         // 이전 Record 마커 선택 해제
         selectedRecordMarker?.let { marker ->
             animateRecordMarkerSelection(marker, false)
-            marker.zIndex = 0
+            marker.zIndex = 50
         }
         
         // 새로운 Record 마커 찾기 및 선택
@@ -220,7 +220,7 @@ class MapClusterManager(
             Log.d("MapClusterManager", "개별 마커 선택 해제")
             // 애니메이션과 함께 아이콘 변경
             animateMarkerSelection(marker, false)
-            marker.zIndex = 0
+            marker.zIndex = 50
         }
         selectedMarker = null
         selectedContent = null
@@ -229,7 +229,7 @@ class MapClusterManager(
         selectedRecordMarker?.let { marker ->
             Log.d("MapClusterManager", "Record 마커 선택 해제")
             animateRecordMarkerSelection(marker, false)
-            marker.zIndex = 0
+            marker.zIndex = 50
         }
         selectedRecordMarker = null
         selectedRecord = null
@@ -247,7 +247,7 @@ class MapClusterManager(
         highlightedMarker?.let { marker ->
             Log.d("MapClusterManager", "하이라이트 마커 해제")
             animateMarkerFocus(marker, false)
-            marker.zIndex = 0
+            marker.zIndex = 50
         }
         highlightedMarker = null
 
@@ -299,7 +299,7 @@ class MapClusterManager(
         highlightedMarker?.let { marker ->
             if (marker != selectedMarker) { // 선택된 마커가 아닐 때만
                 animateMarkerFocus(marker, false)
-                marker.zIndex = 0
+                marker.zIndex = 50
                 // 이전 포커스 마커의 Compose 툴팁 숨김
                 onHideTooltip?.invoke()
             }
@@ -561,7 +561,7 @@ class MapClusterManager(
                         // 개별 마커 선택 해제
                         selectedMarker?.let { marker ->
                             animateMarkerSelection(marker, false)
-                            marker.zIndex = 0
+                            marker.zIndex = 50
                         }
                         selectedMarker = null
                         selectedContent = null

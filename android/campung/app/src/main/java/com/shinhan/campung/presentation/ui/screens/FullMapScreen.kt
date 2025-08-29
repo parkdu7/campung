@@ -78,15 +78,14 @@ import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
 import com.shinhan.campung.presentation.ui.components.MixedMapBottomSheetContent
 import com.shinhan.campung.presentation.ui.components.AnimatedMapTooltip
+import com.shinhan.campung.presentation.ui.components.MyLocationMarker
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.shinhan.campung.R
@@ -265,7 +264,7 @@ fun FullMapScreen(
     val dynamicContentHeight = remember(bottomSheetContents.size, bottomSheetItems.size, isLoading) {
         // 통합 바텀시트가 있으면 우선 사용, 없으면 기존 방식
         val itemCount = if (bottomSheetItems.isNotEmpty()) bottomSheetItems.size else bottomSheetContents.size
-        
+
         when {
             isLoading -> dragHandleHeight + padding * 2 + itemHeight
             itemCount == 0 -> dragHandleHeight
@@ -293,29 +292,29 @@ fun FullMapScreen(
     // 지도 설정 및 마커 생명주기 관리
     DisposableEffect(lifecycle, mapView) {
         val observer = object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) { 
-                mapView.onStart() 
+            override fun onStart(owner: LifecycleOwner) {
+                mapView.onStart()
                 Log.d("FullMapScreen", "🔄 onStart - 화면 복귀")
             }
-            override fun onResume(owner: LifecycleOwner) { 
+            override fun onResume(owner: LifecycleOwner) {
                 mapView.onResume()
                 Log.d("FullMapScreen", "▶️ onResume - 화면 활성화")
             }
-            override fun onPause(owner: LifecycleOwner) { 
+            override fun onPause(owner: LifecycleOwner) {
                 mapView.onPause()
                 Log.d("FullMapScreen", "⏸️ onPause - 화면 비활성화, 마커 정리는 나중에 처리됨")
             }
-            override fun onStop(owner: LifecycleOwner) { 
+            override fun onStop(owner: LifecycleOwner) {
                 mapView.onStop()
-                Log.d("FullMapScreen", "⏹️ onStop - 화면 중지") 
+                Log.d("FullMapScreen", "⏹️ onStop - 화면 중지")
             }
-            override fun onDestroy(owner: LifecycleOwner) { 
+            override fun onDestroy(owner: LifecycleOwner) {
                 mapView.onDestroy()
                 Log.d("FullMapScreen", "💀 onDestroy - 화면 파괴")
             }
         }
         lifecycle.addObserver(observer)
-        onDispose { 
+        onDispose {
             lifecycle.removeObserver(observer)
             Log.d("FullMapScreen", "🧹 DisposableEffect 정리")
         }
@@ -349,16 +348,16 @@ fun FullMapScreen(
 
     // POI 마커 매니저 (모듈화됨)
     var poiMarkerManager by remember { mutableStateOf<POIMarkerManager?>(null) }
-    
+
     // 마커 매니저들의 생명주기 관리 (앱 종료 시에만)
     DisposableEffect(Unit) { // 한 번만 실행되도록 Unit 의존성 사용
         Log.d("FullMapScreen", "🎯 마커 매니저 생명주기 관리 시작")
-        
+
         onDispose {
             Log.d("FullMapScreen", "🧹 화면 완전 종료 시 마커 매니저 정리 시작")
             // cleanup()은 완전한 앱/화면 종료 시에만 호출 (콜백도 정리됨)
             clusterManager?.cleanup()
-            poiMarkerManager?.clearPOIMarkers() 
+            poiMarkerManager?.clearPOIMarkers()
             sharedLocationMarkerManager.clearAllMarkers()
             Log.d("FullMapScreen", "✅ 모든 마커 매니저 완전 정리 완료")
         }
@@ -374,7 +373,7 @@ fun FullMapScreen(
     // POI 데이터 변경 시 마커 업데이트 (중복 호출 방지)
     LaunchedEffect(poiData, isPOIVisible) {
         Log.d("FullMapScreen", "🏪 POI LaunchedEffect 트리거 - isPOIVisible: $isPOIVisible, poiData: ${poiData.size}개")
-        
+
         naverMapRef?.let { map ->
             poiMarkerManager?.let { manager ->
                 if (isPOIVisible && poiData.isNotEmpty()) {
@@ -490,7 +489,7 @@ fun FullMapScreen(
         val pos = myLatLng
         if (map != null && pos != null) {
             map.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
-            map.locationOverlay.isVisible = true
+            map.locationOverlay.isVisible = false
             map.locationOverlay.position = pos
 
             // 초기 로드 - 핫 콘텐츠를 먼저 로드
@@ -589,7 +588,7 @@ fun FullMapScreen(
         if (!mapViewModel.shouldUpdateClustering) {
             return@LaunchedEffect
         }
-        
+
         android.util.Log.d("FullMapScreen", "📊 클러스터링 LaunchedEffect 시작 - Contents: ${mapViewModel.mapContents.size}, Records: ${mapViewModel.mapRecords.size}")
 
         if (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty()) {
@@ -680,7 +679,7 @@ fun FullMapScreen(
         android.util.Log.d("FullMapScreen", "🎯 [STATE] bottomSheetContents.size 변화: ${bottomSheetContents.size}, bottomSheetItems.size: ${bottomSheetItems.size}")
     }
 
-    // 로딩 상태 변화 추적  
+    // 로딩 상태 변화 추적
     LaunchedEffect(isLoading) {
         android.util.Log.d("FullMapScreen", "🎯 [STATE] isLoading 변화: $isLoading")
     }
@@ -822,7 +821,7 @@ fun FullMapScreen(
                             }
                         } else {
                             naverMapRef?.let { map ->
-                                mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
+                                mapInitializer.setupLocationOverlay(map, mapView, hasPermission, myLatLng)
 
                                 // 위치 공유 마커 업데이트 (모듈화된 매니저 사용)
                                 sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
@@ -832,6 +831,16 @@ fun FullMapScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
+                // 내 위치 Lottie 애니메이션 마커
+                myLatLng?.let { currentLocation ->
+                    naverMapRef?.let { map ->
+                        MyLocationMarker(
+                            map = map,
+                            location = currentLocation,
+                            modifier = Modifier.zIndex(1f) // 지도 위에, UI 요소들 아래에
+                        )
+                    }
+                }
 
                 // LocationButton - 바텀시트와 함께 움직임 (커스텀 아이콘 버전)
                 Box(

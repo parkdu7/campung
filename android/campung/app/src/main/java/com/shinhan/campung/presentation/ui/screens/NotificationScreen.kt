@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -97,13 +99,11 @@ fun NotificationScreen(
             }
         }
 
-        // 응답 가능한 알림 필터링
-        val actionableNotifications = notifications.filter { notification ->
-            notification.type in listOf("friend_request", "friendRequest", "location_share_request")
-        }
+        // 모든 알림 표시 (필터링 제거)
+        val displayNotifications = notifications
         
         // 알림 목록 또는 빈 상태 표시
-        if (actionableNotifications.isEmpty() && !uiState.isLoading) {
+        if (displayNotifications.isEmpty() && !uiState.isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -121,7 +121,7 @@ fun NotificationScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(actionableNotifications) { notification ->
+                items(displayNotifications) { notification ->
                     NotificationListItem(
                         notification = notification,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -148,6 +148,26 @@ fun NotificationScreen(
                                     viewModel.rejectLocationShareRequest(notificationId)
                                 }
                             }
+                        },
+                        onNotificationClick = { notificationId ->
+                            // 게시글 관련 알림 클릭 처리
+                            when (notification.type) {
+                                "post_like", "post_comment" -> {
+                                    // data 필드에서 contentId 추출
+                                    notification.data?.let { data ->
+                                        try {
+                                            // JSON 파싱하여 contentId 추출 (간단한 방법)
+                                            val contentId = extractContentIdFromData(data)
+                                            contentId?.let {
+                                                // TODO: Navigation을 통해 ContentDetailScreen으로 이동
+                                                // 이 부분은 MainActivity에서 처리하도록 수정 필요
+                                            }
+                                        } catch (e: Exception) {
+                                            // 파싱 실패 시 무시
+                                        }
+                                    }
+                                }
+                            }
                         }
                     )
                     Divider(
@@ -166,12 +186,24 @@ fun NotificationListItem(
     notification: NotificationItem,
     modifier: Modifier = Modifier,
     onAcceptClick: (Long) -> Unit,
-    onRejectClick: (Long) -> Unit
+    onRejectClick: (Long) -> Unit,
+    onNotificationClick: (Long) -> Unit = {}
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = 12.dp)
+            .then(
+                // 게시글 관련 알림은 클릭 가능하게 만들기
+                if (notification.type in listOf("post_like", "post_comment")) {
+                    Modifier.clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        onNotificationClick(notification.id)
+                    }
+                } else Modifier
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -181,7 +213,7 @@ fun NotificationListItem(
         ) {
             // 타입별 메시지 표시
             when (notification.type) {
-                "normal" -> {
+                "normal", "post_like", "post_comment" -> {
                     Text(
                         text = notification.title,
                         fontSize = 16.sp,
@@ -228,8 +260,8 @@ fun NotificationListItem(
 
         // 타입별 버튼 표시
         when (notification.type) {
-            "normal" -> {
-                // 일반 알림은 버튼 없음
+            "normal", "post_like", "post_comment" -> {
+                // 일반 알림과 게시글 관련 알림은 버튼 없음 (클릭으로 처리)
             }
             "friend_request", "friendRequest", "location_share_request" -> {
                 Row(
@@ -278,4 +310,16 @@ data class NotificationUiState(
     val error: String? = null,
     val successMessage: String? = null
 )
+
+// 헬퍼 함수
+private fun extractContentIdFromData(data: String): Long? {
+    return try {
+        // 간단한 JSON 파싱 (contentId만 추출)
+        val regex = "\"contentId\"\\s*:\\s*(\\d+)".toRegex()
+        val matchResult = regex.find(data)
+        matchResult?.groupValues?.get(1)?.toLongOrNull()
+    } catch (e: Exception) {
+        null
+    }
+}
 
