@@ -44,7 +44,7 @@ fun MapRecordItem(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = { onPlayClick(record) } // 리스트 전체 클릭 시 재생
             ),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(
@@ -62,7 +62,7 @@ fun MapRecordItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 스피커 아이콘과 플레이 버튼 영역 - 정사각형
+            // 스피커 아이콘과 플레이 버튼 영역
             Box(
                 modifier = Modifier
                     .size(96.dp)
@@ -72,12 +72,34 @@ fun MapRecordItem(
                 // 큰 스피커 아이콘을 중앙에 표시
                 Icon(
                     imageVector = Icons.Default.VolumeUp,
-                    contentDescription = "오디오",
+                    contentDescription = "오디오 재생",
                     modifier = Modifier
                         .size(48.dp)
                         .align(Alignment.Center),
                     tint = Color(0xFF9C27B0)
                 )
+                
+                // 재생 중일 때 작은 재생 아이콘 표시
+                if (isCurrentPlaying) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.BottomEnd)
+                            .offset((-4).dp, (-4).dp)
+                            .background(
+                                Color(0xFF9C27B0),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "재생 중",
+                            modifier = Modifier.size(12.dp),
+                            tint = Color.White
+                        )
+                    }
+                }
             }
             
             // 녹음 정보

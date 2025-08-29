@@ -506,6 +506,13 @@ fun FullMapScreen(
                     radius = radius,
                     force = true  // 초기 로드는 항상 강제 실행
                 )
+                
+                // POI는 클러스터링 완료 후 로드하도록 지연
+                kotlinx.coroutines.MainScope().launch {
+                    kotlinx.coroutines.delay(1000) // 클러스터링 완료 대기
+                    Log.d("FullMapScreen", "🏪 지연 POI 테스트 로드")
+                    mapViewModel.loadPOIData(pos.latitude, pos.longitude, radius = radius)
+                }
             } ?: run {
                 // NaverMap이 아직 준비되지 않았으면 기본 방식으로 강제 로드
                 Log.d("FullMapScreen", "🎯 NaverMap 준비 전 기본 마커 로드: (${pos.latitude}, ${pos.longitude})")
@@ -514,6 +521,13 @@ fun FullMapScreen(
                     longitude = pos.longitude,
                     force = true  // 초기 로드는 항상 강제 실행
                 )
+                
+                // POI도 지연 로드
+                kotlinx.coroutines.MainScope().launch {
+                    kotlinx.coroutines.delay(1000)
+                    Log.d("FullMapScreen", "🏪 지연 POI 테스트 로드 (NaverMap 준비 전)")
+                    mapViewModel.loadPOIData(pos.latitude, pos.longitude)
+                }
             }
         }
     }
@@ -551,8 +565,8 @@ fun FullMapScreen(
                 return@OnCameraChangeListener
             }
             
-            // 쓰로틀링 강화 (100ms)
-            if (currentTime - lastTooltipUpdateTime < 100) {
+            // 쓰로틀링 최소화 (16ms = 60fps)
+            if (currentTime - lastTooltipUpdateTime < 16) {
                 return@OnCameraChangeListener
             }
             lastTooltipUpdateTime = currentTime
@@ -769,6 +783,12 @@ fun FullMapScreen(
                                         android.util.Log.d("FullMapScreen", "🏪 POI 마커 클릭됨: ${poi.name}")
                                         mapViewModel.onPOIClick(poi)
                                     }
+                                }
+                                
+                                // 클러스터 매니저와 POI 매니저 연결 (마커 위치 동기화)
+                                clusterManager?.onMarkerPositionsUpdated = { positions, zoomLevel ->
+                                    android.util.Log.d("FullMapScreen", "🎯 클러스터 → POI 위치 동기화: ${positions.size}개, 줌: $zoomLevel")
+                                    poiMarkerManager?.updateExistingMarkerPositions(positions, zoomLevel)
                                 }
                                 android.util.Log.d("FullMapScreen", "🏪 POI 마커 매니저 초기화 완료")
 
@@ -1094,10 +1114,10 @@ fun FullMapScreen(
                         .align(Alignment.TopCenter)
                         .padding(top = 67.dp)   // 헤더 카드 아래 공간 확보
                 )
+                
 
 
-                // 날씨/온도 표시 (오른쪽 상단, 필터 태그 아래)
-                // 표시
+                // 날씨/온도 표시 (오른쪽 상단)
                 WeatherTemperatureDisplay(
                     weather = uiWeather,
                     temperature = uiTemperature,

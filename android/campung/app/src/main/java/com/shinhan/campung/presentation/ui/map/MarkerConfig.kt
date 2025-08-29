@@ -28,4 +28,29 @@ object MarkerConfig {
     // 클러스터 크기
     const val CLUSTER_BASE_SIZE = 80
     const val CLUSTER_SELECTED_SIZE = 96
+    
+    // POI 오프셋 관련 설정
+    const val POI_OFFSET_BASE_DISTANCE = 85  // 기본 오프셋 거리 (픽셀)
+    const val POI_COLLISION_RADIUS = 120     // 충돌 감지 반경 (픽셀)
+    const val MAX_POI_OFFSET_ITEMS = 8       // 한 위치 주변에 배치 가능한 최대 POI 개수
+    
+    // 줌 레벨별 POI 오프셋 조정
+    fun getPoiOffsetDistance(zoomLevel: Double): Int {
+        return when {
+            zoomLevel >= 18 -> POI_OFFSET_BASE_DISTANCE
+            zoomLevel >= 16 -> (POI_OFFSET_BASE_DISTANCE * 0.8).toInt()
+            zoomLevel >= 14 -> (POI_OFFSET_BASE_DISTANCE * 0.6).toInt()
+            else -> (POI_OFFSET_BASE_DISTANCE * 0.4).toInt()
+        }
+    }
+    
+    // 줌 레벨별 충돌 감지 반경 조정
+    fun getCollisionRadius(zoomLevel: Double): Int {
+        return when {
+            zoomLevel >= 18 -> POI_COLLISION_RADIUS
+            zoomLevel >= 16 -> (POI_COLLISION_RADIUS * 0.8).toInt()
+            zoomLevel >= 14 -> (POI_COLLISION_RADIUS * 0.6).toInt()
+            else -> (POI_COLLISION_RADIUS * 0.4).toInt()
+        }
+    }
 }
