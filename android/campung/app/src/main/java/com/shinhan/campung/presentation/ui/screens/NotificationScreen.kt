@@ -99,8 +99,10 @@ fun NotificationScreen(
             }
         }
 
-        // 모든 알림 표시 (필터링 제거)
-        val displayNotifications = notifications
+        // 처리 완료된 알림들을 제외하고 표시
+        val displayNotifications = notifications.filter { notification ->
+            notification.type !in listOf("location_share_accepted", "friend_request_accepted")
+        }
         
         // 알림 목록 또는 빈 상태 표시
         if (displayNotifications.isEmpty() && !uiState.isLoading) {
@@ -260,7 +262,7 @@ fun NotificationListItem(
 
         // 타입별 버튼 표시
         when (notification.type) {
-            "normal", "post_like", "post_comment" -> {
+            "normal", "post_like", "post_comment", "location_share_accepted" -> {
                 // 일반 알림과 게시글 관련 알림은 버튼 없음 (클릭으로 처리)
             }
             "friend_request", "friendRequest", "location_share_request" -> {

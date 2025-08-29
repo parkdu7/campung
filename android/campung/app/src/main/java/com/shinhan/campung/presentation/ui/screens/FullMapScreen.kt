@@ -863,7 +863,8 @@ fun FullMapScreen(
                             end = 16.dp,
                             bottom = 8.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이만큼 위로
                         )
-                        .offset(y = locationButtonOffsetY) // 바텀시트와 함께 움직임
+                        .offset(y = locationButtonOffsetY)
+                        .zIndex(3f)// 바텀시트와 함께 움직임
                 ) {
                     Column(
                         horizontalAlignment = Alignment.End,
@@ -1037,7 +1038,8 @@ fun FullMapScreen(
                     onTagClick = { tagId -> mapViewModel.toggleFilterTag(tagId) },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 67.dp)   // 헤더 카드 아래 공간 확보
+                        .padding(top = 67.dp)
+                        .zIndex(3f)// 헤더 카드 아래 공간 확보
                 )
 
 
@@ -1054,6 +1056,7 @@ fun FullMapScreen(
                             bottom = 70.dp + dragHandleHeight // my_location 버튼(40dp) + 간격(14dp) + 기존패딩(16dp)
                         )
                         .offset(y = locationButtonOffsetY)
+                        .zIndex(3f)
                 )
 
                 // 친구 위치공유 마커 관리 (모듈화된 컴포넌트)
