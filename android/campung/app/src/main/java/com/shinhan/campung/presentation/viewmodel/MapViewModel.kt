@@ -231,7 +231,14 @@ class MapViewModel @Inject constructor(
 //        }
 
         // ✅ 스마트 중복 요청 스킵 로직
-        if (!force && !_isLoading.value) { // 로딩 중이 아닐 때만 중복 체크
+        if (!force) {
+            // 로딩 중인지 체크 (force가 아닐 때만)
+            if (_isLoading.value) {
+                Log.d(TAG, "이미 로딩 중 - 새 요청 무시")
+                return
+            }
+            
+            // 중복 위치 체크
             lastRequestParams?.let { lastParams ->
                 val locationDistance = calculateDistance(
                     lastParams.location.first, lastParams.location.second,
@@ -253,11 +260,8 @@ class MapViewModel @Inject constructor(
                     return
                 }
             }
-        } else if (_isLoading.value) {
-            Log.d(TAG, "이미 로딩 중 - 새 요청 무시")
-            return
         } else {
-            Log.d(TAG, "강제 로드 모드 - 중복 체크 무시")
+            Log.d(TAG, "강제 로드 모드 - 모든 체크 무시")
         }
 
         // 적응형 디바운스 적용 (강제 로드시 더 빠르게)
@@ -293,11 +297,29 @@ class MapViewModel @Inject constructor(
                         contentMapper.toMapContent(contentData)
                     }
 
-                    Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 Content 마커, ${newRecords.size}개 Record 마커")
+                    Log.w(TAG, "🔥 [HOT FILTER DEBUG] API 응답 분석:")
+                    Log.w(TAG, "🔥 [HOT FILTER DEBUG] 요청된 postType: ${postType ?: selectedPostType}")
+                    Log.w(TAG, "🔥 [HOT FILTER DEBUG] 받은 Contents: ${newContents.size}개")
+                    Log.w(TAG, "🔥 [HOT FILTER DEBUG] 받은 Records: ${newRecords.size}개")
+                    
+                    // Contents의 postType 분석
+                    newContents.forEach { content ->
+                        Log.v(TAG, "🔥 [HOT FILTER DEBUG] Content: ${content.title} - postType: ${content.postType}")
+                    }
+                    
+                    // HOT 필터 시 Records는 제외해야 함 (HOT는 게시글 전용)
+                    val filteredRecords = if ((postType ?: selectedPostType) == "HOT") {
+                        Log.w(TAG, "🔥 [HOT FILTER DEBUG] HOT 필터 활성화 - Records 제외")
+                        emptyList()
+                    } else {
+                        newRecords
+                    }
+
+                    Log.d(TAG, "✅ 데이터 로드 성공: ${newContents.size}개 Content 마커, ${filteredRecords.size}개 Record 마커 (원본: ${newRecords.size}개)")
 
                     // 데이터 업데이트 및 즉시 클러스터링 트리거
                     mapContents = newContents
-                    mapRecords = newRecords
+                    mapRecords = filteredRecords
                     shouldUpdateClustering = true
 
                     // 로딩 상태는 클러스터링 완료 후 해제하도록 변경
@@ -567,11 +589,6 @@ class MapViewModel @Inject constructor(
     fun updateSelectedDate(date: LocalDate) {
         selectedDate = date
 
-        // 기존 마커들 즉시 클리어
-        mapContents = emptyList()
-        mapRecords = emptyList()
-        shouldUpdateClustering = true
-
         // 선택된 마커도 클리어
         selectedMarker = null
         _selectedMarkerId.value = null
@@ -581,6 +598,11 @@ class MapViewModel @Inject constructor(
 
         // 핫 콘텐츠로 복귀
         loadHotContents()
+        
+        // 현재 위치의 마커를 새 날짜로 로드 (기존 데이터는 loadMapContents에서 교체됨)
+        lastRequestLocation?.let { (lat, lng) ->
+            loadMapContents(lat, lng, force = true)
+        }
     }
 
     fun selectPreviousDate() {
@@ -896,68 +918,44 @@ class MapViewModel @Inject constructor(
         category: String? = _selectedPOICategory.value,
         radius: Int = 1000
     ) {
+        Log.d(TAG, "🏪 ===== POI 데이터 로드 함수 호출됨 =====")
+        Log.d(TAG, "🏪 POI 가시성: ${_isPOIVisible.value}")
+        Log.d(TAG, "🏪 요청 위치: ($latitude, $longitude)")
+        Log.d(TAG, "🏪 요청 반경: ${radius}m")
+        Log.d(TAG, "🏪 카테고리: $category")
+        
         if (!_isPOIVisible.value) {
             Log.d(TAG, "🏪 POI가 비활성화 상태 - 데이터 로드 스킵")
             return
         }
 
-        viewModelScope.launch {
-            _isPOILoading.value = true
-            Log.d(TAG, "🏪 POI 데이터 로드 시작: 위치=($latitude, $longitude), 카테고리=$category, 반경=${radius}m")
+        _isPOILoading.value = true
 
+        viewModelScope.launch {
             try {
+                Log.d(TAG, "🏪 POI 데이터 요청 시작...")
+                
                 val result = poiRepository.getNearbyPOIs(
                     latitude = latitude,
                     longitude = longitude,
                     radius = radius,
                     category = category
                 )
-
-                result.onSuccess { pois ->
-                    val validPois = pois.filter { it.thumbnailUrl != null }
-                    _poiData.value = validPois
-                    Log.d(TAG, "🏪 POI 데이터 로드 성공: 전체 ${pois.size}개, 유효(썸네일 있음) ${validPois.size}개")
-
-                    validPois.forEachIndexed { index, poi ->
-                        Log.v(TAG, "🏪 POI[$index]: ${poi.name} (${poi.category}) - ${poi.thumbnailUrl}")
-                        Log.v(TAG, "🏪 POI[$index] Summary: ${poi.currentSummary}")
-                    }
-                }.onFailure { throwable ->
-                    Log.e(TAG, "🏪 POI 데이터 로드 실패 - 테스트 더미 데이터 사용", throwable)
-
-                    // 테스트용 더미 POI 데이터
-                    val dummyPois = listOf(
-                        POIData(
-                            id = 1L,
-                            name = "테스트 카페",
-                            category = "cafe",
-                            address = "서울시 강남구",
-                            latitude = latitude + 0.001,
-                            longitude = longitude + 0.001,
-                            thumbnailUrl = "https://picsum.photos/200/200?random=1",
-                            currentSummary = "아늑한 분위기의 카페입니다. 신선한 원두로 내린 커피와 다양한 디저트를 즐길 수 있어요."
-                        ),
-                        POIData(
-                            id = 2L,
-                            name = "테스트 음식점",
-                            category = "restaurant",
-                            address = "서울시 서초구",
-                            latitude = latitude - 0.001,
-                            longitude = longitude - 0.001,
-                            thumbnailUrl = "https://picsum.photos/200/200?random=2",
-                            currentSummary = "맛있는 한식을 제공하는 음식점입니다. 집밥 같은 따뜻한 음식과 정성스러운 서비스가 특징이에요."
-                        )
-                    )
-                    _poiData.value = dummyPois
-                    Log.d(TAG, "🏪 테스트 더미 POI ${dummyPois.size}개 로드됨")
+                
+                result.onSuccess { poiList ->
+                    Log.d(TAG, "🏪 POI 데이터 로드 성공: ${poiList.size}개")
+                    _poiData.value = poiList
+                }.onFailure { error ->
+                    Log.e(TAG, "🏪 POI 데이터 로드 실패: ${error.message}", error)
+                    _poiData.value = emptyList()
                 }
-
+                
             } catch (e: Exception) {
-                Log.e(TAG, "🏪 POI 데이터 로드 예외", e)
+                Log.e(TAG, "🏪 POI 데이터 로드 중 예외 발생: ${e.message}", e)
                 _poiData.value = emptyList()
             } finally {
                 _isPOILoading.value = false
-                Log.d(TAG, "🏪 POI 로딩 상태 종료")
+                Log.d(TAG, "🏪 POI 로딩 완료")
             }
         }
     }
