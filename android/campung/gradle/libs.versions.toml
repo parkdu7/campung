@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.0.21"
-agp = "8.7.2"
+agp = "8.10.1"
 ksp = "2.0.21-1.0.28"
 compose-bom = "2024.12.01"
 compose-compiler = "1.5.15"

@@ -673,11 +673,19 @@ class MapClusterManager(
     private fun clearAllMarkers() {
         Log.d("MapClusterManager", "🧹 clearAllMarkers 시작 - markers: ${markers.size}, records: ${recordMarkers.size}, clusters: ${clusterMarkers.size}, recordClusters: ${recordClusterMarkers.size}")
         
-        // 마커 풀로 반환 (메모리 효율성)
-        markerPool.releaseMarkers(markers)
-        markerPool.releaseMarkers(recordMarkers)  
-        markerPool.releaseMarkers(clusterMarkers)
-        markerPool.releaseMarkers(recordClusterMarkers)
+        // 각 마커를 지도에서 직접 제거 (마커풀 대신 직접 정리)
+        markers.forEach { marker ->
+            marker.map = null
+        }
+        recordMarkers.forEach { marker ->
+            marker.map = null  
+        }
+        clusterMarkers.forEach { marker ->
+            marker.map = null
+        }
+        recordClusterMarkers.forEach { marker ->
+            marker.map = null
+        }
 
         markers.clear()
         recordMarkers.clear()
@@ -693,7 +701,7 @@ class MapClusterManager(
         selectedClusterMarker = null
         highlightedMarker = null
         
-        Log.d("MapClusterManager", "🧹 clearAllMarkers 완료")
+        Log.d("MapClusterManager", "🧹 clearAllMarkers 완료 - 모든 마커가 지도에서 제거됨")
     }
 
     fun clearMarkers() {
