@@ -34,31 +34,34 @@ public class ContentHotService {
         // Redis에서 상위 10개 HOT 컨텐츠 가져오기
         Set<Object> hotContentIds = contentHotTrackingService.getTop10HotContent();
         
-        // 기존 HOT 컨텐츠 모두 삭제
-        contentHotRepository.deleteAll();
-        
-        // 모든 컨텐츠의 isHot 플래그를 false로 초기화
-        contentRepository.updateAllIsHotToFalse();
-        
-        // 새로운 HOT 컨텐츠 저장
+        // 새로운 HOT 컨텐츠 저장 (중복 체크)
         for (Object contentIdObj : hotContentIds) {
             Long contentId = Long.valueOf(contentIdObj.toString());
             long hotScore = contentHotTrackingService.getLike24hCount(contentId);
             
             // 최소 좋아요 수 조건 (예: 5개 이상)
             if (hotScore >= 5) {
-                contentRepository.findById(contentId).ifPresent(content -> {
-                    ContentHot contentHot = ContentHot.builder()
-                            .contentId(contentId)
-                            .content(content)
-                            .hotScore(hotScore)
-                            .build();
-                    contentHotRepository.save(contentHot);
-                    
-                    // Content의 isHot 플래그를 true로 설정
-                    content.setIsHot(true);
-                    contentRepository.save(content);
-                });
+                // 이미 등록된 핫 게시글인지 확인
+                if (!contentHotRepository.existsByContentId(contentId)) {
+                    contentRepository.findById(contentId).ifPresent(content -> {
+                        ContentHot contentHot = ContentHot.builder()
+                                .contentId(contentId)
+                                .content(content)
+                                .hotScore(hotScore)
+                                .build();
+                        contentHotRepository.save(contentHot);
+                        
+                        // Content의 isHot 플래그를 true로 설정
+                        content.setIsHot(true);
+                        contentRepository.save(content);
+                    });
+                } else {
+                    // 이미 등록된 게시글은 hotScore만 업데이트
+                    contentHotRepository.findByContentId(contentId).ifPresent(existingHot -> {
+                        existingHot.setHotScore(hotScore);
+                        contentHotRepository.save(existingHot);
+                    });
+                }
             }
         }
     }

@@ -158,7 +158,12 @@ public class MapContentService {
         System.out.println("캠퍼스 날짜 범위: " + startDateTime + " ~ " + endDateTime);
 
         List<Content> contents;
-        if (postType != null) {
+        if (postType != null && postType == PostType.HOT) {
+            // HOT postType 요청 시 isHot = true인 게시글 조회
+            contents = contentRepository.findByLocationAndDateAndIsHot(
+                    minLat, maxLat, minLng, maxLng, startDateTime, endDateTime
+            );
+        } else if (postType != null) {
             contents = contentRepository.findByLocationAndDateAndPostType(
                     minLat, maxLat, minLng, maxLng, startDateTime, endDateTime, postType
             );
