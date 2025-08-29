@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,14 @@ fun HomeScreen(
                 actionLabel = "확인",
                 duration = SnackbarDuration.Short
             )
+            
+            // "확인" 버튼을 눌렀을 때 세부화면으로 이동
+            if (result == SnackbarResult.ActionPerformed) {
+                newPostVm.latestPost.value?.let { post ->
+                    navController.navigate("content_detail/${post.postId}")
+                }
+            }
+            
             newPostVm.dismissNotification()
         }
     }

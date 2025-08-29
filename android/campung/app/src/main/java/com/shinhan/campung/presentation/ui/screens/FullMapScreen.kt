@@ -594,7 +594,7 @@ fun FullMapScreen(
                 clusterManager?.clearSelection()
             }
             else -> {
-                // 아무것도 선택되어 있지 않으면 화면 나가기
+                // 아무것도 선택되어 있지 않으면 이전 화면으로 돌아가기
                 navController.popBackStack()
             }
         }
