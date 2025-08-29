@@ -131,13 +131,13 @@ fun MapTopHeader(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(Color.Red, shape = CircleShape)
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-4).dp, y = 4.dp)
-            )
+//            Box(
+//                modifier = Modifier
+//                    .size(8.dp)
+//                    .background(Color.Red, shape = CircleShape)
+//                    .align(Alignment.TopEnd)
+//                    .offset(x = (-4).dp, y = 4.dp)
+//            )
         }
 
     }
