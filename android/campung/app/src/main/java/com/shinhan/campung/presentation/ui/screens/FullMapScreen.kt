@@ -970,7 +970,7 @@ fun FullMapScreen(
                     onTagClick = { tagId -> mapViewModel.toggleFilterTag(tagId) },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 80.dp)   // 헤더 카드 아래 공간 확보
+                        .padding(top = 67.dp)   // 헤더 카드 아래 공간 확보
                 )
 
 
