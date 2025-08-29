@@ -37,7 +37,7 @@ fun BottomNavigation() {
             },
             label = { 
                 Text(
-                    "캠퍼스",
+                    "학사",
                     fontSize = 12.sp
                 )
             },
@@ -64,14 +64,15 @@ fun BottomNavigation() {
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .offset(x = 8.dp, y = (-4).dp)
-                                .size(30.dp, 16.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .offset(x = 8.dp, y = (-15).dp)
+                                .size(35.dp, 18.dp)
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(CampusAccent)
                         ) {
                             Text(
                                 "NEW",
-                                modifier = Modifier.align(Alignment.Center),
+                                modifier = Modifier.align(Alignment.Center)
+                                    .offset(y=((-3).dp)),
                                 color = Color.White,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold
@@ -106,7 +107,7 @@ fun BottomNavigation() {
             },
             label = { 
                 Text(
-                    "캠퍼스 라이프",
+                    "전체 메뉴",
                     fontSize = 12.sp
                 )
             },

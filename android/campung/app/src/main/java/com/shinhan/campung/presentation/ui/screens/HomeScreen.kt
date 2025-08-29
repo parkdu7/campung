@@ -3,6 +3,7 @@ package com.shinhan.campung.presentation.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
@@ -20,13 +21,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.shinhan.campung.presentation.viewmodel.NewPostViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.naver.maps.map.MapView
+import com.shinhan.campung.R
 import com.shinhan.campung.presentation.ui.components.*
 import com.shinhan.campung.presentation.ui.theme.CampusBackground
 import com.shinhan.campung.presentation.ui.theme.CampusPrimary
@@ -75,33 +79,56 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "신한캠퍼스",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = CampusPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "SHINHAN CAMPUS",
-                            fontSize = 10.sp,
-                            color = Color.Gray
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically){
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.sol),
+                                contentDescription = null,
+                                tint = Color.Unspecified
+                            )
+                        }
+                        Column() {
+                            Text(
+                                "신한캠퍼스",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CampusPrimary,
+                                modifier = Modifier.offset(y = (+5).dp)
+                            )
+                            Text(
+                                "SHINHAN CAMPUS",
+                                fontSize = 10.sp,
+                                color = Color.Gray,
+                                modifier = Modifier.offset(y = (-5).dp)
+                            )
+                        }
                     }
+
                 },
                 actions = {
                     IconButton(onClick = { navController.navigate("notification") }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "알림")
-                    }
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.Menu, contentDescription = "메뉴")
+                        Icon(
+                            painter = painterResource(id = R.drawable.btn_alarm),
+                            contentDescription = "알림",
+                            modifier = Modifier.size(35.dp),   // 필요시 크기 조절
+                            tint = Color.Unspecified          // ✅ 원본 색 유지 (자동 틴트 방지)
+                        )
                     }
                     IconButton(
-                        onClick = { vm.logout(onLoggedOut) },         // 로그아웃
+                        onClick = { vm.logout(onLoggedOut) },
                         enabled = !vm.loading.value
                     ) {
-                        Icon(Icons.Filled.ExitToApp, contentDescription = "로그아웃")
+                        Icon(
+                            painter = painterResource(id = R.drawable.logout), // mipmap이면 R.mipmap.logout
+                            contentDescription = "로그아웃",
+                            modifier = Modifier.size(30.dp),
+                            tint = Color.Unspecified // 원본 색 유지 (필요 시 지우고 테마 색으로 틴트)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

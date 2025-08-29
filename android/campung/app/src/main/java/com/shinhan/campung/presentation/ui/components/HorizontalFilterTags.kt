@@ -22,22 +22,51 @@ import androidx.compose.ui.unit.sp
 import com.shinhan.campung.data.model.FilterTag
 import com.shinhan.campung.data.model.FilterTags
 
+//@Composable
+//fun HorizontalFilterTags(
+//    selectedTags: Set<String> = emptySet(),
+//    onTagClick: (String) -> Unit,
+//    modifier: Modifier = Modifier
+//) {
+//    LazyRow(
+//        modifier = modifier.fillMaxWidth(),
+//        horizontalArrangement = Arrangement.spacedBy(12.dp),
+//        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+//    ) {
+//        items(FilterTags.ALL_TAGS) { tag ->
+//            FilterTagItem(
+//                tag = tag,
+//                isSelected = selectedTags.contains(tag.id),
+//                onClick = { onTagClick(tag.id) }
+//            )
+//        }
+//    }
+//}
+
 @Composable
 fun HorizontalFilterTags(
     selectedTags: Set<String> = emptySet(),
     onTagClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+    val tags = FilterTags.ALL_TAGS.take(5) // 안전하게 5개만 사용
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(FilterTags.ALL_TAGS) { tag ->
+        tags.forEach { tag ->
+            // 각 아이템을 1/5 폭으로
             FilterTagItem(
                 tag = tag,
                 isSelected = selectedTags.contains(tag.id),
-                onClick = { onTagClick(tag.id) }
+                onClick = { onTagClick(tag.id) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)          // 공통 높이(원하는 값으로)
+                    .fillMaxWidth()         // 칩/버튼이 셀을 가득 차도록
             )
         }
     }
@@ -83,11 +112,11 @@ private fun FilterTagItem(
             painter = painterResource(id = iconResToUse),
             contentDescription = tag.name,
             tint = Color.Unspecified,          // PNG/벡터 원본 색 유지
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(13.dp)
         )
         Text(
             text = tag.name,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             color = fg
         )

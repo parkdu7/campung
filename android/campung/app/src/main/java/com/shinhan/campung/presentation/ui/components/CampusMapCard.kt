@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.Gravity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -198,6 +199,7 @@ fun CampusMapCard(
                                     isCompassEnabled = false
                                     isLocationButtonEnabled = false
                                     isLogoClickEnabled = false
+                                    setLogoMargin(-500, -500, 0, 0)
                                 }
                                 
                                 val target = myLatLng ?: initialCamera

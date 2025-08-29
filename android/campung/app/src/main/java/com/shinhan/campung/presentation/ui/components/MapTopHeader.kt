@@ -35,7 +35,7 @@ fun MapTopHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(top = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -45,9 +45,9 @@ fun MapTopHeader(
             modifier = Modifier.size(40.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = "뒤로가기",
-                tint = Color.Gray
+                painter = painterResource(id = R.drawable.cancel),
+                contentDescription = "닫기",
+                tint = Color.Unspecified
             )
         }
 
@@ -60,7 +60,7 @@ fun MapTopHeader(
         ) {
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 8.dp, vertical = 11.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -79,13 +79,15 @@ fun MapTopHeader(
                 
                 // 날짜 텍스트 (클릭 가능)
                 Row(
-                    modifier = Modifier.clickable { onDateClick() },
+                    modifier = Modifier
+                        .clickable { onDateClick() }
+                        .padding(horizontal = 23.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = formatKoreanDate(selectedDate),
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.Black
                     )
@@ -129,13 +131,13 @@ fun MapTopHeader(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(Color.Red, shape = CircleShape)
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-4).dp, y = 4.dp)
-            )
+//            Box(
+//                modifier = Modifier
+//                    .size(8.dp)
+//                    .background(Color.Red, shape = CircleShape)
+//                    .align(Alignment.TopEnd)
+//                    .offset(x = (-4).dp, y = 4.dp)
+//            )
         }
 
     }

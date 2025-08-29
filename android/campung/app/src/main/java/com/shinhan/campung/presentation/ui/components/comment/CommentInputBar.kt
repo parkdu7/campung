@@ -1,6 +1,7 @@
 package com.shinhan.campung.presentation.ui.components.comment
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,10 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,19 +65,36 @@ fun CommentInputBar(
                 }
             }
         }
-        
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
+            // ✅ 포커스/비포커스 시각 동일하게 (보더/컨테이너/텍스트/플레이스홀더/커서)
+            val tfColors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                focusedIndicatorColor = Color.Transparent,   // 밑줄 제거
+                unfocusedIndicatorColor = Color.Transparent, // 밑줄 제거
+                disabledIndicatorColor = Color.Transparent,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                focusedPlaceholderColor = Color(0xFFBDBDBD),
+                unfocusedPlaceholderColor = Color(0xFFBDBDBD),
+                cursorColor = Color.Black
+            )
+
+            val shape = RoundedCornerShape(12.dp)
+
+            TextField(
                 value = commentText,
                 onValueChange = onCommentTextChange,
-                placeholder = { 
+                placeholder = {
                     Text(
-                        if (isReplyMode && selectedCommentAuthor != null) 
+                        if (isReplyMode && selectedCommentAuthor != null)
                             "@${selectedCommentAuthor}님에게 답글을 입력하세요..."
                         else
                             "댓글을 입력하세요..."
@@ -82,22 +102,24 @@ fun CommentInputBar(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .focusRequester(focusRequester),
+                    .focusRequester(focusRequester)
+                    .border(1.dp, Color(0xFFE0E0E0), shape) // ✅ 항상 동일한 보더
+                    .clip(shape),
                 singleLine = false,
                 maxLines = 3,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(
                     onSend = { if (commentText.isNotBlank()) onSendComment() }
                 ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black
-                )
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Normal // ✅ 굵기 고정
+                ),
+                colors = tfColors,
+                shape = shape
             )
-        
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             IconButton(
                 onClick = onSendComment,
                 enabled = commentText.isNotBlank()
