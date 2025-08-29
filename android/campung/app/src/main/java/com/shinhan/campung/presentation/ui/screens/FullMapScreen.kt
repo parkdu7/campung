@@ -76,6 +76,7 @@ import com.shinhan.campung.presentation.ui.components.AudioPlayer
 import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
+import com.shinhan.campung.presentation.ui.components.MixedMapBottomSheetContent
 import com.shinhan.campung.presentation.ui.components.AnimatedMapTooltip
 import com.shinhan.campung.presentation.ui.components.MyLocationMarker
 
@@ -129,6 +130,7 @@ fun FullMapScreen(
 
     // ViewModel states
     val bottomSheetContents by mapViewModel.bottomSheetContents.collectAsState()
+    val bottomSheetItems by mapViewModel.bottomSheetItems.collectAsState()
     val isBottomSheetExpanded by mapViewModel.isBottomSheetExpanded.collectAsState()
     val isLoading by mapViewModel.isLoading.collectAsState()
     val tooltipState by mapViewModel.tooltipState.collectAsState()
@@ -258,16 +260,19 @@ fun FullMapScreen(
         (navigationBarHeight + statusBarHeight).toDp()
     }
 
-    // 동적 컨텐츠 높이 계산 (기존 로직과 동일)
-    val dynamicContentHeight = remember(bottomSheetContents.size, isLoading) {
+    // 동적 컨텐츠 높이 계산 (통합 바텀시트 지원)
+    val dynamicContentHeight = remember(bottomSheetContents.size, bottomSheetItems.size, isLoading) {
+        // 통합 바텀시트가 있으면 우선 사용, 없으면 기존 방식
+        val itemCount = if (bottomSheetItems.isNotEmpty()) bottomSheetItems.size else bottomSheetContents.size
+
         when {
             isLoading -> dragHandleHeight + padding * 2 + itemHeight
-            bottomSheetContents.isEmpty() -> dragHandleHeight
-            bottomSheetContents.size == 1 -> dragHandleHeight + itemHeight + padding * 2
-            bottomSheetContents.size == 2 -> dragHandleHeight + (itemHeight * 2) + itemSpacing + padding * 2
+            itemCount == 0 -> dragHandleHeight
+            itemCount == 1 -> dragHandleHeight + itemHeight + padding * 2
+            itemCount == 2 -> dragHandleHeight + (itemHeight * 2) + itemSpacing + padding * 2
             else -> {
                 val maxHeight = screenHeight * 0.5f
-                val calculatedHeight = dragHandleHeight + padding * 2 + (itemHeight * bottomSheetContents.size) + (itemSpacing * (bottomSheetContents.size - 1))
+                val calculatedHeight = dragHandleHeight + padding * 2 + (itemHeight * itemCount) + (itemSpacing * (itemCount - 1))
                 minOf(maxHeight, calculatedHeight)
             }
         }
@@ -284,17 +289,35 @@ fun FullMapScreen(
         }
     }
 
-    // 지도 설정
+    // 지도 설정 및 마커 생명주기 관리
     DisposableEffect(lifecycle, mapView) {
         val observer = object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) { mapView.onStart() }
-            override fun onResume(owner: LifecycleOwner) { mapView.onResume() }
-            override fun onPause(owner: LifecycleOwner) { mapView.onPause() }
-            override fun onStop(owner: LifecycleOwner) { mapView.onStop() }
-            override fun onDestroy(owner: LifecycleOwner) { mapView.onDestroy() }
+            override fun onStart(owner: LifecycleOwner) {
+                mapView.onStart()
+                Log.d("FullMapScreen", "🔄 onStart - 화면 복귀")
+            }
+            override fun onResume(owner: LifecycleOwner) {
+                mapView.onResume()
+                Log.d("FullMapScreen", "▶️ onResume - 화면 활성화")
+            }
+            override fun onPause(owner: LifecycleOwner) {
+                mapView.onPause()
+                Log.d("FullMapScreen", "⏸️ onPause - 화면 비활성화, 마커 정리는 나중에 처리됨")
+            }
+            override fun onStop(owner: LifecycleOwner) {
+                mapView.onStop()
+                Log.d("FullMapScreen", "⏹️ onStop - 화면 중지")
+            }
+            override fun onDestroy(owner: LifecycleOwner) {
+                mapView.onDestroy()
+                Log.d("FullMapScreen", "💀 onDestroy - 화면 파괴")
+            }
         }
         lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycle.removeObserver(observer)
+            Log.d("FullMapScreen", "🧹 DisposableEffect 정리")
+        }
     }
 
     val locationPermissionManager = remember { LocationPermissionManager(context) }
@@ -326,6 +349,20 @@ fun FullMapScreen(
     // POI 마커 매니저 (모듈화됨)
     var poiMarkerManager by remember { mutableStateOf<POIMarkerManager?>(null) }
 
+    // 마커 매니저들의 생명주기 관리 (앱 종료 시에만)
+    DisposableEffect(Unit) { // 한 번만 실행되도록 Unit 의존성 사용
+        Log.d("FullMapScreen", "🎯 마커 매니저 생명주기 관리 시작")
+
+        onDispose {
+            Log.d("FullMapScreen", "🧹 화면 완전 종료 시 마커 매니저 정리 시작")
+            // cleanup()은 완전한 앱/화면 종료 시에만 호출 (콜백도 정리됨)
+            clusterManager?.cleanup()
+            poiMarkerManager?.clearPOIMarkers()
+            sharedLocationMarkerManager.clearAllMarkers()
+            Log.d("FullMapScreen", "✅ 모든 마커 매니저 완전 정리 완료")
+        }
+    }
+
     // 위치 공유 데이터 변경 시 마커 업데이트
     LaunchedEffect(sharedLocations) {
         naverMapRef?.let { map ->
@@ -333,18 +370,21 @@ fun FullMapScreen(
         }
     }
 
-    // POI 데이터 변경 시 마커 업데이트
+    // POI 데이터 변경 시 마커 업데이트 (중복 호출 방지)
     LaunchedEffect(poiData, isPOIVisible) {
+        Log.d("FullMapScreen", "🏪 POI LaunchedEffect 트리거 - isPOIVisible: $isPOIVisible, poiData: ${poiData.size}개")
 
         naverMapRef?.let { map ->
             poiMarkerManager?.let { manager ->
                 if (isPOIVisible && poiData.isNotEmpty()) {
+                    Log.d("FullMapScreen", "🏪 POI 마커 표시 시작")
                     manager.showPOIMarkers(poiData)
                 } else {
+                    Log.d("FullMapScreen", "🏪 POI 마커 클리어")
                     manager.clearPOIMarkers()
                 }
-            }
-        }
+            } ?: Log.w("FullMapScreen", "🏪 POI 마커 매니저가 null")
+        } ?: Log.w("FullMapScreen", "🏪 NaverMap이 null")
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -393,6 +433,14 @@ fun FullMapScreen(
         // 원샷 처리
         navController.currentBackStackEntry?.savedStateHandle?.set("map_refresh_content_id", null)
         Log.d("FullMapScreen", "✅ 리프레시 ID 초기화 완료")
+    }
+
+    // 업로드 성공 콜백 설정
+    LaunchedEffect(Unit) {
+        recordUploadVm.setOnUploadSuccessCallback { latitude, longitude ->
+            Log.d("FullMapScreen", "🎵 녹음 업로드 성공 - 맵 새로고침: ($latitude, $longitude)")
+            mapViewModel.loadMapContents(latitude, longitude, force = true)
+        }
     }
 
     LaunchedEffect(recordUi.successMessage, recordUi.errorMessage) {
@@ -532,14 +580,19 @@ fun FullMapScreen(
         }
     }
 
-    // 클러스터링 업데이트 - 더 안정적으로 처리
-    LaunchedEffect(mapViewModel.shouldUpdateClustering, mapViewModel.mapContents.size, mapViewModel.mapRecords.size, naverMapRef) {
+    // 클러스터링 업데이트 - shouldUpdateClustering만 의존성으로 사용 (중복 실행 방지)
+    LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
         val map = naverMapRef ?: return@LaunchedEffect
         
-        android.util.Log.d("FullMapScreen", "📊 LaunchedEffect 트리거 - shouldUpdate: ${mapViewModel.shouldUpdateClustering}, contents: ${mapViewModel.mapContents.size}, records: ${mapViewModel.mapRecords.size}")
+        // shouldUpdateClustering이 true일 때만 실행
+        if (!mapViewModel.shouldUpdateClustering) {
+            return@LaunchedEffect
+        }
 
-        if (mapViewModel.shouldUpdateClustering && (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty())) {
-            android.util.Log.d("FullMapScreen", "🔄 클러스터링 업데이트 시작 - Contents: ${mapViewModel.mapContents.size}, Records: ${mapViewModel.mapRecords.size}")
+        android.util.Log.d("FullMapScreen", "📊 클러스터링 LaunchedEffect 시작 - Contents: ${mapViewModel.mapContents.size}, Records: ${mapViewModel.mapRecords.size}")
+
+        if (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty()) {
+            android.util.Log.d("FullMapScreen", "🔄 클러스터링 업데이트 시작")
             try {
                 clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords) {
                     android.util.Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
@@ -549,7 +602,7 @@ fun FullMapScreen(
                 android.util.Log.e("FullMapScreen", "❌ 클러스터링 업데이트 실패", e)
                 mapViewModel.onClusteringCompleted()
             }
-        } else if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isEmpty() && mapViewModel.mapRecords.isEmpty()) {
+        } else {
             android.util.Log.d("FullMapScreen", "🧹 빈 데이터로 클러스터링 클리어")
             clusterManager?.clearMarkers()
             mapViewModel.onClusteringCompleted()
@@ -593,12 +646,43 @@ fun FullMapScreen(
                 clusterManager?.clearSelection()
             }
             else -> {
-                // 아무것도 선택되어 있지 않으면 이전 화면으로 돌아가기
+                // 화면 나가기 전 모든 마커 정리
+                Log.d("FullMapScreen", "🔙 뒤로가기 - 모든 마커 정리 시작")
+                clusterManager?.clearMarkers()
+                poiMarkerManager?.clearPOIMarkers()
+                sharedLocationMarkerManager.clearAllMarkers()
+                Log.d("FullMapScreen", "✅ 뒤로가기 - 마커 정리 완료")
                 navController.popBackStack()
             }
         }
     }
 
+
+    // 바텀시트 상태 변화 추적
+    LaunchedEffect(isBottomSheetExpanded) {
+        android.util.Log.d("FullMapScreen", "🎯 [STATE] isBottomSheetExpanded 변화: $isBottomSheetExpanded")
+        try {
+            if (isBottomSheetExpanded) {
+                bottomSheetState.animateTo(BottomSheetValue.Expanded)
+                android.util.Log.d("FullMapScreen", "✅ [STATE] 바텀시트 확장 호출됨")
+            } else {
+                bottomSheetState.animateTo(BottomSheetValue.Hidden)
+                android.util.Log.d("FullMapScreen", "❌ [STATE] 바텀시트 숨김 호출됨")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FullMapScreen", "❌ [STATE] 바텀시트 상태 변경 실패", e)
+        }
+    }
+
+    // 바텀시트 내용 변화 추적 (통합 바텀시트 포함)
+    LaunchedEffect(bottomSheetContents.size, bottomSheetItems.size) {
+        android.util.Log.d("FullMapScreen", "🎯 [STATE] bottomSheetContents.size 변화: ${bottomSheetContents.size}, bottomSheetItems.size: ${bottomSheetItems.size}")
+    }
+
+    // 로딩 상태 변화 추적
+    LaunchedEffect(isLoading) {
+        android.util.Log.d("FullMapScreen", "🎯 [STATE] isLoading 변화: $isLoading")
+    }
 
     // 바텀시트 상태 실시간 추적 - 사용자가 직접 드래그했을 때도 ViewModel에 반영
     LaunchedEffect(bottomSheetState) {
@@ -621,25 +705,27 @@ fun FullMapScreen(
         }
     }
 
-    // 바텀시트 콘텐츠 변화에 따른 상태 조절
-    LaunchedEffect(bottomSheetContents.size, isLoading) {
+    // 바텀시트 콘텐츠 변화에 따른 상태 조절 (통합 바텀시트 지원)
+    LaunchedEffect(bottomSheetContents.size, bottomSheetItems.size, isLoading) {
         if (!isLoading) {
+            val totalItems = if (bottomSheetItems.isNotEmpty()) bottomSheetItems.size else bottomSheetContents.size
             when {
-                bottomSheetContents.isEmpty() -> {
+                totalItems == 0 -> {
                     bottomSheetState.snapTo(BottomSheetValue.PartiallyExpanded)
                 }
-                bottomSheetContents.size >= 1 -> {
+                totalItems >= 1 -> {
                     bottomSheetState.snapTo(BottomSheetValue.Expanded)
                 }
             }
         }
     }
 
-    // 바텀시트 확장/축소 상태 동기화
+    // 바텀시트 확장/축소 상태 동기화 (통합 바텀시트 지원)
     LaunchedEffect(isBottomSheetExpanded) {
-        if (isBottomSheetExpanded && (bottomSheetContents.isNotEmpty() || isLoading)) {
+        val hasItems = bottomSheetItems.isNotEmpty() || bottomSheetContents.isNotEmpty()
+        if (isBottomSheetExpanded && (hasItems || isLoading)) {
             bottomSheetState.snapTo(BottomSheetValue.Expanded)
-        } else if (!isBottomSheetExpanded && bottomSheetContents.isNotEmpty() && !isLoading) {
+        } else if (!isBottomSheetExpanded && hasItems && !isLoading) {
             bottomSheetState.animateTo(BottomSheetValue.PartiallyExpanded)
         }
     }
@@ -669,10 +755,13 @@ fun FullMapScreen(
                                 naverMapRef = map
                                 mapInitializer.setupMapUI(map)
 
+                                android.util.Log.d("FullMapScreen", "🚀 [INIT] ClusterManager 생성 시작")
                                 clusterManager =
                                     clusterManagerInitializer.createClusterManager(map) { centerContent ->
                                         highlightedContent = centerContent
                                     }
+                                android.util.Log.d("FullMapScreen", "✅ [INIT] ClusterManager 생성 완료")
+                                android.util.Log.d("FullMapScreen", "🔗 [INIT] clusterManager.onMarkerClick: ${clusterManager?.onMarkerClick}")
 
                                 // POI 마커 매니저 초기화
                                 poiMarkerManager = POIMarkerManager(context, map, coroutineScope).apply {
@@ -933,7 +1022,7 @@ fun FullMapScreen(
                     }
                 }
 
-                // 새로운 바텀시트 컴포넌트 사용
+                // 바텀시트 컴포넌트
                 MapDraggableBottomSheet(
                     state = bottomSheetState,
                     screenHeight = screenHeight,
@@ -941,17 +1030,41 @@ fun FullMapScreen(
                     contentHeight = dynamicContentHeight,
                     dragHandleHeight = dragHandleHeight
                 ) {
-                    // 바텀시트 콘텐츠
-                    MapBottomSheetContent(
-                        contents = bottomSheetContents,
-                        isLoading = isLoading,
-                        isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
-                        navigationBarHeight = with(density) { navigationBarHeight.toDp() },
-                        statusBarHeight = with(density) { statusBarHeight.toDp() },
-                        onContentClick = { content ->
-                            navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
-                        }
-                    )
+                    // 통합 바텀시트 사용 (기존 방식 하위 호환성 유지)
+                    if (bottomSheetItems.isNotEmpty()) {
+                        // 새로운 통합 방식 (MapItem 리스트 사용)
+                        MixedMapBottomSheetContent(
+                            items = bottomSheetItems,
+                            isLoading = isLoading,
+                            isInteractionEnabled = bottomSheetItems.isNotEmpty() || isLoading,
+                            navigationBarHeight = with(density) { navigationBarHeight.toDp() },
+                            statusBarHeight = with(density) { statusBarHeight.toDp() },
+                            currentPlayingRecord = currentPlayingRecord,
+                            isPlaying = false, // TODO: 오디오 플레이어 상태와 연결
+                            onContentClick = { content ->
+                                navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
+                            },
+                            onRecordClick = { record ->
+                                // Record 클릭 시 추가 동작 (필요시)
+                                Log.d("FullMapScreen", "Record 클릭: ${record.recordUrl}")
+                            },
+                            onRecordPlayClick = { record ->
+                                mapViewModel.playRecord(record)
+                            }
+                        )
+                    } else {
+                        // 기존 방식 (하위 호환성)
+                        MapBottomSheetContent(
+                            contents = bottomSheetContents,
+                            isLoading = isLoading,
+                            isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
+                            navigationBarHeight = with(density) { navigationBarHeight.toDp() },
+                            statusBarHeight = with(density) { statusBarHeight.toDp() },
+                            onContentClick = { content ->
+                                navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
+                            }
+                        )
+                    }
                 }
 
 
