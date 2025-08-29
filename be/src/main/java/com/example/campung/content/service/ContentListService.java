@@ -5,10 +5,12 @@ import com.example.campung.content.dto.ContentListResponse;
 import com.example.campung.content.repository.ContentRepository;
 import com.example.campung.entity.Content;
 import com.example.campung.global.enums.PostType;
+import com.example.campung.global.util.CampusDateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,13 +41,25 @@ public class ContentListService {
             contents = contentRepository.findContentsByPostType(request.getPostType());
         }
         
-        // HOT 게시글이 아닌 경우에만 날짜 필터링
+        // HOT 게시글이 아닌 경우에만 캠퍼스 날짜 필터링
         if (request.getPostType() != PostType.HOT) {
-            LocalDate targetDate = LocalDate.parse(request.getDate());
+            LocalDate targetCampusDate = CampusDateUtil.parseCampusDate(request.getDate());
+            LocalDateTime startDateTime = CampusDateUtil.getCampusDateStartTime(targetCampusDate);
+            LocalDateTime endDateTime = CampusDateUtil.getCampusDateEndTime(targetCampusDate);
+            
+            System.out.println("캠퍼스 날짜 필터링: " + targetCampusDate + 
+                             " (범위: " + startDateTime + " ~ " + endDateTime + ")");
+            
             contents = contents.stream()
                 .filter(content -> {
-                    LocalDate contentDate = content.getCreatedAt().toLocalDate();
-                    return contentDate.equals(targetDate);
+                    LocalDateTime createdAt = content.getCreatedAt();
+                    boolean isInRange = !createdAt.isBefore(startDateTime) && !createdAt.isAfter(endDateTime);
+                    
+                    System.out.println("컨텐츠 시간 확인: " + createdAt + 
+                                     " → 캠퍼스날짜: " + CampusDateUtil.getCampusDate(createdAt) + 
+                                     " → 범위내: " + isInRange);
+                    
+                    return isInRange;
                 })
                 .collect(Collectors.toList());
         }
