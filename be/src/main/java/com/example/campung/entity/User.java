@@ -26,6 +26,9 @@ public class User {
     
     @Column(nullable = false)
     private String nickname;
+    
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
 
     // ★ 추가: FCM 토큰
     @Column(name = "fcm_token")

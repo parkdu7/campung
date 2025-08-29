@@ -65,6 +65,10 @@ public class Content {
     @Column(name = "comment_count", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
     private Integer commentCount = 0;
     
+    @Builder.Default
+    @Column(name = "is_hot", nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
+    private Boolean isHot = false;
+    
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;

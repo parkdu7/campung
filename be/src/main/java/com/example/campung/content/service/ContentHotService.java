@@ -37,6 +37,9 @@ public class ContentHotService {
         // 기존 HOT 컨텐츠 모두 삭제
         contentHotRepository.deleteAll();
         
+        // 모든 컨텐츠의 isHot 플래그를 false로 초기화
+        contentRepository.updateAllIsHotToFalse();
+        
         // 새로운 HOT 컨텐츠 저장
         for (Object contentIdObj : hotContentIds) {
             Long contentId = Long.valueOf(contentIdObj.toString());
@@ -51,6 +54,10 @@ public class ContentHotService {
                             .hotScore(hotScore)
                             .build();
                     contentHotRepository.save(contentHot);
+                    
+                    // Content의 isHot 플래그를 true로 설정
+                    content.setIsHot(true);
+                    contentRepository.save(content);
                 });
             }
         }

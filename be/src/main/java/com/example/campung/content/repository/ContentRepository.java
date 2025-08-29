@@ -5,6 +5,7 @@ import com.example.campung.global.enums.PostType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -93,4 +94,11 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
      * 가장 오래된 게시글 조회 (서버 시작 시점 파악용)
      */
     Optional<Content> findTopByOrderByCreatedAtAsc();
+    
+    /**
+     * 모든 컨텐츠의 isHot 플래그를 false로 초기화
+     */
+    @Modifying
+    @Query("UPDATE Content c SET c.isHot = false")
+    void updateAllIsHotToFalse();
 }

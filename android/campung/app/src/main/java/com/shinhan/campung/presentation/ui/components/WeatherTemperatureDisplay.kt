@@ -3,6 +3,7 @@ package com.shinhan.campung.presentation.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -37,21 +38,38 @@ fun WeatherTemperatureDisplay(
     // 실제 받아온 데이터 로그 출력
     Log.d("WeatherTemperatureDisplay", "Raw data - weather: $weather, temperature: $temperature")
     Column(
-        modifier = modifier,
+        modifier = modifier
+            .background(
+                color = Color.White.copy(alpha = 0.9f),
+                shape = RoundedCornerShape(6.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = Color.Gray.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(6.dp)
+            )
+            .padding(horizontal = 4.dp, vertical = 3.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(1.dp)
     ) {
+        // 캠퍼스 라벨
+        Text(
+            text = "캠퍼스현황",
+            fontSize = 7.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.Black.copy(alpha = 0.7f)
+        )
+        
         // 날씨 이미지
         WeatherIcon(
             weather = weather,
-            modifier = Modifier
-                .padding(top = 20.dp)
-                .size(40.dp)
+            modifier = Modifier.size(28.dp)
         )
         
         // 온도 프로그레스 바
         TemperatureProgressBar(
             temperature = temperature,
-            modifier = Modifier.width(40.dp) // 날씨 아이콘과 같은 너비
+            modifier = Modifier.width(28.dp) // 날씨 아이콘과 같은 너비
         )
     }
 }
@@ -98,8 +116,8 @@ private fun TemperatureProgressBar(
         // 온도계 이미지 + 내부 게이지
         Box(
             modifier = Modifier
-                .width(40.dp)
-                .height(80.dp),
+                .width(28.dp)
+                .height(50.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
             Icon(
@@ -110,12 +128,12 @@ private fun TemperatureProgressBar(
             )
             Box(
                 modifier = Modifier
-                    .width(6.dp)
+                    .width(4.dp)
                     .fillMaxHeight(progress)
-                    .offset(y = (-22).dp) // 온도계 하단 구멍 위치 보정
+                    .offset(y = (-12).dp) // 온도계 하단 구멍 위치 보정 (더 컴팩트하게)
                     .background(
                         color = getTemperatureColor(safeTemperature),
-                        shape = RoundedCornerShape(3.dp)
+                        shape = RoundedCornerShape(2.dp)
                     )
             )
         }
@@ -123,10 +141,10 @@ private fun TemperatureProgressBar(
         // 온도 텍스트 - 위로 살짝 끌어올려 '완전히 딱 붙게'
         Text(
             text = "${safeTemperature}°",
-            fontSize = 12.sp,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
             color = getTemperatureColor(safeTemperature),
-            modifier = Modifier.offset(x = (2).dp,y = (-20).dp) // -2~-6dp로 조절 가능
+            modifier = Modifier.offset(x = (1).dp, y = (-12).dp) // 더 컴팩트하게 조정
         )
     }
 }

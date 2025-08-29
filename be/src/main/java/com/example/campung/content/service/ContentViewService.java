@@ -9,6 +9,7 @@ import com.example.campung.global.exception.ContentNotFoundException;
 import com.example.campung.entity.Content;
 import com.example.campung.entity.Attachment;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +17,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class ContentViewService {
+    
+    @Value("${app.default-profile-image-url}")
+    private String defaultProfileImageUrl;
     
     @Autowired
     private ContentRepository contentRepository;
@@ -59,9 +63,13 @@ public class ContentViewService {
         
         // Author 정보 설정
         String displayNickname = content.getIsAnonymous() ? "익명" : content.getAuthor().getNickname();
+        String profileImageUrl = content.getAuthor().getProfileImageUrl();
+        if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
+            profileImageUrl = defaultProfileImageUrl;
+        }
         ContentDetailRequest.AuthorInfo author = new ContentDetailRequest.AuthorInfo(
                 displayNickname,
-                null, // profileImageUrl - 추후 구현
+                profileImageUrl,
                 content.getIsAnonymous()
         );
         detail.setAuthor(author);

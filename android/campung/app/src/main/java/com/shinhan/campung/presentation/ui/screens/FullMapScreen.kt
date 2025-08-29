@@ -506,7 +506,7 @@ fun FullMapScreen(
                     radius = radius,
                     force = true  // 초기 로드는 항상 강제 실행
                 )
-                
+
                 // POI는 클러스터링 완료 후 로드하도록 지연
                 kotlinx.coroutines.MainScope().launch {
                     kotlinx.coroutines.delay(1000) // 클러스터링 완료 대기
@@ -521,7 +521,7 @@ fun FullMapScreen(
                     longitude = pos.longitude,
                     force = true  // 초기 로드는 항상 강제 실행
                 )
-                
+
                 // POI도 지연 로드
                 kotlinx.coroutines.MainScope().launch {
                     kotlinx.coroutines.delay(1000)
@@ -784,7 +784,7 @@ fun FullMapScreen(
                                         mapViewModel.onPOIClick(poi)
                                     }
                                 }
-                                
+
                                 // 클러스터 매니저와 POI 매니저 연결 (마커 위치 동기화)
                                 clusterManager?.onMarkerPositionsUpdated = { positions, zoomLevel ->
                                     android.util.Log.d("FullMapScreen", "🎯 클러스터 → POI 위치 동기화: ${positions.size}개, 줌: $zoomLevel")
@@ -890,7 +890,7 @@ fun FullMapScreen(
                                     // 내 위치로 카메라 이동 + 오버레이 표시
                                     naverMapRef?.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
                                     naverMapRef?.locationOverlay?.apply {
-                                        isVisible = true
+                                        isVisible = false
                                         position = pos
                                     }
                                     isCenterOnMyLocation = true   // 아이콘: btn_mylocation
@@ -1114,16 +1114,21 @@ fun FullMapScreen(
                         .align(Alignment.TopCenter)
                         .padding(top = 67.dp)   // 헤더 카드 아래 공간 확보
                 )
-                
 
 
+
+                // 날씨/온도 표시 (왼쪽 하단, my_location 버튼 위)
                 // 날씨/온도 표시 (오른쪽 상단)
                 WeatherTemperatureDisplay(
                     weather = uiWeather,
                     temperature = uiTemperature,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 110.dp, end = 8.dp)
+                        .align(Alignment.BottomStart)
+                        .padding(
+                            start = 16.dp,
+                            bottom = 70.dp + dragHandleHeight // my_location 버튼(40dp) + 간격(14dp) + 기존패딩(16dp)
+                        )
+                        .offset(y = locationButtonOffsetY)
                 )
 
                 // 애니메이션 툴팁 오버레이
