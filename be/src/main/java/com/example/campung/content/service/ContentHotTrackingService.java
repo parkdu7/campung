@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 
@@ -64,8 +65,8 @@ public class ContentHotTrackingService {
     }
     
     public void migrateExistingLikesToRedis() {
-        LocalDateTime twentyFourHoursAgo = LocalDateTime.now().minusHours(24);
-        List<ContentLike> recentLikes = contentLikeRepository.findAllSince(twentyFourHoursAgo);
+        LocalDateTime currentCycleStart = getCurrentCycleStart();
+        List<ContentLike> recentLikes = contentLikeRepository.findAllSince(currentCycleStart);
         
         for (ContentLike like : recentLikes) {
             String key = LIKE_KEY_PREFIX + like.getContent().getContentId();
@@ -80,8 +81,8 @@ public class ContentHotTrackingService {
     }
     
     private void updateAllHotRankings() {
-        LocalDateTime twentyFourHoursAgo = LocalDateTime.now().minusHours(24);
-        List<ContentLike> recentLikes = contentLikeRepository.findAllSince(twentyFourHoursAgo);
+        LocalDateTime currentCycleStart = getCurrentCycleStart();
+        List<ContentLike> recentLikes = contentLikeRepository.findAllSince(currentCycleStart);
         
         // 컨텐츠별로 그룹화하여 카운트
         recentLikes.stream()
@@ -92,5 +93,18 @@ public class ContentHotTrackingService {
                 .forEach((contentId, count) -> {
                     updateHotRanking(contentId, count);
                 });
+    }
+    
+    private LocalDateTime getCurrentCycleStart() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalTime fiveAm = LocalTime.of(5, 0);
+        
+        if (now.toLocalTime().isBefore(fiveAm)) {
+            // 현재 시간이 05:00 이전이면 전날 05:00부터
+            return now.minusDays(1).with(fiveAm);
+        } else {
+            // 현재 시간이 05:00 이후면 당일 05:00부터
+            return now.with(fiveAm);
+        }
     }
 }
