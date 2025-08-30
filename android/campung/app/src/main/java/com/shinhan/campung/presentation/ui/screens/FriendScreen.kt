@@ -95,7 +95,7 @@ fun FriendScreen(
                     placeholder = if (!isSearchFocused && searchQuery.isEmpty()) {
                         {
                             Text(
-                                text = "이름으로 친구를 검색하세요.",
+                                text = "친구 찾기.",
                                 color = Color.Gray,
                                 fontSize = 14.sp
                             )
