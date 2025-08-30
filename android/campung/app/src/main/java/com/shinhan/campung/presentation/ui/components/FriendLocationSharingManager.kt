@@ -49,17 +49,21 @@ fun FriendLocationSharingManager(
 @Composable
 fun FullMapFriendLocationManager(
     map: NaverMap?,
+    sharedLocations: List<SharedLocation>,
     onFriendClick: ((SharedLocation) -> Unit)? = null
 ) {
-    FriendLocationSharingManager(
+    // 직접 SharedLocationComponent 사용으로 단순화
+    SharedLocationComponent(
         map = map,
-        config = SharedLocationConfig(
-            showUserNames = true,
-            markerSize = 100,
-            enableClickEvents = true
-        ),
-        onFriendLocationClick = onFriendClick
+        sharedLocations = sharedLocations,
+        isVisible = sharedLocations.isNotEmpty(),
+        onMarkerClick = onFriendClick
     )
+    
+    // 디버그 정보
+    LaunchedEffect(sharedLocations) {
+        Log.d("FullMapFriendLocationManager", "직접 전달받은 위치 데이터: ${sharedLocations.size}개")
+    }
 }
 
 /**
