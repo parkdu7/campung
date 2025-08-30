@@ -28,13 +28,25 @@ class SharedLocationMarkerManager {
     fun updateSharedLocationMarkers(naverMap: NaverMap, locations: List<SharedLocation>) {
         Log.d(TAG, "updateSharedLocationMarkers 호출됨 - 위치 개수: ${locations.size}")
         
+        // 중복 제거: 같은 userName의 경우 가장 최근 displayUntil을 가진 것만 유지
+        val deduplicatedLocations = locations
+            .groupBy { it.userName } // userName으로 그룹화
+            .mapValues { (_, userLocations) ->
+                // 각 사용자별로 displayUntil이 가장 늦은(최신) 위치만 선택
+                userLocations.maxByOrNull { it.displayUntil }
+            }
+            .values
+            .filterNotNull()
+        
+        Log.d(TAG, "중복 제거 완료 - 원본: ${locations.size}개 → 필터링 후: ${deduplicatedLocations.size}개")
+        
         // 기존 마커 제거
         Log.d(TAG, "기존 마커 ${sharedLocationMarkers.size}개 제거 중")
         clearAllMarkers()
         
-        // 새 마커 생성
-        locations.forEachIndexed { index, sharedLocation ->
-            Log.d(TAG, "[$index] 마커 생성 중: ${sharedLocation.userName} at (${sharedLocation.latitude}, ${sharedLocation.longitude})")
+        // 새 마커 생성 (중복 제거된 목록으로)
+        deduplicatedLocations.forEachIndexed { index, sharedLocation ->
+            Log.d(TAG, "[$index] 마커 생성 중: ${sharedLocation.userName} at (${sharedLocation.latitude}, ${sharedLocation.longitude}) until ${sharedLocation.displayUntil}")
             createSharedLocationMarker(naverMap, sharedLocation)
         }
         
@@ -53,8 +65,8 @@ class SharedLocationMarkerManager {
                 captionText = "${sharedLocation.userName}님의 위치"
                 captionTextSize = 12f
                 captionColor = 0xFF0000FF.toInt() // 파란색 고정값
-                width = 100
-                height = 100
+                width = 140
+                height = 140
                 // location_share 아이콘 적용
                 icon = OverlayImage.fromResource(R.drawable.location_share)
                 map = naverMap

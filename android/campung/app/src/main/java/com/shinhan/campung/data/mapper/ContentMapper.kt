@@ -21,7 +21,7 @@ class ContentMapper @Inject constructor() {
             contentScope = data.contentScope,
             contentType = data.contentType,
             title = data.title,
-            body = data.body,
+            body = data.body ?: "",
             mediaFiles = data.mediaFiles,
             emotionTag = data.emotionTag,
             reactions = com.shinhan.campung.data.model.Reactions(

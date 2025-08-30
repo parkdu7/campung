@@ -42,6 +42,7 @@ class POIRepository @Inject constructor(
                         isOpen = null,
                         openHours = null,
                         thumbnailUrl = item.thumbnailUrl,
+                        imageUrl = item.imageUrl, // imageUrl 추가
                         currentSummary = item.currentSummary ?: generateDummySummary(item.name, item.category)
                     )
                 }
@@ -81,6 +82,7 @@ class POIRepository @Inject constructor(
                         isOpen = null,
                         openHours = null,
                         thumbnailUrl = item.thumbnailUrl,
+                        imageUrl = item.imageUrl, // imageUrl 추가
                         currentSummary = item.currentSummary ?: generateDummySummary(item.name, item.category)
                     )
                 }
@@ -138,6 +140,7 @@ class POIRepository @Inject constructor(
                     isOpen = null,
                     openHours = null,
                     thumbnailUrl = landmarkData.thumbnailUrl,
+                    imageUrl = landmarkData.imageUrl, // imageUrl 추가
                     currentSummary = landmarkData.currentSummary ?: generateDummySummary(landmarkData.name, landmarkData.category)
                 )
                 Result.success(poiData)

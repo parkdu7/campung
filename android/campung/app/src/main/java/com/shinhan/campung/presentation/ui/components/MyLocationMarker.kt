@@ -60,7 +60,7 @@ fun MyLocationMarker(
                 x = with(LocalDensity.current) { (screenCoord.x - 55f).toDp() },
                 y = with(LocalDensity.current) { (screenCoord.y - 55f).toDp() }
             )
-            .size(70.dp)
+            .size(120.dp)
             .zIndex(0f) // 지도 위에, 하지만 마커들 뒤에
     ) {
         composition?.let { comp ->

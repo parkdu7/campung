@@ -974,7 +974,8 @@ fun FullMapScreen(
                     screenHeight = screenHeight,
                     availableHeight = availableHeight,
                     contentHeight = dynamicContentHeight,
-                    dragHandleHeight = dragHandleHeight
+                    dragHandleHeight = dragHandleHeight,
+                    modifier = Modifier.zIndex(2f) // Lottie(1f)보다 높게 설정
                 ) {
                     // 통합 바텀시트 사용 (기존 방식 하위 호환성 유지)
                     if (bottomSheetItems.isNotEmpty()) {
@@ -1059,9 +1060,10 @@ fun FullMapScreen(
                         .zIndex(3f)
                 )
 
-                // 친구 위치공유 마커 관리 (모듈화된 컴포넌트)
+                // 친구 위치공유 마커 관리 (직접 데이터 전달)
                 FullMapFriendLocationManager(
                     map = naverMapRef,
+                    sharedLocations = sharedLocations,
                     onFriendClick = { friend ->
                         Log.d("FullMapScreen", "친구 위치 클릭: ${friend.userName}")
                         // 필요시 추가 처리 로직
@@ -1216,7 +1218,7 @@ private fun distanceMeters(a: com.naver.maps.geometry.LatLng, b: com.naver.maps.
 /**
  * 지도에 표시된 컨텐츠들로부터 날씨 정보를 계산
  */
-private fun calculateWeatherInfo(mapContents: List<com.shinhan.campung.data.model.MapContent>): WeatherInfo {
+private fun calculateWeatherInfo(mapContents: List<MapContent>): WeatherInfo {
     if (mapContents.isEmpty()) {
         return WeatherInfo(weather = null, temperature = null)
     }

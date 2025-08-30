@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -150,6 +151,16 @@ fun FriendScreen(
                 }
             },
             actions = {
+                IconButton(
+                    onClick = { viewModel.loadFriendsList() },
+                    modifier = Modifier.padding(end = 10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "새로고침",
+                        tint = Color.Black
+                    )
+                }
                 IconButton(
                     onClick = { showAddFriendDialog = true },
                     modifier = Modifier.padding(end = 10.dp)

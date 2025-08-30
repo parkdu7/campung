@@ -21,7 +21,7 @@ data class ContentData(
     val location: Location?,
     val postType: String,
     val title: String,
-    val body: String,
+    val body: String?,
     val mediaFiles: List<MediaFile>?,
     val likeInfo: LikeInfo?,
     val commentCount: Int,

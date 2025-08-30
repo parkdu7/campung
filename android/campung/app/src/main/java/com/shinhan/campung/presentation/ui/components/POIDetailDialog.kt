@@ -154,7 +154,7 @@ fun POIDetailDialog(
             title = {
                 Column {
                     // POI 이미지
-                    poi.thumbnailUrl?.let { imageUrl ->
+                    poi.imageUrl?.let { imageUrl ->
                         AsyncImage(
                             model = imageUrl,
                             contentDescription = "${poi.name} 이미지",

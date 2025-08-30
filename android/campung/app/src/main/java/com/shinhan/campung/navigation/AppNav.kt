@@ -55,13 +55,35 @@ fun AppNav(
         onNavControllerReady(navController)
     }
 
-    // 1) 상태 수집: 로그인 상태
-    val userId by authDataStore.userIdFlow.collectAsState(initial = "")
+    // 1) 로딩 상태 관리
+    var isInitialLoading by remember { mutableStateOf(true) }
+    val userId by authDataStore.userIdFlow.collectAsState(initial = null)
+    
+    // 2) 첫 번째 값이 도착하면 (null이든 실제값이든) 로딩 완료
+    LaunchedEffect(Unit) {
+        val firstValue = authDataStore.userIdFlow.first()
+        isInitialLoading = false
+        android.util.Log.d("AppNav", "DataStore 로딩 완료 - userId: '$firstValue'")
+    }
+    
+    // 3) 초기 로딩 중이면 로딩 화면 표시
+    if (isInitialLoading) {
+        android.util.Log.d("AppNav", "초기 로딩 중...")
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
-    // 2) startDestination 결정
-    val startRoute: String = when {
-        userId.isNullOrBlank() -> Route.LOGIN  // 미로그인 (첫 설치 포함)
-        else -> Route.HOME  // 로그인됨 (FCM은 LaunchedEffect에서 처리)
+    // 4) 로딩 완료 후 적절한 화면 결정
+    val startRoute = if (userId.isNullOrBlank()) Route.LOGIN else Route.HOME
+    
+    // 디버깅 로그
+    LaunchedEffect(startRoute) {
+        android.util.Log.d("AppNav", "라우팅 결정: userId = '$userId', startRoute = '$startRoute'")
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
