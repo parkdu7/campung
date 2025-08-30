@@ -426,38 +426,3 @@ logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 ```
-
-### 주요 모니터링 메트릭
-- API 응답 시간 및 성공률
-- Redis 캐시 히트율
-- GPT-5 API 호출 통계
-- WebSocket 연결 수 및 메시지 처리량
-- FCM 전송 성공률
-
-## 🤝 기여하기
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 라이선스
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👥 개발팀
-
-- **Backend Development**: 캠퍼스 백엔드 팀
-- **AI Integration**: GPT-5 분석 팀
-- **Infrastructure**: DevOps 팀
-
----
-
-<div align="center">
-
-**🎓 더 스마트한 캠퍼스 라이프를 위한 AI 플랫폼 🎓**
-
-Made with ❤️ by Campung Team
-
-</div>
