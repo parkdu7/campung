@@ -4,7 +4,8 @@ import com.shinhan.campung.data.remote.response.MapContentResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-interface MapApi {
+interface
+MapApi {
     @GET("map/contents")
     suspend fun getMapContents(
         @Query("lat") latitude: Double,

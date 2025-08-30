@@ -195,75 +195,54 @@ private fun ContentDetailScreenContent(
                 .padding(paddingValues)
         ) {
             val listState = rememberLazyListState()
-            
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
-                // 컨텐츠 제목
+                // 제목
                 item {
-                    TitleSection(title = content.title)
-                }
-                
-                // 작성자 정보
-                item {
-                    AuthorSection(
-                        author = content.author,
-                        createdAt = content.createdAtDateTime
-                    )
-                }
-                
-                // 작성자 정보 구분선
-                item {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        thickness = 0.5.dp,
-                        color = Color(0xFFE0E0E0)
-                    )
+                    Box(Modifier.fillMaxWidth().padding(start = 15.dp, top = 15.dp)) {
+                        TitleSection(title = content.title)
+                    }
                 }
 
-                // 미디어 파일 (이미지/비디오)
-                if (!content.mediaFiles.isNullOrEmpty()) {
-                    item {
-                        MediaPagerSection(mediaFiles = content.mediaFiles)
-                    }
-                    
-                    // 미디어 구분선
-                    item {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            thickness = 0.5.dp,
-                            color = Color(0xFFE0E0E0)
+                // 작성자 정보 (프로필)
+                item {
+                    Box(Modifier.padding(start = 15.dp).fillMaxWidth()) {
+                        AuthorSection(
+                            author = content.author,
+                            createdAt = content.createdAtDateTime
                         )
                     }
                 }
 
-                // 컨텐츠 텍스트
+                // 본문
                 item {
-                    ContentTextSection(content = content.body)
+                    Box(Modifier.fillMaxWidth().padding(start = 15.dp)) {
+                        ContentTextSection(content = content.body)
+                    }
                 }
-                
-                // 컨텐츠 텍스트 구분선
-                item {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        thickness = 0.5.dp,
-                        color = Color(0xFFE0E0E0)
-                    )
+
+                // 미디어(이미지/동영상) — 들여쓰기 X (그대로)
+                if (!content.mediaFiles.isNullOrEmpty()) {
+                    item { MediaPagerSection(mediaFiles = content.mediaFiles) }
                 }
 
                 // 좋아요/댓글 수 바
                 item {
-                    InteractionBar(
-                        isLiked = uiState.isLiked,
-                        likeCount = uiState.likeCount,
-                        commentCount = uiState.commentCount,
-                        onLikeClick = onLikeClick
-                    )
+                    Box(Modifier.fillMaxWidth().padding(start = 15.dp)) {
+                        InteractionBar(
+                            isLiked = uiState.isLiked,
+                            likeCount = uiState.likeCount,
+                            commentCount = uiState.commentCount,
+                            onLikeClick = onLikeClick
+                        )
+                    }
                 }
-                
-                // 댓글 영역 구분선
+
+                // 댓글 영역 구분선 (풀블리드 유지 시 그대로)
                 item {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -272,18 +251,11 @@ private fun ContentDetailScreenContent(
                     )
                 }
 
-                // 댓글 목록 또는 빈 상태
+                // 빈 댓글 상태 문구
                 if (uiState.comments.isEmpty() && !uiState.isCommentLoading) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
+                        Box(Modifier.fillMaxWidth().padding(start = 15.dp)) {
+                            Column(horizontalAlignment = Alignment.Start) {
                                 Text(
                                     text = "첫 번째 댓글을 남겨보세요!",
                                     fontSize = 16.sp,
@@ -303,14 +275,13 @@ private fun ContentDetailScreenContent(
                     // 댓글 목록
                     items(uiState.comments.size) { index ->
                         val comment = uiState.comments[index]
-                        
-                        CommentItem(
-                            comment = comment,
-                            onReplyClick = onReplyClick,
-                            isSelected = comment.commentId == uiState.selectedCommentId
-                        )
-                        
-                        // 댓글 사이 구분선 (마지막 댓글은 제외)
+                        Box(Modifier.fillMaxWidth().padding(start = 15.dp)) {
+                            CommentItem(
+                                comment = comment,
+                                onReplyClick = onReplyClick,
+                                isSelected = comment.commentId == uiState.selectedCommentId
+                            )
+                        }
                         if (index < uiState.comments.size - 1) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -321,7 +292,6 @@ private fun ContentDetailScreenContent(
                     }
                 }
 
-                // 댓글 로딩 표시
                 if (uiState.isCommentLoading) {
                     item {
                         Box(
@@ -329,9 +299,7 @@ private fun ContentDetailScreenContent(
                                 .fillMaxWidth()
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
+                        ) { CircularProgressIndicator(Modifier.size(24.dp)) }
                     }
                 }
             }

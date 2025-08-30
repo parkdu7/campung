@@ -18,6 +18,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shinhan.campung.data.model.MapContent
+import com.shinhan.campung.data.model.MapItem
+import com.shinhan.campung.data.model.MapContentItem
+import com.shinhan.campung.data.model.MapRecordItem
+import com.shinhan.campung.data.model.MapRecord
 @Composable
 fun MapBottomSheetContent(
     contents: List<MapContent>,
@@ -38,10 +42,11 @@ fun MapBottomSheetContent(
     // 네비게이션 바와 상태바를 모두 제외한 사용 가능한 높이
     val availableHeight = screenHeight - navigationBarHeight - statusBarHeight
 
-    val expandedHeight = when (contents.size) {
-        0 -> 0.dp
-        1 -> itemHeight + (padding * 2)
-        2 -> (itemHeight * 2) + itemSpacing + (padding * 2)
+    val expandedHeight = when {
+        isLoading -> itemHeight + (padding * 2)  // 로딩 상태일 때는 로딩 UI 높이
+        contents.isEmpty() -> 0.dp  // 빈 상태일 때만 0.dp
+        contents.size == 1 -> itemHeight + (padding * 2)
+        contents.size == 2 -> (itemHeight * 2) + itemSpacing + (padding * 2)
         else -> availableHeight * 0.5f  // 실제 사용가능 높이의 50%
     }
 
@@ -100,6 +105,115 @@ fun MapBottomSheetContent(
                         modifier = Modifier.height(itemHeight),
                         onClick = { if (isInteractionEnabled) onContentClick(content) }
                     )
+                }
+            }
+        }
+        }
+    }
+}
+
+/**
+ * 통합 MapItem을 사용하는 새로운 바텀시트 컨텐츠
+ */
+@Composable
+fun MixedMapBottomSheetContent(
+    items: List<MapItem>,
+    isLoading: Boolean = false,
+    isInteractionEnabled: Boolean = true,
+    navigationBarHeight: Dp = 0.dp,
+    statusBarHeight: Dp = 0.dp,
+    currentPlayingRecord: MapRecord? = null,
+    isPlaying: Boolean = false,
+    onContentClick: (MapContent) -> Unit = {},
+    onRecordClick: (MapRecord) -> Unit = {},
+    onRecordPlayClick: (MapRecord) -> Unit = {}
+) {
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+
+    // 높이 구성 요소
+    val itemHeight = 120.dp
+    val padding = 16.dp
+    val itemSpacing = 8.dp
+
+    // 네비게이션 바와 상태바를 모두 제외한 사용 가능한 높이
+    val availableHeight = screenHeight - navigationBarHeight - statusBarHeight
+
+    val expandedHeight = when {
+        isLoading -> itemHeight + (padding * 2)  // 로딩 상태일 때는 로딩 UI 높이
+        items.isEmpty() -> 0.dp  // 빈 상태일 때만 0.dp
+        items.size == 1 -> itemHeight + (padding * 2)
+        items.size == 2 -> (itemHeight * 2) + itemSpacing + (padding * 2)
+        else -> availableHeight * 0.5f  // 실제 사용가능 높이의 50%
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = expandedHeight),  // 최대 높이 제한
+        color = Color.White,  // 강제로 흰색 배경
+        contentColor = Color.Black  // 텍스트 색상 검은색
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+        // 컨텐츠 리스트
+        if (isLoading) {
+            // 로딩 상태: 즉각적인 피드백 제공
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(color = Color(0xFF0066FF))
+                    Text(
+                        text = "콘텐츠를 불러오는 중...",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+        } else if (items.isEmpty()) {
+            // 빈 상태: 핸들만 보이고 상호작용 불가
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                // 빈 상태 표시 (선택사항)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(padding),
+                verticalArrangement = Arrangement.spacedBy(itemSpacing)
+            ) {
+                items(items) { item ->
+                    when (item) {
+                        is MapContentItem -> {
+                            MapContentItem(
+                                content = item.content,
+                                onClick = { onContentClick(item.content) }
+                            )
+                        }
+                        is MapRecordItem -> {
+                            MapRecordItem(
+                                record = item.record,
+                                isPlaying = isPlaying,
+                                currentPlayingRecord = currentPlayingRecord,
+                                onPlayClick = onRecordPlayClick,
+                                onClick = { onRecordClick(item.record) }
+                            )
+                        }
+                    }
                 }
             }
         }

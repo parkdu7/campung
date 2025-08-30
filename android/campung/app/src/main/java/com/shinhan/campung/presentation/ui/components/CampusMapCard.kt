@@ -4,6 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.Gravity
+import android.view.View
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -34,6 +36,8 @@ import com.naver.maps.map.NaverMap
 import com.naver.maps.map.overlay.Marker
 import com.shinhan.campung.presentation.viewmodel.MapViewModel
 import com.shinhan.campung.presentation.ui.map.MapClusterManager
+import com.shinhan.campung.presentation.ui.components.MyLocationMarker
+import com.shinhan.campung.presentation.ui.components.LocationMarkerManager
 
 private val LatLngSaver: Saver<LatLng?, String> = Saver(
     save = { loc -> loc?.let { "${it.latitude},${it.longitude}" } ?: "" },
@@ -95,6 +99,7 @@ fun CampusMapCard(
         fused.lastLocation.addOnSuccessListener { loc ->
             if (loc != null && myLatLng == null) {
                 myLatLng = LatLng(loc.latitude, loc.longitude)
+
             }
         }
         val cts = CancellationTokenSource()
@@ -139,7 +144,7 @@ fun CampusMapCard(
         val pos = myLatLng
         if (map != null && pos != null && !movedToMyLocOnce.value) {
             map.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 15.0))
-            map.locationOverlay.isVisible = true
+            map.locationOverlay.isVisible = false
             map.locationOverlay.position = pos
             movedToMyLocOnce.value = true
             
@@ -149,6 +154,7 @@ fun CampusMapCard(
             )
         }
     }
+    
     
     LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
         val map = naverMapRef ?: return@LaunchedEffect
@@ -178,70 +184,71 @@ fun CampusMapCard(
                     )
                 }
             } else {
-                AndroidView(
-                    factory = { mapView },
-                    modifier = Modifier.fillMaxSize(),
-                    update = { mv ->
-                        if (naverMapRef == null) {
-                            mv.getMapAsync { map ->
-                                naverMapRef = map
-                                
-                                map.uiSettings.apply {
-                                    // 제스처/버튼 모두 끄기 = 화면 고정
-                                    isScrollGesturesEnabled = false
-                                    isZoomGesturesEnabled = false
-                                    isTiltGesturesEnabled = false
-                                    isRotateGesturesEnabled = false
-                                    isZoomControlEnabled = false
-                                    isScaleBarEnabled = false
-                                    isCompassEnabled = false
-                                    isLocationButtonEnabled = false
-                                }
-                                
-                                val target = myLatLng ?: initialCamera
-                                map.moveCamera(CameraUpdate.scrollAndZoomTo(target, 15.0))
-                                
-                                // 카메라 이동 후 스타일 적용
-                                var cameraIdleListener: NaverMap.OnCameraIdleListener? = null
-                                cameraIdleListener = NaverMap.OnCameraIdleListener {
-                                    try {
-                                        map.setCustomStyleId("258120eb-1ebf-4b29-97cf-21df68e09c5c")
-                                        android.util.Log.d("CampusMapCard", "카메라 idle 후 커스텀 스타일 적용 성공")
-                                        // 리스너 제거 (한 번만 실행)
-                                        cameraIdleListener?.let { map.removeOnCameraIdleListener(it) }
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("CampusMapCard", "카메라 idle 후 커스텀 스타일 적용 실패", e)
-                                        e.printStackTrace()
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AndroidView(
+                        factory = { mapView },
+                        modifier = Modifier.fillMaxSize(),
+                        update = { mv ->
+                            if (naverMapRef == null) {
+                                mv.getMapAsync { map ->
+                                    naverMapRef = map
+                                    
+                                    map.uiSettings.apply {
+                                        // 제스처/버튼 모두 끄기 = 화면 고정
+                                        isScrollGesturesEnabled = false
+                                        isZoomGesturesEnabled = false
+                                        isTiltGesturesEnabled = false
+                                        isRotateGesturesEnabled = false
+                                        isZoomControlEnabled = false
+                                        isScaleBarEnabled = false
+                                        isCompassEnabled = false
+                                        isLocationButtonEnabled = false
+                                        isLogoClickEnabled = false
+                                        setLogoMargin(-500, -500, 0, 0)
                                     }
-                                }
-                                map.addOnCameraIdleListener(cameraIdleListener)
-                                
-                                if (myLatLng != null && hasPermission) {
-                                    map.locationOverlay.isVisible = true
-                                    map.locationOverlay.position = myLatLng!!
-                                }
-                                
-                                clusterManager = MapClusterManager(context, map).also {
-                                    it.setupClustering()
-                                }
-                                
-                                mapViewModel.loadMapContents(
-                                    latitude = target.latitude,
-                                    longitude = target.longitude
-                                )
-                            }
-                        } else {
-                            naverMapRef?.let { map ->
-                                if (myLatLng != null && hasPermission) {
-                                    map.locationOverlay.isVisible = true
-                                    map.locationOverlay.position = myLatLng!!
-                                } else {
+                                    
+                                    val target = myLatLng ?: initialCamera
+                                    map.moveCamera(CameraUpdate.scrollAndZoomTo(target, 15.0))
+                                    
+                                    // 카메라 이동 후 스타일 적용
+                                    var cameraIdleListener: NaverMap.OnCameraIdleListener? = null
+                                    cameraIdleListener = NaverMap.OnCameraIdleListener {
+                                        try {
+                                            map.setCustomStyleId("258120eb-1ebf-4b29-97cf-21df68e09c5c")
+                                            android.util.Log.d("CampusMapCard", "카메라 idle 후 커스텀 스타일 적용 성공")
+                                            // 리스너 제거 (한 번만 실행)
+                                            cameraIdleListener?.let { map.removeOnCameraIdleListener(it) }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("CampusMapCard", "카메라 idle 후 커스텀 스타일 적용 실패", e)
+                                            e.printStackTrace()
+                                        }
+                                    }
+                                    map.addOnCameraIdleListener(cameraIdleListener)
+                                    
+                                    // 기본 location overlay 비활성화
                                     map.locationOverlay.isVisible = false
+                                    
+                                    clusterManager = MapClusterManager(context, map).also {
+                                        it.setupClustering()
+                                    }
+                                    
+                                    mapViewModel.loadMapContents(
+                                        latitude = target.latitude,
+                                        longitude = target.longitude
+                                    )
                                 }
                             }
                         }
-                    }
-                )
+                    )
+                    
+                    // 모듈화된 위치 마커 관리자 사용
+                    LocationMarkerManager(
+                        map = naverMapRef,
+                        userLocation = myLatLng,
+                        hasLocationPermission = hasPermission,
+                        enableLottieAnimation = true
+                    )
+                }
 
                 // 투명 클릭 레이어
                 Box(

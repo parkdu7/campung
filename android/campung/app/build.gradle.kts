@@ -123,6 +123,7 @@ dependencies {
     // Coil (이미지 로딩 for Compose)
     implementation(platform("io.coil-kt:coil-bom:2.7.0"))
     implementation("io.coil-kt:coil-compose")
+    implementation("io.coil-kt:coil-gif") // GIF 지원 추가
     implementation("io.coil-kt:coil-video:2.6.0")
 
     // ContentDetailScreen 추가 의존성
@@ -131,4 +132,10 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.4.1") // ExoPlayer UI
     implementation("androidx.compose.material:material-icons-extended:1.7.5") // Extended Material Icons
     // Custom Date Picker Implementation
+
+    implementation("com.github.bumptech.glide:glide:4.15.1")
+    
+    // Lottie for animations (최신 버전)
+    implementation("com.airbnb.android:lottie:6.6.0")
+    implementation("com.airbnb.android:lottie-compose:6.6.0")
 }

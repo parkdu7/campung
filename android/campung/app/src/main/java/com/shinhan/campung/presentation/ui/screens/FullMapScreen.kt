@@ -47,6 +47,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.shinhan.campung.data.service.LocationSharingManager
 import com.shinhan.campung.presentation.ui.map.SharedLocationMarkerManager
+import com.shinhan.campung.presentation.ui.components.FullMapFriendLocationManager
+import com.shinhan.campung.presentation.ui.components.IntegratedLocationSharingBroadcastReceiver
 import com.shinhan.campung.presentation.ui.map.POIMarkerManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -76,16 +78,16 @@ import com.shinhan.campung.presentation.ui.components.AudioPlayer
 import android.util.Log
 import com.shinhan.campung.navigation.Route
 import com.shinhan.campung.presentation.ui.components.MapBottomSheetContent
+import com.shinhan.campung.presentation.ui.components.MixedMapBottomSheetContent
 import com.shinhan.campung.presentation.ui.components.AnimatedMapTooltip
+import com.shinhan.campung.presentation.ui.components.MyLocationMarker
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import com.shinhan.campung.R
@@ -130,6 +132,7 @@ fun FullMapScreen(
 
     // ViewModel states
     val bottomSheetContents by mapViewModel.bottomSheetContents.collectAsState()
+    val bottomSheetItems by mapViewModel.bottomSheetItems.collectAsState()
     val isBottomSheetExpanded by mapViewModel.isBottomSheetExpanded.collectAsState()
     val isLoading by mapViewModel.isLoading.collectAsState()
     val tooltipState by mapViewModel.tooltipState.collectAsState()
@@ -155,80 +158,12 @@ fun FullMapScreen(
     val isPOILoading by mapViewModel.isPOILoading.collectAsState()
     val selectedPOI by mapViewModel.selectedPOI.collectAsState()
     val showPOIDialog by mapViewModel.showPOIDialog.collectAsState()
+    val isLoadingPOIDetail by mapViewModel.isLoadingPOIDetail.collectAsState()
     val currentPlayingRecord by mapViewModel.currentPlayingRecord.collectAsState()
+    val currentUserId by mapViewModel.currentUserId.collectAsState()
 
-    // 위치 공유 브로드캐스트 수신
-    DisposableEffect(context) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                android.util.Log.d("FullMapScreen", "브로드캐스트 수신됨 - action: ${intent?.action}")
-
-                if (intent?.action == "com.shinhan.campung.LOCATION_SHARED") {
-                    android.util.Log.d("FullMapScreen", "위치 공유 브로드캐스트 처리 시작")
-
-                    val userName = intent.getStringExtra("userName")
-                    val latitude = intent.getStringExtra("latitude")?.toDoubleOrNull()
-                    val longitude = intent.getStringExtra("longitude")?.toDoubleOrNull()
-                    val displayUntil = intent.getStringExtra("displayUntil")
-                    val shareId = intent.getStringExtra("shareId")
-
-                    android.util.Log.d("FullMapScreen", "브로드캐스트 데이터: userName=$userName, lat=$latitude, lng=$longitude, displayUntil=$displayUntil, shareId=$shareId")
-
-                    if (userName == null || latitude == null || longitude == null || displayUntil == null || shareId == null) {
-                        android.util.Log.e("FullMapScreen", "브로드캐스트 데이터 누락 - 처리 중단")
-                        return
-                    }
-
-                    android.util.Log.d("FullMapScreen", "LocationSharingManager.addSharedLocation 호출")
-                    locationSharingManager.addSharedLocation(
-                        userName, latitude, longitude, displayUntil, shareId
-                    )
-                } else {
-                    android.util.Log.d("FullMapScreen", "다른 액션의 브로드캐스트 무시")
-                }
-            }
-        }
-
-        val intentFilter = IntentFilter("com.shinhan.campung.LOCATION_SHARED")
-        android.util.Log.d("FullMapScreen", "브로드캐스트 수신기 등록 중 - action: com.shinhan.campung.LOCATION_SHARED")
-
-        // 전역 브로드캐스트 수신기 등록
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
-            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API 33+)")
-        } else {
-            context.registerReceiver(receiver, intentFilter)
-            android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 등록 완료 (API <33)")
-        }
-
-        // LocalBroadcastManager도 등록 (더 안전함)
-        try {
-            androidx.localbroadcastmanager.content.LocalBroadcastManager
-                .getInstance(context)
-                .registerReceiver(receiver, intentFilter)
-            android.util.Log.d("FullMapScreen", "LocalBroadcast 수신기도 등록 완료")
-        } catch (e: Exception) {
-            android.util.Log.e("FullMapScreen", "LocalBroadcast 수신기 등록 실패", e)
-        }
-
-        onDispose {
-            try {
-                context.unregisterReceiver(receiver)
-                android.util.Log.d("FullMapScreen", "전역 브로드캐스트 수신기 해제 완료")
-            } catch (e: IllegalArgumentException) {
-                android.util.Log.w("FullMapScreen", "전역 브로드캐스트 수신기 해제 실패 (이미 해제됨)")
-            }
-
-            try {
-                androidx.localbroadcastmanager.content.LocalBroadcastManager
-                    .getInstance(context)
-                    .unregisterReceiver(receiver)
-                android.util.Log.d("FullMapScreen", "LocalBroadcast 수신기 해제 완료")
-            } catch (e: Exception) {
-                android.util.Log.w("FullMapScreen", "LocalBroadcast 수신기 해제 실패", e)
-            }
-        }
-    }
+    // 위치 공유 브로드캐스트 수신 (모듈화된 컴포넌트)
+    IntegratedLocationSharingBroadcastReceiver(locationSharingManager)
 
     // 화면 크기
     val screenHeight = configuration.screenHeightDp.dp
@@ -257,16 +192,19 @@ fun FullMapScreen(
         (navigationBarHeight + statusBarHeight).toDp()
     }
 
-    // 동적 컨텐츠 높이 계산 (기존 로직과 동일)
-    val dynamicContentHeight = remember(bottomSheetContents.size, isLoading) {
+    // 동적 컨텐츠 높이 계산 (통합 바텀시트 지원)
+    val dynamicContentHeight = remember(bottomSheetContents.size, bottomSheetItems.size, isLoading) {
+        // 통합 바텀시트가 있으면 우선 사용, 없으면 기존 방식
+        val itemCount = if (bottomSheetItems.isNotEmpty()) bottomSheetItems.size else bottomSheetContents.size
+
         when {
             isLoading -> dragHandleHeight + padding * 2 + itemHeight
-            bottomSheetContents.isEmpty() -> dragHandleHeight
-            bottomSheetContents.size == 1 -> dragHandleHeight + itemHeight + padding * 2
-            bottomSheetContents.size == 2 -> dragHandleHeight + (itemHeight * 2) + itemSpacing + padding * 2
+            itemCount == 0 -> dragHandleHeight
+            itemCount == 1 -> dragHandleHeight + itemHeight + padding * 2
+            itemCount == 2 -> dragHandleHeight + (itemHeight * 2) + itemSpacing + padding * 2
             else -> {
                 val maxHeight = screenHeight * 0.5f
-                val calculatedHeight = dragHandleHeight + padding * 2 + (itemHeight * bottomSheetContents.size) + (itemSpacing * (bottomSheetContents.size - 1))
+                val calculatedHeight = dragHandleHeight + padding * 2 + (itemHeight * itemCount) + (itemSpacing * (itemCount - 1))
                 minOf(maxHeight, calculatedHeight)
             }
         }
@@ -283,17 +221,35 @@ fun FullMapScreen(
         }
     }
 
-    // 지도 설정
+    // 지도 설정 및 마커 생명주기 관리
     DisposableEffect(lifecycle, mapView) {
         val observer = object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) { mapView.onStart() }
-            override fun onResume(owner: LifecycleOwner) { mapView.onResume() }
-            override fun onPause(owner: LifecycleOwner) { mapView.onPause() }
-            override fun onStop(owner: LifecycleOwner) { mapView.onStop() }
-            override fun onDestroy(owner: LifecycleOwner) { mapView.onDestroy() }
+            override fun onStart(owner: LifecycleOwner) {
+                mapView.onStart()
+                Log.d("FullMapScreen", "🔄 onStart - 화면 복귀")
+            }
+            override fun onResume(owner: LifecycleOwner) {
+                mapView.onResume()
+                Log.d("FullMapScreen", "▶️ onResume - 화면 활성화")
+            }
+            override fun onPause(owner: LifecycleOwner) {
+                mapView.onPause()
+                Log.d("FullMapScreen", "⏸️ onPause - 화면 비활성화, 마커 정리는 나중에 처리됨")
+            }
+            override fun onStop(owner: LifecycleOwner) {
+                mapView.onStop()
+                Log.d("FullMapScreen", "⏹️ onStop - 화면 중지")
+            }
+            override fun onDestroy(owner: LifecycleOwner) {
+                mapView.onDestroy()
+                Log.d("FullMapScreen", "💀 onDestroy - 화면 파괴")
+            }
         }
         lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycle.removeObserver(observer)
+            Log.d("FullMapScreen", "🧹 DisposableEffect 정리")
+        }
     }
 
     val locationPermissionManager = remember { LocationPermissionManager(context) }
@@ -319,43 +275,42 @@ fun FullMapScreen(
         }
     }
 
-    // 위치 공유 마커 매니저 (모듈화됨)
-    val sharedLocationMarkerManager = remember { SharedLocationMarkerManager() }
+    // 위치 공유 마커 매니저 (모듈화된 컴포넌트로 교체됨)
 
     // POI 마커 매니저 (모듈화됨)
     var poiMarkerManager by remember { mutableStateOf<POIMarkerManager?>(null) }
 
-    // 위치 공유 데이터 변경 시 마커 업데이트
-    LaunchedEffect(sharedLocations) {
-        android.util.Log.d("FullMapScreen", "sharedLocations 업데이트됨 - 크기: ${sharedLocations.size}")
-        sharedLocations.forEachIndexed { index, location ->
-            android.util.Log.d("FullMapScreen", "[$index] ${location.userName} - (${location.latitude}, ${location.longitude}) - 만료: ${location.displayUntil}")
-        }
+    // 마커 매니저들의 생명주기 관리 (앱 종료 시에만)
+    DisposableEffect(Unit) { // 한 번만 실행되도록 Unit 의존성 사용
+        Log.d("FullMapScreen", "🎯 마커 매니저 생명주기 관리 시작")
 
-        naverMapRef?.let { map ->
-            android.util.Log.d("FullMapScreen", "지도 마커 업데이트 시작")
-            sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
-            android.util.Log.d("FullMapScreen", "지도 마커 업데이트 완료")
-        } ?: android.util.Log.w("FullMapScreen", "naverMapRef가 null - 마커 업데이트 건너뜀")
+        onDispose {
+            Log.d("FullMapScreen", "🧹 화면 완전 종료 시 마커 매니저 정리 시작")
+            // cleanup()은 완전한 앱/화면 종료 시에만 호출 (콜백도 정리됨)
+            clusterManager?.cleanup()
+            poiMarkerManager?.clearPOIMarkers()
+            // sharedLocationMarkerManager는 모듈화된 컴포넌트에서 자동 관리
+            Log.d("FullMapScreen", "✅ 모든 마커 매니저 완전 정리 완료")
+        }
     }
 
-    // POI 데이터 변경 시 마커 업데이트
+    // 위치 공유 데이터는 모듈화된 컴포넌트에서 자동 관리
+
+    // POI 데이터 변경 시 마커 업데이트 (중복 호출 방지)
     LaunchedEffect(poiData, isPOIVisible) {
-        android.util.Log.d("FullMapScreen", "🏪 POI 데이터 변경 감지 - 크기: ${poiData.size}, 표시상태: $isPOIVisible")
+        Log.d("FullMapScreen", "🏪 POI LaunchedEffect 트리거 - isPOIVisible: $isPOIVisible, poiData: ${poiData.size}개")
 
         naverMapRef?.let { map ->
             poiMarkerManager?.let { manager ->
                 if (isPOIVisible && poiData.isNotEmpty()) {
-                    android.util.Log.d("FullMapScreen", "🏪 POI 마커 표시 시작 - ${poiData.size}개")
+                    Log.d("FullMapScreen", "🏪 POI 마커 표시 시작")
                     manager.showPOIMarkers(poiData)
-                } else if (isPOIVisible && poiData.isEmpty()) {
-                    android.util.Log.d("FullMapScreen", "🏪 POI 활성화 상태이지만 데이터 없음")
                 } else {
-                    android.util.Log.d("FullMapScreen", "🏪 POI 마커 숨기기")
+                    Log.d("FullMapScreen", "🏪 POI 마커 클리어")
                     manager.clearPOIMarkers()
                 }
-            } ?: android.util.Log.w("FullMapScreen", "🏪 POI 마커 매니저가 null")
-        } ?: android.util.Log.w("FullMapScreen", "🏪 NaverMap이 null")
+            } ?: Log.w("FullMapScreen", "🏪 POI 마커 매니저가 null")
+        } ?: Log.w("FullMapScreen", "🏪 NaverMap이 null")
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -406,6 +361,14 @@ fun FullMapScreen(
         Log.d("FullMapScreen", "✅ 리프레시 ID 초기화 완료")
     }
 
+    // 업로드 성공 콜백 설정
+    LaunchedEffect(Unit) {
+        recordUploadVm.setOnUploadSuccessCallback { latitude, longitude ->
+            Log.d("FullMapScreen", "🎵 녹음 업로드 성공 - 맵 새로고침: ($latitude, $longitude)")
+            mapViewModel.loadMapContents(latitude, longitude, force = true)
+        }
+    }
+
     LaunchedEffect(recordUi.successMessage, recordUi.errorMessage) {
         recordUi.successMessage?.let {
             // 업로드 성공 → 다이얼로그 닫고 메시지 소비
@@ -428,16 +391,38 @@ fun FullMapScreen(
         }
     }
 
+    // AudioPlayer가 표시될 때 지도 상호작용 제어 및 바텀시트 내리기
+    LaunchedEffect(currentPlayingRecord, naverMapRef) {
+        naverMapRef?.let { map ->
+            map.uiSettings.apply {
+                isScrollGesturesEnabled = currentPlayingRecord == null
+                isZoomGesturesEnabled = currentPlayingRecord == null
+                isTiltGesturesEnabled = currentPlayingRecord == null
+                isRotateGesturesEnabled = currentPlayingRecord == null
+            }
+        }
+        
+        // AudioPlayer가 표시될 때 바텀시트 내리기
+        if (currentPlayingRecord != null) {
+            bottomSheetState.animateTo(BottomSheetValue.PartiallyExpanded)
+            mapViewModel.updateBottomSheetExpanded(false)
+        }
+    }
+
     // 내 위치 찾히면 카메라 이동
     LaunchedEffect(myLatLng, naverMapRef) {
         val map = naverMapRef
         val pos = myLatLng
         if (map != null && pos != null) {
             map.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
-            map.locationOverlay.isVisible = true
+            map.locationOverlay.isVisible = false
             map.locationOverlay.position = pos
 
-            // 초기 로드 - 강제로 데이터 로드하여 확실히 마커 표시
+            // 초기 로드 - 핫 콘텐츠를 먼저 로드
+            Log.d("FullMapScreen", "🔥 초기 진입 - 핫 콘텐츠 로드")
+            mapViewModel.loadHotContents()
+            
+            // 마커 데이터도 로드 (백그라운드)
             naverMapRef?.let { map ->
                 val radius = com.shinhan.campung.presentation.ui.map.MapBoundsCalculator.calculateVisibleRadius(map)
                 Log.d("FullMapScreen", "🎯 초기 위치 기반 마커 로드: (${pos.latitude}, ${pos.longitude}), 반경: ${radius}m")
@@ -447,6 +432,13 @@ fun FullMapScreen(
                     radius = radius,
                     force = true  // 초기 로드는 항상 강제 실행
                 )
+
+                // POI는 클러스터링 완료 후 로드하도록 지연
+                kotlinx.coroutines.MainScope().launch {
+                    kotlinx.coroutines.delay(1000) // 클러스터링 완료 대기
+                    Log.d("FullMapScreen", "🏪 지연 POI 테스트 로드")
+                    mapViewModel.loadPOIData(pos.latitude, pos.longitude, radius = radius)
+                }
             } ?: run {
                 // NaverMap이 아직 준비되지 않았으면 기본 방식으로 강제 로드
                 Log.d("FullMapScreen", "🎯 NaverMap 준비 전 기본 마커 로드: (${pos.latitude}, ${pos.longitude})")
@@ -455,56 +447,114 @@ fun FullMapScreen(
                     longitude = pos.longitude,
                     force = true  // 초기 로드는 항상 강제 실행
                 )
-            }
-        }
-    }
 
-    // 카메라 이동시 툴팁 위치 업데이트
-    LaunchedEffect(naverMapRef) {
-        naverMapRef?.let { map ->
-            map.addOnCameraChangeListener { reason, animated ->
-                // 툴팁이 표시 중일 때만 위치 업데이트
-                if (tooltipState.isVisible && tooltipState.content != null) {
-                    val content = tooltipState.content!!
-                    val latLng = com.naver.maps.geometry.LatLng(content.location.latitude, content.location.longitude)
-                    val screenPoint = map.projection.toScreenLocation(latLng)
-                    val newPosition = androidx.compose.ui.geometry.Offset(screenPoint.x.toFloat(), screenPoint.y.toFloat())
-                    mapViewModel.updateTooltipPosition(newPosition)
+                // POI도 지연 로드
+                kotlinx.coroutines.MainScope().launch {
+                    kotlinx.coroutines.delay(1000)
+                    Log.d("FullMapScreen", "🏪 지연 POI 테스트 로드 (NaverMap 준비 전)")
+                    mapViewModel.loadPOIData(pos.latitude, pos.longitude)
                 }
             }
         }
     }
 
-    // 클러스터링 업데이트 - 더 안정적으로 처리
-    LaunchedEffect(mapViewModel.shouldUpdateClustering, mapViewModel.mapContents.size, mapViewModel.mapRecords.size, naverMapRef) {
-        val map = naverMapRef ?: return@LaunchedEffect
-
-        if (mapViewModel.shouldUpdateClustering && (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty())) {
-            Log.d("FullMapScreen", "🔄 클러스터링 업데이트: ${mapViewModel.mapContents.size}개 Content 마커, ${mapViewModel.mapRecords.size}개 Record 마커")
-            try {
-                clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords)
-                mapViewModel.clusteringUpdated()
-                Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
-            } catch (e: Exception) {
-                Log.e("FullMapScreen", "❌ 클러스터링 업데이트 실패", e)
+    // 카메라 리스너들을 개별적으로 관리하되 애니메이션 쌓임 방지
+    DisposableEffect(naverMapRef, mapCameraListener, mapViewportManager) {
+        val map = naverMapRef ?: return@DisposableEffect onDispose { }
+        
+        // 각 리스너의 인스턴스를 저장
+        val cameraListener = mapCameraListener?.createCameraChangeListener()
+        val viewportListener = mapViewportManager?.createCameraChangeListener()
+        
+        // 툴팁 업데이트용 별도 리스너 - 쓰로틀링 강화
+        var lastTooltipUpdateTime = 0L
+        var isZoomInProgress = false
+        var zoomEndTimer: kotlinx.coroutines.Job? = null
+        
+        val tooltipListener = NaverMap.OnCameraChangeListener { reason, animated ->
+            val currentTime = System.currentTimeMillis()
+            
+            // 줌 중인지 판단 (animated=true이고 빠른 연속 호출)
+            if (animated && (currentTime - lastTooltipUpdateTime < 100)) {
+                isZoomInProgress = true
+                
+                // 줌 종료 타이머 설정
+                zoomEndTimer?.cancel()
+                zoomEndTimer = kotlinx.coroutines.MainScope().launch {
+                    kotlinx.coroutines.delay(200) // 200ms 후 줌 종료로 판단
+                    isZoomInProgress = false
+                }
             }
-        } else if (mapViewModel.shouldUpdateClustering && mapViewModel.mapContents.isEmpty() && mapViewModel.mapRecords.isEmpty()) {
-            Log.d("FullMapScreen", "🧹 빈 데이터로 클러스터링 클리어")
+            
+            // 줌 중이면 툴팁 업데이트 스킵
+            if (isZoomInProgress) {
+                return@OnCameraChangeListener
+            }
+            
+            // 쓰로틀링 최소화 (16ms = 60fps)
+            if (currentTime - lastTooltipUpdateTime < 16) {
+                return@OnCameraChangeListener
+            }
+            lastTooltipUpdateTime = currentTime
+            
+            // 툴팁 위치 업데이트
+            if (tooltipState.isVisible && tooltipState.content != null) {
+                val content = tooltipState.content!!
+                val latLng = com.naver.maps.geometry.LatLng(content.location.latitude, content.location.longitude)
+                val screenPoint = map.projection.toScreenLocation(latLng)
+                val newPosition = androidx.compose.ui.geometry.Offset(screenPoint.x.toFloat(), screenPoint.y.toFloat())
+                mapViewModel.updateTooltipPosition(newPosition)
+            }
+        }
+        
+        // 각 리스너 등록
+        cameraListener?.let { map.addOnCameraChangeListener(it) }
+        viewportListener?.let { map.addOnCameraChangeListener(it) }
+        map.addOnCameraChangeListener(tooltipListener)
+        
+        onDispose {
+            // 정확한 인스턴스로 리스너 제거
+            cameraListener?.let { map.removeOnCameraChangeListener(it) }
+            viewportListener?.let { map.removeOnCameraChangeListener(it) }
+            map.removeOnCameraChangeListener(tooltipListener)
+        }
+    }
+
+    // 클러스터링 업데이트 - shouldUpdateClustering만 의존성으로 사용 (중복 실행 방지)
+    LaunchedEffect(mapViewModel.shouldUpdateClustering, naverMapRef) {
+        val map = naverMapRef ?: return@LaunchedEffect
+        
+        // shouldUpdateClustering이 true일 때만 실행
+        if (!mapViewModel.shouldUpdateClustering) {
+            return@LaunchedEffect
+        }
+
+        android.util.Log.d("FullMapScreen", "📊 클러스터링 LaunchedEffect 시작 - Contents: ${mapViewModel.mapContents.size}, Records: ${mapViewModel.mapRecords.size}")
+
+        if (mapViewModel.mapContents.isNotEmpty() || mapViewModel.mapRecords.isNotEmpty()) {
+            android.util.Log.d("FullMapScreen", "🔄 클러스터링 업데이트 시작")
+            try {
+                clusterManager?.updateMarkers(mapViewModel.mapContents, mapViewModel.mapRecords) {
+                    android.util.Log.d("FullMapScreen", "✅ 클러스터링 업데이트 완료")
+                    mapViewModel.onClusteringCompleted()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("FullMapScreen", "❌ 클러스터링 업데이트 실패", e)
+                mapViewModel.onClusteringCompleted()
+            }
+        } else {
+            android.util.Log.d("FullMapScreen", "🧹 빈 데이터로 클러스터링 클리어")
             clusterManager?.clearMarkers()
-            mapViewModel.clusteringUpdated()
+            mapViewModel.onClusteringCompleted()
         }
     }
 
     // 선택된 마커가 변경될 때마다 ClusterManager에 반영
     LaunchedEffect(mapViewModel.selectedMarker) {
         val selectedMarker = mapViewModel.selectedMarker
-        Log.d("FullMapScreen", "LaunchedEffect: selectedMarker 변경됨 - ${selectedMarker?.title}")
         if (selectedMarker != null) {
-            Log.d("FullMapScreen", "ClusterManager에 마커 선택 요청: ${selectedMarker.title}")
             clusterManager?.selectMarker(selectedMarker)
         } else if (mapViewModel.selectedRecord == null) {
-            // Record도 선택되지 않은 경우에만 완전히 해제
-            Log.d("FullMapScreen", "ClusterManager 선택 해제")
             clusterManager?.clearSelection()
         }
     }
@@ -512,13 +562,9 @@ fun FullMapScreen(
     // 선택된 Record가 변경될 때마다 ClusterManager에 반영
     LaunchedEffect(mapViewModel.selectedRecord) {
         val selectedRecord = mapViewModel.selectedRecord
-        Log.d("FullMapScreen", "LaunchedEffect: selectedRecord 변경됨 - ${selectedRecord?.recordUrl}")
         if (selectedRecord != null) {
-            Log.d("FullMapScreen", "ClusterManager에 Record 선택 요청: ${selectedRecord.recordUrl}")
             clusterManager?.selectRecordMarker(selectedRecord)
         } else if (mapViewModel.selectedMarker == null) {
-            // 일반 마커도 선택되지 않은 경우에만 완전히 해제
-            Log.d("FullMapScreen", "ClusterManager 선택 해제")
             clusterManager?.clearSelection()
         }
     }
@@ -540,92 +586,87 @@ fun FullMapScreen(
                 clusterManager?.clearSelection()
             }
             else -> {
-                // 아무것도 선택되어 있지 않으면 화면 나가기
+                // 화면 나가기 전 모든 마커 정리
+                Log.d("FullMapScreen", "🔙 뒤로가기 - 모든 마커 정리 시작")
+                clusterManager?.clearMarkers()
+                poiMarkerManager?.clearPOIMarkers()
+                // sharedLocationMarkerManager는 모듈화된 컴포넌트에서 자동 관리
+                Log.d("FullMapScreen", "✅ 뒤로가기 - 마커 정리 완료")
                 navController.popBackStack()
             }
         }
     }
 
-    // 디버깅: 초기 상태 확인
-    LaunchedEffect(Unit) {
-        Log.d("BottomSheetDebug", "=== FullMapScreen 초기화 ===")
-        Log.d("BottomSheetDebug", "초기 bottomSheetContents.size: ${bottomSheetContents.size}")
-        Log.d("BottomSheetDebug", "초기 isLoading: $isLoading")
-        Log.d("BottomSheetDebug", "초기 isBottomSheetExpanded: $isBottomSheetExpanded")
+
+    // 바텀시트 상태 변화 추적
+    LaunchedEffect(isBottomSheetExpanded) {
+        android.util.Log.d("FullMapScreen", "🎯 [STATE] isBottomSheetExpanded 변화: $isBottomSheetExpanded")
+        try {
+            if (isBottomSheetExpanded) {
+                bottomSheetState.animateTo(BottomSheetValue.Expanded)
+                android.util.Log.d("FullMapScreen", "✅ [STATE] 바텀시트 확장 호출됨")
+            } else {
+                bottomSheetState.animateTo(BottomSheetValue.Hidden)
+                android.util.Log.d("FullMapScreen", "❌ [STATE] 바텀시트 숨김 호출됨")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FullMapScreen", "❌ [STATE] 바텀시트 상태 변경 실패", e)
+        }
+    }
+
+    // 바텀시트 내용 변화 추적 (통합 바텀시트 포함)
+    LaunchedEffect(bottomSheetContents.size, bottomSheetItems.size) {
+        android.util.Log.d("FullMapScreen", "🎯 [STATE] bottomSheetContents.size 변화: ${bottomSheetContents.size}, bottomSheetItems.size: ${bottomSheetItems.size}")
+    }
+
+    // 로딩 상태 변화 추적
+    LaunchedEffect(isLoading) {
+        android.util.Log.d("FullMapScreen", "🎯 [STATE] isLoading 변화: $isLoading")
     }
 
     // 바텀시트 상태 실시간 추적 - 사용자가 직접 드래그했을 때도 ViewModel에 반영
     LaunchedEffect(bottomSheetState) {
         snapshotFlow { bottomSheetState.currentValue }
             .collect { currentValue ->
-                Log.d("BottomSheetDebug", "바텀시트 상태 변화 감지: $currentValue")
                 val isExpanded = currentValue == BottomSheetValue.Expanded
-
-                // ViewModel의 상태와 실제 바텀시트 상태가 다를 때만 업데이트
                 if (isBottomSheetExpanded != isExpanded) {
-                    Log.d("BottomSheetDebug", "ViewModel 상태 업데이트: $isBottomSheetExpanded -> $isExpanded")
                     mapViewModel.updateBottomSheetExpanded(isExpanded)
                 }
             }
     }
 
-    // 상태 변화 모니터링
-    LaunchedEffect(bottomSheetContents.size, isLoading, isBottomSheetExpanded) {
-        Log.d("BottomSheetDebug", "=== 상태 변화 감지 ===")
-        Log.d("BottomSheetDebug", "bottomSheetContents.size: ${bottomSheetContents.size}")
-        Log.d("BottomSheetDebug", "bottomSheetContents: $bottomSheetContents")
-        Log.d("BottomSheetDebug", "isLoading: $isLoading")
-        Log.d("BottomSheetDebug", "isBottomSheetExpanded: $isBottomSheetExpanded")
-        Log.d("BottomSheetDebug", "bottomSheetState.currentValue: ${bottomSheetState.currentValue}")
-    }
 
     // 마커 클릭시 자동 확장 - SideEffect로 즉시 반응 (단, 실제 마커 선택이 있을 때만)
     if (isLoading && mapViewModel.selectedMarkerId.collectAsState().value != null) {
         SideEffect {
-            Log.d("BottomSheetDebug", "SideEffect: isLoading=true, selectedMarkerId 있음, 바텀시트 확장 중")
             coroutineScope.launch {
                 bottomSheetState.snapTo(BottomSheetValue.Expanded)
             }
         }
-    } else if (isLoading) {
-        Log.d("BottomSheetDebug", "SideEffect: isLoading=true이지만 selectedMarkerId 없음, 바텀시트 확장 안함")
     }
 
-    LaunchedEffect(bottomSheetContents.size) {
-        Log.d("BottomSheetDebug", "LaunchedEffect(bottomSheetContents.size): ${bottomSheetContents.size}")
-        Log.d("BottomSheetDebug", "현재 isLoading: $isLoading")
-        
-        // 로딩이 끝나고 컨텐츠가 업데이트될 때
+    // 바텀시트 콘텐츠 변화에 따른 상태 조절 (통합 바텀시트 지원)
+    LaunchedEffect(bottomSheetContents.size, bottomSheetItems.size, isLoading) {
         if (!isLoading) {
+            val totalItems = if (bottomSheetItems.isNotEmpty()) bottomSheetItems.size else bottomSheetContents.size
             when {
-                bottomSheetContents.isEmpty() -> {
-                    Log.d("BottomSheetDebug", "컨텐츠 없음 -> PartiallyExpanded")
+                totalItems == 0 -> {
                     bottomSheetState.snapTo(BottomSheetValue.PartiallyExpanded)
                 }
-                bottomSheetContents.size >= 1 -> {
-                    Log.d("BottomSheetDebug", "컨텐츠 ${bottomSheetContents.size}개 -> Expanded")
+                totalItems >= 1 -> {
                     bottomSheetState.snapTo(BottomSheetValue.Expanded)
                 }
             }
-        } else {
-            Log.d("BottomSheetDebug", "로딩 중이므로 바텀시트 상태 변경 안함")
         }
     }
 
-    // isBottomSheetExpanded와 동기화 - 지도 드래그시에는 부드러운 애니메이션 적용
+    // 바텀시트 확장/축소 상태 동기화 (통합 바텀시트 지원)
     LaunchedEffect(isBottomSheetExpanded) {
-        Log.d("BottomSheetDebug", "LaunchedEffect(isBottomSheetExpanded): $isBottomSheetExpanded")
-        Log.d("BottomSheetDebug", "bottomSheetContents.isEmpty(): ${bottomSheetContents.isEmpty()}")
-        Log.d("BottomSheetDebug", "isLoading: $isLoading")
-        
-        if (isBottomSheetExpanded && (bottomSheetContents.isNotEmpty() || isLoading)) {
-            Log.d("BottomSheetDebug", "isBottomSheetExpanded=true -> snapTo Expanded")
-            bottomSheetState.snapTo(BottomSheetValue.Expanded) // 확장시에는 즉시
-        } else if (!isBottomSheetExpanded && bottomSheetContents.isNotEmpty() && !isLoading) {
-            Log.d("BottomSheetDebug", "isBottomSheetExpanded=false -> animateTo PartiallyExpanded")
-            bottomSheetState.animateTo(BottomSheetValue.PartiallyExpanded) // 축소시에는 애니메이션
-        } else {
-            Log.d("BottomSheetDebug", "isBottomSheetExpanded 동기화 조건 미충족")
+        val hasItems = bottomSheetItems.isNotEmpty() || bottomSheetContents.isNotEmpty()
+        if (isBottomSheetExpanded && (hasItems || isLoading)) {
+            bottomSheetState.snapTo(BottomSheetValue.Expanded)
+        } else if (!isBottomSheetExpanded && hasItems && !isLoading) {
+            bottomSheetState.animateTo(BottomSheetValue.PartiallyExpanded)
         }
     }
 
@@ -654,10 +695,13 @@ fun FullMapScreen(
                                 naverMapRef = map
                                 mapInitializer.setupMapUI(map)
 
+                                android.util.Log.d("FullMapScreen", "🚀 [INIT] ClusterManager 생성 시작")
                                 clusterManager =
                                     clusterManagerInitializer.createClusterManager(map) { centerContent ->
                                         highlightedContent = centerContent
                                     }
+                                android.util.Log.d("FullMapScreen", "✅ [INIT] ClusterManager 생성 완료")
+                                android.util.Log.d("FullMapScreen", "🔗 [INIT] clusterManager.onMarkerClick: ${clusterManager?.onMarkerClick}")
 
                                 // POI 마커 매니저 초기화
                                 poiMarkerManager = POIMarkerManager(context, map, coroutineScope).apply {
@@ -665,6 +709,12 @@ fun FullMapScreen(
                                         android.util.Log.d("FullMapScreen", "🏪 POI 마커 클릭됨: ${poi.name}")
                                         mapViewModel.onPOIClick(poi)
                                     }
+                                }
+
+                                // 클러스터 매니저와 POI 매니저 연결 (마커 위치 동기화)
+                                clusterManager?.onMarkerPositionsUpdated = { positions, zoomLevel ->
+                                    android.util.Log.d("FullMapScreen", "🎯 클러스터 → POI 위치 동기화: ${positions.size}개, 줌: $zoomLevel")
+                                    poiMarkerManager?.updateExistingMarkerPositions(positions, zoomLevel)
                                 }
                                 android.util.Log.d("FullMapScreen", "🏪 POI 마커 매니저 초기화 완료")
 
@@ -690,17 +740,13 @@ fun FullMapScreen(
                                 setNaverMap(map)
                             }
 
-                            // 기존 카메라 리스너 (마커 중심점 관리)
+                            // 카메라 리스너와 뷰포트 관리자 초기화 (실제 리스너 등록은 LaunchedEffect에서 통합 처리)
                                 mapCameraListener = MapCameraListener(mapViewModel, clusterManager, interactionController)
-                                map.addOnCameraChangeListener(mapCameraListener!!.createCameraChangeListener())
 
-                            // 새로운 뷰포트 관리자 (화면 영역 기반 데이터 로드)
+                            // 뷰포트 관리자 초기화
                             mapViewportManager = com.shinhan.campung.presentation.ui.map.MapViewportManager(mapViewModel, coroutineScope).apply {
                                 setNaverMap(map) // NaverMap 참조 설정
                             }
-                            
-                            // 뷰포트 매니저의 카메라 리스너 추가
-                            map.addOnCameraChangeListener(mapViewportManager!!.createCameraChangeListener())
 
                                 // 지도 클릭 시 마커 및 클러스터 선택 해제
                                 map.setOnMapClickListener { _, _ ->
@@ -717,19 +763,29 @@ fun FullMapScreen(
                                         }
                                     }
                                 }
+
                             }
                         } else {
                             naverMapRef?.let { map ->
-                                mapInitializer.setupLocationOverlay(map, hasPermission, myLatLng)
+                                mapInitializer.setupLocationOverlay(map, mapView, hasPermission, myLatLng)
 
-                                // 위치 공유 마커 업데이트 (모듈화된 매니저 사용)
-                                sharedLocationMarkerManager.updateSharedLocationMarkers(map, sharedLocations)
+                                // 위치 공유 마커는 모듈화된 컴포넌트에서 자동 관리
                             }
                         }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
 
+                // 내 위치 Lottie 애니메이션 마커
+                myLatLng?.let { currentLocation ->
+                    naverMapRef?.let { map ->
+                        MyLocationMarker(
+                            map = map,
+                            location = currentLocation,
+                            modifier = Modifier.zIndex(1f) // 지도 위에, UI 요소들 아래에
+                        )
+                    }
+                }
 
                 // LocationButton - 바텀시트와 함께 움직임 (커스텀 아이콘 버전)
                 Box(
@@ -759,7 +815,7 @@ fun FullMapScreen(
                                     // 내 위치로 카메라 이동 + 오버레이 표시
                                     naverMapRef?.moveCamera(CameraUpdate.scrollAndZoomTo(pos, 16.0))
                                     naverMapRef?.locationOverlay?.apply {
-                                        isVisible = true
+                                        isVisible = false
                                         position = pos
                                     }
                                     isCenterOnMyLocation = true   // 아이콘: btn_mylocation
@@ -807,7 +863,8 @@ fun FullMapScreen(
                             end = 16.dp,
                             bottom = 8.dp + dragHandleHeight // 바텀시트 드래그 핸들 높이만큼 위로
                         )
-                        .offset(y = locationButtonOffsetY) // 바텀시트와 함께 움직임
+                        .offset(y = locationButtonOffsetY)
+                        .zIndex(3f)// 바텀시트와 함께 움직임
                 ) {
                     Column(
                         horizontalAlignment = Alignment.End,
@@ -911,7 +968,7 @@ fun FullMapScreen(
                     }
                 }
 
-                // 새로운 바텀시트 컴포넌트 사용
+                // 바텀시트 컴포넌트
                 MapDraggableBottomSheet(
                     state = bottomSheetState,
                     screenHeight = screenHeight,
@@ -919,17 +976,41 @@ fun FullMapScreen(
                     contentHeight = dynamicContentHeight,
                     dragHandleHeight = dragHandleHeight
                 ) {
-                    // 바텀시트 콘텐츠
-                    MapBottomSheetContent(
-                        contents = bottomSheetContents,
-                        isLoading = isLoading,
-                        isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
-                        navigationBarHeight = with(density) { navigationBarHeight.toDp() },
-                        statusBarHeight = with(density) { statusBarHeight.toDp() },
-                        onContentClick = { content ->
-                            navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
-                        }
-                    )
+                    // 통합 바텀시트 사용 (기존 방식 하위 호환성 유지)
+                    if (bottomSheetItems.isNotEmpty()) {
+                        // 새로운 통합 방식 (MapItem 리스트 사용)
+                        MixedMapBottomSheetContent(
+                            items = bottomSheetItems,
+                            isLoading = isLoading,
+                            isInteractionEnabled = bottomSheetItems.isNotEmpty() || isLoading,
+                            navigationBarHeight = with(density) { navigationBarHeight.toDp() },
+                            statusBarHeight = with(density) { statusBarHeight.toDp() },
+                            currentPlayingRecord = currentPlayingRecord,
+                            isPlaying = false, // TODO: 오디오 플레이어 상태와 연결
+                            onContentClick = { content ->
+                                navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
+                            },
+                            onRecordClick = { record ->
+                                // Record 클릭 시 추가 동작 (필요시)
+                                Log.d("FullMapScreen", "Record 클릭: ${record.recordUrl}")
+                            },
+                            onRecordPlayClick = { record ->
+                                mapViewModel.playRecord(record)
+                            }
+                        )
+                    } else {
+                        // 기존 방식 (하위 호환성)
+                        MapBottomSheetContent(
+                            contents = bottomSheetContents,
+                            isLoading = isLoading,
+                            isInteractionEnabled = bottomSheetContents.isNotEmpty() || isLoading,
+                            navigationBarHeight = with(density) { navigationBarHeight.toDp() },
+                            statusBarHeight = with(density) { statusBarHeight.toDp() },
+                            onContentClick = { content ->
+                                navController.navigate("${Route.CONTENT_DETAIL}/${content.contentId}")
+                            }
+                        )
+                    }
                 }
 
 
@@ -957,18 +1038,34 @@ fun FullMapScreen(
                     onTagClick = { tagId -> mapViewModel.toggleFilterTag(tagId) },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 80.dp)   // 헤더 카드 아래 공간 확보
+                        .padding(top = 67.dp)
+                        .zIndex(3f)// 헤더 카드 아래 공간 확보
                 )
 
 
-                // 날씨/온도 표시 (오른쪽 상단, 필터 태그 아래)
-                // 표시
+
+                // 날씨/온도 표시 (왼쪽 하단, my_location 버튼 위)
+                // 날씨/온도 표시 (오른쪽 상단)
                 WeatherTemperatureDisplay(
                     weather = uiWeather,
                     temperature = uiTemperature,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 110.dp, end = 8.dp)
+                        .align(Alignment.BottomStart)
+                        .padding(
+                            start = 16.dp,
+                            bottom = 70.dp + dragHandleHeight // my_location 버튼(40dp) + 간격(14dp) + 기존패딩(16dp)
+                        )
+                        .offset(y = locationButtonOffsetY)
+                        .zIndex(3f)
+                )
+
+                // 친구 위치공유 마커 관리 (모듈화된 컴포넌트)
+                FullMapFriendLocationManager(
+                    map = naverMapRef,
+                    onFriendClick = { friend ->
+                        Log.d("FullMapScreen", "친구 위치 클릭: ${friend.userName}")
+                        // 필요시 추가 처리 로직
+                    }
                 )
 
                 // 애니메이션 툴팁 오버레이
@@ -1024,6 +1121,21 @@ fun FullMapScreen(
                 }
 
 
+                // AudioPlayer가 활성화되었을 때 지도 클릭 감지 오버레이
+                if (currentPlayingRecord != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                mapViewModel.stopRecord()
+                            }
+                            .zIndex(999f) // AudioPlayer보다 아래에 있어야 함
+                    )
+                }
+
                 // 오디오 플레이어 오버레이 - 애니메이션 추가
                 AnimatedVisibility(
                     visible = currentPlayingRecord != null,
@@ -1040,11 +1152,13 @@ fun FullMapScreen(
                         animationSpec = tween(200)
                     ),
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 120.dp) // 바텀시트 위에 표시
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 36.dp) // 바텀 위치 조정
                         .zIndex(1000f) // 최상위에 표시
                 ) {
                     currentPlayingRecord?.let { record ->
+                        val isMyRecord = mapViewModel.isMyRecord(record, currentUserId)
+                        
                         AudioPlayer(
                             recordUrl = record.recordUrl,
                             recordId = record.recordId,
@@ -1052,7 +1166,28 @@ fun FullMapScreen(
                             createdAt = record.createdAt,
                             onClose = {
                                 mapViewModel.stopRecord()
-                            }
+                            },
+                            onDelete = if (isMyRecord) {
+                                {
+                                    // 삭제 확인 다이얼로그 표시
+                                    android.app.AlertDialog.Builder(context)
+                                        .setTitle("음성 녹음 삭제")
+                                        .setMessage("이 음성 녹음을 삭제하시겠습니까?\n삭제된 음성은 복구할 수 없습니다.")
+                                        .setPositiveButton("삭제") { _, _ ->
+                                            mapViewModel.deleteRecord(
+                                                recordId = record.recordId,
+                                                onSuccess = {
+                                                    android.widget.Toast.makeText(context, "음성 녹음이 삭제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                onError = { errorMessage ->
+                                                    android.widget.Toast.makeText(context, "삭제 실패: $errorMessage", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                        }
+                                        .setNegativeButton("취소", null)
+                                        .show()
+                                }
+                            } else null
                         )
                     }
                 }
@@ -1064,6 +1199,7 @@ fun FullMapScreen(
             if (showPOIDialog) {
                 POIDetailDialog(
                     poi = poi,
+                    isGeneratingSummary = isLoadingPOIDetail,
                     onDismiss = { mapViewModel.dismissPOIDialog() }
                 )
             }

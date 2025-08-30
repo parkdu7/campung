@@ -1,7 +1,7 @@
 package com.shinhan.campung.presentation.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -26,10 +26,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 
 @Composable
 fun AnimatedMapTooltip(
@@ -39,30 +37,33 @@ fun AnimatedMapTooltip(
     type: TooltipType,
     modifier: Modifier = Modifier
 ) {
-    // 디버깅 로그 제거됨
+    // 완전히 즉각적인 반응 - 애니메이션 없음
+    val offsetX = position.x - 190f
+    val offsetY = position.y - 320f
 
     Box(
         modifier = modifier
             .offset {
-                IntOffset(
-                    x = (position.x - 100).roundToInt(), // 툴팁 중앙 정렬을 위한 오프셋
-                    y = (position.y - 250).roundToInt() // 마커 위쪽 140px (더 위로)
+                // 완전히 즉각적 - 애니메이션 지연 없음
+                androidx.compose.ui.unit.IntOffset(
+                    x = offsetX.toInt(),
+                    y = offsetY.toInt()
                 )
             }
     ) {
         AnimatedVisibility(
             visible = visible,
             enter = fadeIn(
-                animationSpec = tween(250, easing = FastOutSlowInEasing) // 빠르게 250ms
+                animationSpec = tween(100, easing = LinearEasing)
             ) + scaleIn(
-                animationSpec = tween(250, easing = FastOutSlowInEasing),
-                initialScale = 0.7f // 좀 더 자연스러운 시작 스케일
+                animationSpec = tween(100, easing = LinearEasing),
+                initialScale = 0.9f
             ),
             exit = fadeOut(
-                animationSpec = tween(150) // 빠른 사라짐
+                animationSpec = tween(50)
             ) + scaleOut(
-                animationSpec = tween(150),
-                targetScale = 0.7f
+                animationSpec = tween(50),
+                targetScale = 0.9f
             )
         ) {
             // 말풍선 모양 툴팁 (Box + 꼬리)
