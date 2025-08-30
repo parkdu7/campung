@@ -150,6 +150,14 @@ fun FullMapScreen(
 
 
     val sharedLocations by locationSharingManager.sharedLocations.collectAsState()
+    
+    // SharedLocations 디버그 로그
+    LaunchedEffect(sharedLocations) {
+        Log.d("FullMapScreen", "📍 SharedLocations 업데이트: ${sharedLocations.size}개")
+        sharedLocations.forEach { location ->
+            Log.d("FullMapScreen", "  - ${location.userName}: (${location.latitude}, ${location.longitude}) until ${location.displayUntil}")
+        }
+    }
 
     // POI 관련 상태
     val poiData by mapViewModel.poiData.collectAsState()
@@ -1062,15 +1070,17 @@ fun FullMapScreen(
                         .zIndex(3f)
                 )
 
-                // 친구 위치공유 마커 관리 (직접 데이터 전달)
-                FullMapFriendLocationManager(
-                    map = naverMapRef,
-                    sharedLocations = sharedLocations,
-                    onFriendClick = { friend ->
-                        Log.d("FullMapScreen", "친구 위치 클릭: ${friend.userName}")
-                        // 필요시 추가 처리 로직
-                    }
-                )
+                // 친구 위치공유 마커 관리 (맵이 준비되었을 때만)
+                if (naverMapRef != null) {
+                    FullMapFriendLocationManager(
+                        map = naverMapRef,
+                        sharedLocations = sharedLocations,
+                        onFriendClick = { friend ->
+                            Log.d("FullMapScreen", "친구 위치 클릭: ${friend.userName}")
+                            // 필요시 추가 처리 로직
+                        }
+                    )
+                }
 
                 // 애니메이션 툴팁 오버레이
                 AnimatedMapTooltip(
