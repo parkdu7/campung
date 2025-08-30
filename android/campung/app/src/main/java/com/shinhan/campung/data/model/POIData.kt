@@ -38,7 +38,10 @@ data class POIData(
     
     @SerializedName("thumbnailUrl")
     val thumbnailUrl: String? = null,
-    
+
+    @SerializedName("imageUrl")
+    val imageUrl: String? = null,
+
     @SerializedName("currentSummary")
     val currentSummary: String? = null
 ) {

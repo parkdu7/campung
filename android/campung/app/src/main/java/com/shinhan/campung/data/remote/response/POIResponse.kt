@@ -28,6 +28,9 @@ data class POIItem(
     
     @SerializedName("thumbnailUrl")
     val thumbnailUrl: String?,
+
+    @SerializedName("imageUrl")
+    val imageUrl: String?,
     
     @SerializedName("category")
     val category: String,
