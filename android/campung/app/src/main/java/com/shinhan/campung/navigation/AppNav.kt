@@ -56,13 +56,21 @@ fun AppNav(
     }
 
     // 1) 상태 수집: 로그인 상태
-    val userId by authDataStore.userIdFlow.collectAsState(initial = "")
+    val userId by authDataStore.userIdFlow.collectAsState(initial = null)
 
-    // 2) startDestination 결정
-    val startRoute: String = when {
-        userId.isNullOrBlank() -> Route.LOGIN  // 미로그인 (첫 설치 포함)
-        else -> Route.HOME  // 로그인됨 (FCM은 LaunchedEffect에서 처리)
+    // 2) userId가 아직 로드되지 않았으면 로딩 화면 표시
+    if (userId == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
     }
+
+    // 3) userId가 로드된 후 적절한 화면 결정
+    val startRoute = if (userId?.isBlank() != false) Route.LOGIN else Route.HOME
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 항상 깔리는 기본 배경 (검은 잔상 방지)

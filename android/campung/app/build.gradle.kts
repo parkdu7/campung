@@ -52,6 +52,9 @@ android {
         enableAggregatingTask = false
     }
     
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
 }
 
 

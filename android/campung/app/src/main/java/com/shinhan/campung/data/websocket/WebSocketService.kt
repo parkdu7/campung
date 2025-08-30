@@ -18,6 +18,7 @@ class WebSocketService @Inject constructor(
 ) {
     private var webSocketClient: WebSocketClient? = null
     private var currentSubscription: String? = null
+    private var currentUserId: String? = null  // 현재 사용자 ID 저장
     
     private val _connectionState = MutableStateFlow(false)
     val connectionState: StateFlow<Boolean> = _connectionState
@@ -27,6 +28,9 @@ class WebSocketService @Inject constructor(
     
     fun connect(userId: String) {
         disconnect()
+        
+        // 현재 사용자 ID 저장
+        currentUserId = userId
         
         try {
             // WebSocket URL 생성 (여러 패턴 시도)
@@ -133,6 +137,7 @@ ${'\u0000'}"""
         unsubscribe()
         webSocketClient?.close()
         webSocketClient = null
+        currentUserId = null  // 사용자 ID 초기화
         _connectionState.value = false
     }
     
@@ -155,7 +160,18 @@ ${'\u0000'}"""
                         Log.d(TAG, "Message body: $body")
                         val newPostEvent = gson.fromJson(body, NewPostEvent::class.java)
                         Log.d(TAG, "🔔 Parsed new post event: $newPostEvent")
-                        _newPostEvent.value = newPostEvent
+                        
+                        // 본인이 작성한 게시글인지 확인
+                        val isOwnPost = newPostEvent.userId == currentUserId
+                        Log.d(TAG, "Is own post? $isOwnPost (author: ${newPostEvent.userId}, current: $currentUserId)")
+                        
+                        // 본인 게시글이 아닐 때만 알림 이벤트 발생
+                        if (!isOwnPost) {
+                            _newPostEvent.value = newPostEvent
+                            Log.d(TAG, "✅ Notification will be shown for other user's post")
+                        } else {
+                            Log.d(TAG, "🚫 Skipping notification for own post")
+                        }
                     } else {
                         Log.w(TAG, "MESSAGE frame has no body")
                     }

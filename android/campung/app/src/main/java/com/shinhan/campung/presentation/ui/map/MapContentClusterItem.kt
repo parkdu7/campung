@@ -13,7 +13,7 @@ data class MapContentClusterItem(
     }
     
     fun getTitle(): String = mapContent.title
-    fun getSnippet(): String = mapContent.body
+    fun getSnippet(): String = mapContent.body ?: ""
     fun getPostType(): String = mapContent.postType
     fun getMarkerType(): String = mapContent.markerType
 }

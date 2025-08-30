@@ -104,11 +104,11 @@ fun MapContentOverlay(
                         )
                         
                         // 내용 미리보기 (짧게)
-                        if (content.body.isNotBlank() && content.body.length > 20) {
+                        if (!content.body.isNullOrBlank() && content.body!!.length > 20) {
                             Spacer(modifier = Modifier.height(4.dp))
                             
                             Text(
-                                text = content.body.take(50) + if (content.body.length > 50) "..." else "",
+                                text = content.body?.take(50) + if ((content.body?.length ?: 0) > 50) "..." else "",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

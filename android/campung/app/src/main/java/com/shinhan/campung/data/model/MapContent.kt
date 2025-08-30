@@ -17,7 +17,7 @@ data class MapContent(
     val contentScope: String,
     val contentType: String,
     val title: String,
-    val body: String,
+    val body: String?,
     val mediaFiles: List<MediaFile>?,
     val emotionTag: String,
     val emotionWeather: String? = null,
@@ -27,7 +27,7 @@ data class MapContent(
     val expiresAt: String?
 ) {
     // UI에서 사용하는 computed properties
-    val content: String get() = body
+    val content: String? get() = body
     val authorNickname: String get() = if (author.anonymous) "익명" else author.nickname
     val category: ContentCategory get() = ContentCategory.fromValue(postType)
     val thumbnailUrl: String? get() = mediaFiles?.firstOrNull()?.thumbnail
@@ -214,11 +214,11 @@ data class LikeResponse(
 )
 
 enum class ContentCategory(val value: String, val iconRes: Int, val displayName: String) {
-    INFO("info", R.drawable.ic_info, "정보"),
-    PROMOTION("promotion", R.drawable.ic_promotion, "홍보"),
-    FREE("free", R.drawable.ic_free, "자유"),
-    MARKET("market", R.drawable.ic_market, "장터"),
-    HOT("hot", R.drawable.ic_hot, "인기");
+    INFO("INFO", R.drawable.info_icon, "정보"),
+    PROMOTION("NOTICE", R.drawable.promotion_icon, "홍보"),
+    FREE("FREE", R.drawable.free_icon, "자유"),
+    MARKET("MARKET", R.drawable.store_icon, "장터"),
+    HOT("HOT", R.drawable.hot_icon, "인기");
     
     companion object {
         fun fromValue(value: String): ContentCategory {

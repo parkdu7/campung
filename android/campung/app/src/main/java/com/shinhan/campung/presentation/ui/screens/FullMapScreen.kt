@@ -974,7 +974,8 @@ fun FullMapScreen(
                     screenHeight = screenHeight,
                     availableHeight = availableHeight,
                     contentHeight = dynamicContentHeight,
-                    dragHandleHeight = dragHandleHeight
+                    dragHandleHeight = dragHandleHeight,
+                    modifier = Modifier.zIndex(2f) // Lottie(1f)보다 높게 설정
                 ) {
                     // 통합 바텀시트 사용 (기존 방식 하위 호환성 유지)
                     if (bottomSheetItems.isNotEmpty()) {
