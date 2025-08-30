@@ -53,8 +53,8 @@ class SharedLocationMarkerManager {
                 captionText = "${sharedLocation.userName}님의 위치"
                 captionTextSize = 12f
                 captionColor = 0xFF0000FF.toInt() // 파란색 고정값
-                width = 100
-                height = 100
+                width = 140
+                height = 140
                 // location_share 아이콘 적용
                 icon = OverlayImage.fromResource(R.drawable.location_share)
                 map = naverMap
