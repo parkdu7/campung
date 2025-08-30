@@ -17,7 +17,8 @@ class ClusterManagerInitializer(
     fun createClusterManager(
         naverMap: NaverMap,
         mapContainer: ViewGroup? = null,
-        onHighlightedContentChanged: (MapContent?) -> Unit
+        onHighlightedContentChanged: (MapContent?) -> Unit,
+        poiMarkerManager: POIMarkerManager? = null
     ): MapClusterManager {
         return MapClusterManager(context, naverMap, mapContainer).also { manager ->
             manager.setupClustering()
@@ -84,6 +85,12 @@ class ClusterManagerInitializer(
             manager.onMixedClusterClick = { mixedClusterItems ->
                 Log.d("ClusterManagerInitializer", "🎯 통합 클러스터 클릭: ${mixedClusterItems.size}개 아이템")
                 mapViewModel.selectMixedCluster(mixedClusterItems)
+            }
+            
+            // POI 매니저와 연결 (충돌 감지용)
+            if (poiMarkerManager != null) {
+                manager.poiMarkerManager = poiMarkerManager
+                Log.d("ClusterManagerInitializer", "🏪 POI 매니저와 마커 매니저 연결 완료")
             }
         }
     }

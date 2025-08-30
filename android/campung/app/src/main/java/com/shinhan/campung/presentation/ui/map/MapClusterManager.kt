@@ -57,6 +57,12 @@ class MapClusterManager(
     
     // POI 충돌 방지를 위한 마커 위치 업데이트 콜백
     var onMarkerPositionsUpdated: ((List<LatLng>, Double) -> Unit)? = null
+    
+    // POI 매니저 참조 (POI 위치 정보 가져오기 위함)
+    var poiMarkerManager: POIMarkerManager? = null
+    
+    // 카메라 변경 시 마커 재배치 콜백
+    var onCameraChangeForMarkerRepositioning: (() -> Unit)? = null
 
     // 선택된 마커 상태 관리
     var selectedMarker: Marker? = null
@@ -93,6 +99,10 @@ class MapClusterManager(
         private val MARKER_SIZE get() = MarkerConfig.BASE_MARKER_SIZE
         private val SELECTED_MARKER_SCALE get() = MarkerConfig.SELECTED_SCALE
         private val HIGHLIGHTED_MARKER_SCALE get() = MarkerConfig.HIGHLIGHTED_SCALE
+        
+        // 마커 충돌 감지 설정
+        private const val COLLISION_DETECTION_MIN_ZOOM = 19.0  // 줌 19 이상에서만 충돌 감지
+        private const val MARKER_COLLISION_RADIUS_PX = 60      // 마커 충돌 반경 (픽셀)
     }
     
     // 아이콘 캐싱 시스템
@@ -438,6 +448,12 @@ class MapClusterManager(
 
         // POI 매니저에 현재 마커 위치들 전달 (충돌 방지용)
         notifyMarkerPositions()
+        
+        // 줌 레벨이 높고 POI가 있으면 마커 재배치 (POI 변경 시 대응)
+        if (currentZoom >= COLLISION_DETECTION_MIN_ZOOM && poiMarkerManager != null) {
+            Log.d("MapClusterManager", "🔄 POI 업데이트 감지 - 마커 재배치 검토")
+            redistributeMarkersAvoidingPOI()
+        }
 
         // 클러스터링 완료 콜백 호출
         onComplete?.invoke()
@@ -530,11 +546,22 @@ class MapClusterManager(
                 // 단일 마커
                 val content = cluster[0]
                 Log.d("MapClusterManager", "📍 [MARKER] 단일 마커 생성: ${content.title} (ID: ${content.contentId})")
-                Log.d("MapClusterManager", "📍 [MARKER] 위치: (${content.location.latitude}, ${content.location.longitude})")
+                Log.d("MapClusterManager", "📍 [MARKER] 원래 위치: (${content.location.latitude}, ${content.location.longitude})")
                 Log.d("MapClusterManager", "🔗 [MARKER] 마커 생성 시점 onMarkerClick: ${onMarkerClick}")
                 
+                // POI와의 충돌을 피한 최적 위치 계산
+                val originalPosition = LatLng(content.location.latitude, content.location.longitude)
+                val optimalPosition = calculateOptimalMarkerPosition(originalPosition, content)
+                
+                if (optimalPosition != originalPosition) {
+                    Log.e("MapClusterManager", "🕷️ [MARKER] Spider 적용됨: ${content.title}")
+                    Log.e("MapClusterManager", "🕷️ [MARKER] 최종 위치: (${optimalPosition.latitude}, ${optimalPosition.longitude})")
+                } else {
+                    Log.d("MapClusterManager", "📍 [MARKER] 충돌 없음 - 원위치 사용: ${content.title}")
+                }
+                
                 val marker = Marker().apply {
-                    position = LatLng(content.location.latitude, content.location.longitude)
+                    position = optimalPosition
                     icon = getNormalMarkerIcon(content.postType)
                     map = naverMap
                     tag = content // MapContent 저장
@@ -551,7 +578,7 @@ class MapClusterManager(
                             onMarkerClick?.invoke(content)
                         } else {
                             Log.d("MapClusterManager", "🎯 [CLICK] 새 마커 선택 - selectMarker 호출")
-                            // 새로운 마커 선택 및 카메라 이동 (줌레벨 유지)
+                            // 새로운 마커 선택 및 카메라 이동 (원래 위치로 이동)
                             selectMarker(content)
                             
                             // 마커 클릭 이동 플래그 설정
@@ -876,7 +903,7 @@ class MapClusterManager(
                 
                 when (item) {
                     is MapContentItem -> {
-                        val marker = createContentMarker(item.content)
+                        val marker = createContentMarkerWithCollisionDetection(item.content)
                         markers.add(marker)
                         Log.d("MapClusterManager", "✅ [MIXED] Content 마커 추가 완료")
                     }
@@ -966,7 +993,52 @@ class MapClusterManager(
     }
 
     /**
-     * Content 마커를 생성하는 헬퍼 함수
+     * Content 마커를 생성하는 헬퍼 함수 (충돌 감지 적용)
+     */
+    private fun createContentMarkerWithCollisionDetection(content: MapContent): Marker {
+        // POI와의 충돌을 피한 최적 위치 계산
+        val originalPosition = LatLng(content.location.latitude, content.location.longitude)
+        val optimalPosition = calculateOptimalMarkerPosition(originalPosition, content)
+        
+        if (optimalPosition != originalPosition) {
+            Log.e("MapClusterManager", "🕷️ [MIXED CONTENT] Spider 적용됨: ${content.title}")
+        }
+        
+        return Marker().apply {
+            position = optimalPosition
+            icon = getNormalMarkerIcon(content.postType)
+            map = naverMap
+            tag = content
+
+            setOnClickListener {
+                Log.e("MapClusterManager", "🎯🎯🎯 [MIXED CONTENT] 개별 Content 마커 클릭!!!")
+                
+                if (selectedContent?.contentId == content.contentId) {
+                    clearSelection()
+                    onMarkerClick?.invoke(content)
+                } else {
+                    selectMarker(content)
+                    
+                    isClusterMoving = true
+                    
+                    naverMap.moveCamera(
+                        CameraUpdate.scrollTo(LatLng(content.location.latitude, content.location.longitude))
+                            .animate(CameraAnimation.Easing)
+                    )
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        isClusterMoving = false
+                    }, 1000)
+                    
+                    onMarkerClick?.invoke(content)
+                }
+                true
+            }
+        }
+    }
+    
+    /**
+     * Content 마커를 생성하는 헬퍼 함수 (기존 방식 - 호환성 유지)
      */
     private fun createContentMarker(content: MapContent): Marker {
         return Marker().apply {
@@ -1704,5 +1776,182 @@ class MapClusterManager(
         
         // POI 매니저에 콜백으로 전달
         onMarkerPositionsUpdated?.invoke(allPositions, currentZoom)
+    }
+    
+    // ===== 🆕 마커 충돌 감지 및 Spider 알고리즘 시스템 =====
+    
+    /**
+     * POI와의 충돌을 피해 마커 최적 위치 계산 (화면 좌표 기반)
+     */
+    private fun calculateOptimalMarkerPosition(originalPosition: LatLng, content: MapContent): LatLng {
+        val currentZoom = naverMap.cameraPosition.zoom
+        
+        // 줌 레벨이 충돌 감지 임계값보다 낮으면 원위치 사용
+        if (currentZoom < COLLISION_DETECTION_MIN_ZOOM) {
+            return originalPosition
+        }
+        
+        // POI 위치들 가져오기
+        val poiPositions = poiMarkerManager?.getPOIPositions() ?: emptyList()
+        
+        if (poiPositions.isEmpty()) {
+            return originalPosition
+        }
+        
+        Log.d("MapClusterManager", "🎯 마커 충돌 감지: ${content.title} - POI ${poiPositions.size}개와 비교")
+        
+        // 1. 마커 원래 위치를 화면 좌표로 변환
+        val markerScreenPoint = naverMap.projection.toScreenLocation(originalPosition)
+        
+        // 2. POI들의 화면 좌표 계산
+        val poiScreenPoints = poiPositions.map { position ->
+            naverMap.projection.toScreenLocation(position)
+        }
+        
+        // 3. 화면상 충돌 감지
+        var hasCollision = false
+        poiScreenPoints.forEachIndexed { index, screenPoint ->
+            val pixelDistance = sqrt(
+                (markerScreenPoint.x - screenPoint.x).toDouble().pow(2) + 
+                (markerScreenPoint.y - screenPoint.y).toDouble().pow(2)
+            )
+            
+            if (pixelDistance <= MARKER_COLLISION_RADIUS_PX) {
+                hasCollision = true
+                Log.e("MapClusterManager", "🚨 마커-POI 충돌 감지! POI[$index]: ${pixelDistance.toInt()}px ≤ ${MARKER_COLLISION_RADIUS_PX}px")
+            }
+        }
+        
+        if (!hasCollision) {
+            Log.d("MapClusterManager", "✅ 마커 충돌 없음 - 원위치 사용: ${content.title}")
+            return originalPosition
+        }
+        
+        // 4. 충돌 시 Spider 알고리즘으로 8방향 오프셋 적용
+        Log.e("MapClusterManager", "🕷️ Spider 알고리즘 시작: ${content.title}")
+        
+        val offsetDistance = MARKER_COLLISION_RADIUS_PX + 20 // 여유 공간
+        val angles = listOf(0, 45, 90, 135, 180, 225, 270, 315) // 8방향
+        
+        for (angle in angles) {
+            val radians = Math.toRadians(angle.toDouble())
+            val offsetX = cos(radians) * offsetDistance
+            val offsetY = sin(radians) * offsetDistance
+            
+            val offsetScreenPoint = android.graphics.PointF(
+                (markerScreenPoint.x + offsetX).toFloat(),
+                (markerScreenPoint.y + offsetY).toFloat()
+            )
+            
+            // 오프셋된 화면 좌표를 지리 좌표로 변환
+            val offsetPosition = naverMap.projection.fromScreenLocation(offsetScreenPoint)
+            
+            // 오프셋 위치에서도 충돌 체크
+            var offsetHasCollision = false
+            poiScreenPoints.forEach { screenPoint ->
+                val pixelDistance = sqrt(
+                    (offsetScreenPoint.x - screenPoint.x).toDouble().pow(2) + 
+                    (offsetScreenPoint.y - screenPoint.y).toDouble().pow(2)
+                )
+                if (pixelDistance <= MARKER_COLLISION_RADIUS_PX) {
+                    offsetHasCollision = true
+                }
+            }
+            
+            if (!offsetHasCollision) {
+                Log.e("MapClusterManager", "✅ Spider: 최적 위치 찾음 ${angle}도 - ${content.title}")
+                Log.e("MapClusterManager", "✅ 원래: (${originalPosition.latitude}, ${originalPosition.longitude})")
+                Log.e("MapClusterManager", "✅ 최종: (${offsetPosition.latitude}, ${offsetPosition.longitude})")
+                return offsetPosition
+            }
+        }
+        
+        // 모든 방향에서 충돌하면 원위치 강제 사용
+        Log.e("MapClusterManager", "❌ Spider: 모든 방향 충돌 - 원위치 강제 사용: ${content.title}")
+        return originalPosition
+    }
+    
+    /**
+     * 마커들을 POI 충돌을 피해 재배치
+     */
+    fun redistributeMarkersAvoidingPOI() {
+        val currentZoom = naverMap.cameraPosition.zoom
+        
+        if (currentZoom < COLLISION_DETECTION_MIN_ZOOM) {
+            Log.d("MapClusterManager", "줌 레벨 낮음 ($currentZoom) - 마커 재배치 스킵")
+            return
+        }
+        
+        Log.e("MapClusterManager", "🔄 === 마커 재배치 시작 ===")
+        Log.e("MapClusterManager", "🔄 대상 마커: ${markers.size}개")
+        
+        var repositionedCount = 0
+        
+        markers.forEach { marker ->
+            val content = marker.tag as? MapContent ?: return@forEach
+            val originalPosition = LatLng(content.location.latitude, content.location.longitude)
+            val newPosition = calculateOptimalMarkerPosition(originalPosition, content)
+            
+            if (newPosition != originalPosition) {
+                marker.position = newPosition
+                repositionedCount++
+                Log.e("MapClusterManager", "🔄 마커 재배치됨: ${content.title}")
+            }
+        }
+        
+        Log.e("MapClusterManager", "🔄 마커 재배치 완료: ${repositionedCount}/${markers.size}개")
+    }
+    
+    /**
+     * 마커들을 원래 위치로 복원 (줌 아웃 시)
+     */
+    fun restoreMarkersToOriginalPositions() {
+        Log.e("MapClusterManager", "🔄 === 마커 원위치 복원 ===")
+        
+        var restoredCount = 0
+        
+        markers.forEach { marker ->
+            val content = marker.tag as? MapContent ?: return@forEach
+            val originalPosition = LatLng(content.location.latitude, content.location.longitude)
+            
+            if (marker.position != originalPosition) {
+                marker.position = originalPosition
+                restoredCount++
+                Log.e("MapClusterManager", "🔄 마커 원위치 복원: ${content.title}")
+            }
+        }
+        
+        Log.e("MapClusterManager", "🔄 원위치 복원 완료: ${restoredCount}/${markers.size}개")
+    }
+    
+    /**
+     * 카메라 변경 시 호출되는 마커 재배치 처리
+     */
+    fun onCameraChanged(zoom: Double) {
+        val wasCollisionActive = zoom >= COLLISION_DETECTION_MIN_ZOOM
+        val prevZoom = naverMap.cameraPosition.zoom
+        val wasPrevCollisionActive = prevZoom >= COLLISION_DETECTION_MIN_ZOOM
+        
+        Log.d("MapClusterManager", "📷 카메라 변경: $prevZoom → $zoom")
+        
+        // 충돌 감지 임계값을 넘나들 때만 재배치
+        when {
+            !wasPrevCollisionActive && wasCollisionActive -> {
+                // 줌 인: 마커 재배치 시작
+                Log.e("MapClusterManager", "🔍 줌 인: 마커 재배치 시작 ($zoom ≥ $COLLISION_DETECTION_MIN_ZOOM)")
+                redistributeMarkersAvoidingPOI()
+            }
+            wasPrevCollisionActive && !wasCollisionActive -> {
+                // 줌 아웃: 마커 원위치 복원
+                Log.e("MapClusterManager", "🔍 줌 아웃: 마커 원위치 복원 ($zoom < $COLLISION_DETECTION_MIN_ZOOM)")
+                restoreMarkersToOriginalPositions()
+            }
+            wasCollisionActive && wasPrevCollisionActive -> {
+                // 고줌에서 이동/줌: 실시간 재배치
+                Log.d("MapClusterManager", "🔍 고줌 상태 변경: 실시간 재배치")
+                redistributeMarkersAvoidingPOI()
+            }
+            // else: 저줌 상태 유지 - 아무 작업 안함
+        }
     }
 }

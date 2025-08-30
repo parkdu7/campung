@@ -695,28 +695,30 @@ fun FullMapScreen(
                                 naverMapRef = map
                                 mapInitializer.setupMapUI(map)
 
-                                android.util.Log.d("FullMapScreen", "🚀 [INIT] ClusterManager 생성 시작")
-                                clusterManager =
-                                    clusterManagerInitializer.createClusterManager(map) { centerContent ->
-                                        highlightedContent = centerContent
-                                    }
-                                android.util.Log.d("FullMapScreen", "✅ [INIT] ClusterManager 생성 완료")
-                                android.util.Log.d("FullMapScreen", "🔗 [INIT] clusterManager.onMarkerClick: ${clusterManager?.onMarkerClick}")
-
-                                // POI 마커 매니저 초기화
+                                // POI 마커 매니저 먼저 초기화
+                                android.util.Log.d("FullMapScreen", "🏪 [INIT] POI 마커 매니저 생성 시작")
                                 poiMarkerManager = POIMarkerManager(context, map, coroutineScope).apply {
                                     onPOIClick = { poi ->
                                         android.util.Log.d("FullMapScreen", "🏪 POI 마커 클릭됨: ${poi.name}")
                                         mapViewModel.onPOIClick(poi)
                                     }
                                 }
+                                android.util.Log.d("FullMapScreen", "✅ [INIT] POI 마커 매니저 생성 완료")
 
-                                // 클러스터 매니저와 POI 매니저 연결 (마커 위치 동기화)
+                                android.util.Log.d("FullMapScreen", "🚀 [INIT] ClusterManager 생성 시작")
+                                clusterManager =
+                                    clusterManagerInitializer.createClusterManager(map, null, { centerContent ->
+                                        highlightedContent = centerContent
+                                    }, poiMarkerManager)
+                                android.util.Log.d("FullMapScreen", "✅ [INIT] ClusterManager 생성 완료")
+                                android.util.Log.d("FullMapScreen", "🔗 [INIT] clusterManager.onMarkerClick: ${clusterManager?.onMarkerClick}")
+
+                                // 클러스터 매니저와 POI 매니저 연결 (마커 위치 동기화 - 호환성 유지)
                                 clusterManager?.onMarkerPositionsUpdated = { positions, zoomLevel ->
                                     android.util.Log.d("FullMapScreen", "🎯 클러스터 → POI 위치 동기화: ${positions.size}개, 줌: $zoomLevel")
                                     poiMarkerManager?.updateExistingMarkerPositions(positions, zoomLevel)
                                 }
-                                android.util.Log.d("FullMapScreen", "🏪 POI 마커 매니저 초기화 완료")
+                                android.util.Log.d("FullMapScreen", "🏪✅ POI 매니저와 클러스터 매니저 연결 완료")
 
                                 // 👇 카메라가 '움직이는 동안' 계속 호출됨: 아이콘 실시간 갱신
                                 map.addOnCameraChangeListener { _, _ ->
