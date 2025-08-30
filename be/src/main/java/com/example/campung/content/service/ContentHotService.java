@@ -6,16 +6,22 @@ import com.example.campung.entity.Content;
 import com.example.campung.entity.ContentHot;
 import com.example.campung.content.repository.ContentHotRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class ContentHotService {
+    
+    @Value("${app.default-profile-image-url}")
+    private String defaultProfileImageUrl;
     
     @Autowired
     private ContentHotTrackingService contentHotTrackingService;
@@ -84,7 +90,14 @@ public class ContentHotService {
             return new ContentHotResponse(true, "현재 인기 게시글이 없습니다.");
         }
         
+        // 현재 캠퍼스 사이클(05시 기준) 내의 HOT 게시글만 필터링
+        LocalDateTime currentCycleStart = getCurrentCycleStart();
+        
         List<ContentHotResponse.HotContentItem> hotContentItems = hotContents.stream()
+                .filter(contentHot -> {
+                    LocalDateTime createdAt = contentHot.getContent().getCreatedAt();
+                    return !createdAt.isBefore(currentCycleStart);
+                })
                 .map(contentHot -> {
                     Content content = contentHot.getContent();
                     ContentHotResponse.HotContentItem item = new ContentHotResponse.HotContentItem();
@@ -93,13 +106,21 @@ public class ContentHotService {
                     item.setUserId(content.getAuthor() != null ? content.getAuthor().getUserId() : null);
                     item.setTitle(content.getTitle());
                     item.setContent(content.getContent());
-                    item.setPostType(content.getPostType().name());
-                    item.setCreatedAt(content.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    item.setPostType("HOT");
+                    item.setCreatedAt(content.getCreatedAt().toString());
                     item.setHotScore(contentHot.getHotScore());
                     item.setLikeCount(content.getLikeCount());
                     item.setCommentCount(content.getCommentCount());
                     item.setBuildingName(content.getBuildingName());
                     item.setEmotion(content.getEmotion());
+                    item.setThumbnailUrl(content.getAttachments() != null && !content.getAttachments().isEmpty() ? 
+                        content.getAttachments().get(0).getThumbnailUrl() : null);
+                    
+                    String profileImageUrl = content.getAuthor() != null ? content.getAuthor().getProfileImageUrl() : null;
+                    if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
+                        profileImageUrl = defaultProfileImageUrl;
+                    }
+                    item.setUserProfileUrl(profileImageUrl);
                     
                     ContentHotResponse.AuthorInfo authorInfo = new ContentHotResponse.AuthorInfo();
                     if (content.getIsAnonymous()) {
@@ -116,5 +137,18 @@ public class ContentHotService {
                 .collect(Collectors.toList());
         
         return new ContentHotResponse(true, "인기 게시글 조회 성공", hotContentItems);
+    }
+    
+    private LocalDateTime getCurrentCycleStart() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalTime fiveAm = LocalTime.of(5, 0);
+        
+        if (now.toLocalTime().isBefore(fiveAm)) {
+            // 현재 시간이 05:00 이전이면 전날 05:00부터
+            return now.minusDays(1).with(fiveAm);
+        } else {
+            // 현재 시간이 05:00 이후면 당일 05:00부터
+            return now.with(fiveAm);
+        }
     }
 }
