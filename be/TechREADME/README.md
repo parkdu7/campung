@@ -62,7 +62,7 @@
 
 ### **Backend Core**
 - **Framework**: Spring Boot 3.x, Spring Security
-- **Database**: MySQL 8.0, Redis 7.x
+- **Database**: MariaDB (Latest), Redis 7.x
 - **ORM**: JPA/Hibernate with QueryDSL
 
 ### **AI & External Services**
@@ -76,7 +76,7 @@
 - **Caching**: Redis with Spring Data Redis
 
 ### **Development & Deployment**
-- **Build**: Gradle, Docker
+- **Build**: Gradle, Docker Compose
 - **API Documentation**: Swagger/OpenAPI 3.0
 - **Monitoring**: SLF4J Logging
 
@@ -155,7 +155,7 @@ for (String neighborCell : geohash.neighbors3x3(cell)) {
          ┌───────────────────────────────────────────────┐
          │              Data Layer                        │
          │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-         │  │    MySQL    │  │    Redis    │  │  WebSocket  │ │
+         │  │   MariaDB   │  │    Redis    │  │  WebSocket  │ │
          │  │  (Primary)  │  │  (Cache)    │  │   Broker    │ │
          │  └─────────────┘  └─────────────┘  └─────────────┘ │
          └───────────────────────────────────────────────────┘
@@ -227,11 +227,9 @@ http://localhost:8080/swagger-ui/index.html
 # Java 17+
 java -version
 
-# MySQL 8.0+
-mysql --version
-
-# Redis 7.0+
-redis-cli --version
+# Docker & Docker Compose
+docker --version
+docker-compose --version
 ```
 
 ### 1. 프로젝트 클론
@@ -240,21 +238,104 @@ git clone <repository-url>
 cd campung-backend
 ```
 
-### 2. 데이터베이스 설정
-```sql
--- MySQL 데이터베이스 생성
-CREATE DATABASE campung_db;
-CREATE USER 'campung_user'@'localhost' IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON campung_db.* TO 'campung_user'@'localhost';
+### 2. Docker Compose로 데이터베이스 설정
+
+프로젝트 루트에 `docker-compose.yml` 파일을 생성하세요:
+
+```yaml
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: campung
+    environment:
+      MYSQL_ROOT_PASSWORD: campung1234
+      MYSQL_DATABASE: campung
+      MYSQL_USER: campung
+      MYSQL_PASSWORD: campung1234
+    ports:
+      - "3312:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: campung-phpmyadmin
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: campung
+      PMA_PASSWORD: campung1234
+      MYSQL_ROOT_PASSWORD: campung1234
+    ports:
+      - "9013:80"
+    depends_on:
+      - mariadb
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6380:6379"
+    container_name: campung-redis
+    volumes:
+      - redis_data:/data
+    command: [ "redis-server", "--requirepass", "campung1234" ]
+
+volumes:
+  mariadb_data:
+  redis_data:
 ```
 
 ### 3. 환경 변수 설정
-```bash
-cp application.yml.example application.yml
-# 필요한 환경 변수 설정 (아래 참조)
+
+`src/main/resources/properties/env.properties` 파일을 생성하세요:
+
+```properties
+SERVER_PORT=8080
+DB_HOST=localhost
+DB_PORT=3312
+DB_NAME=campung
+DB_USERNAME=campung
+DB_PASSWORD=campung1234
+REDIS_HOST=localhost
+REDIS_PORT=6380
+REDIS_PASSWORD=campung1234
+
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_REGION=ap-northeast-2
+S3_BUCKET_NAME=campung-media-storage
+
+OPENAI_API_KEY=your-openai-api-key
 ```
 
-### 4. 빌드 및 실행
+### 4. Firebase 설정
+
+`src/main/resources/firebase-service-account.json` 파일을 생성하고, Firebase 콘솔에서 다운로드받은 서비스 계정 키를 넣으세요:
+
+```json
+{
+  "type": "service_account",
+  "project_id": "your-project-id",
+  "private_key_id": "your-private-key-id",
+  "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com",
+  "client_id": "your-client-id",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-xxxxx%40your-project.iam.gserviceaccount.com"
+}
+```
+
+### 5. 데이터베이스 및 Redis 시작
+```bash
+# Docker Compose로 MariaDB, Redis, phpMyAdmin 실행
+docker-compose up -d
+
+# 데이터베이스 연결 확인
+# phpMyAdmin: http://localhost:9013 (campung/campung1234)
+```
+
+### 6. 애플리케이션 빌드 및 실행
 ```bash
 # 의존성 설치 및 빌드
 ./gradlew build
@@ -263,14 +344,12 @@ cp application.yml.example application.yml
 ./gradlew bootRun
 ```
 
-### 5. Docker로 실행 (선택사항)
-```bash
-# Docker 이미지 빌드
-docker build -t campung-backend .
-
-# 컨테이너 실행
-docker run -p 8080:8080 campung-backend
-```
+### 7. 접속 정보
+- **API 서버**: http://localhost:8080
+- **Swagger 문서**: http://localhost:8080/swagger-ui/index.html
+- **phpMyAdmin**: http://localhost:9013 (campung/campung1234)
+- **MariaDB**: localhost:3312
+- **Redis**: localhost:6380 (password: campung1234)
 
 ## ⚙️ 환경 변수
 
@@ -279,44 +358,62 @@ docker run -p 8080:8080 campung-backend
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/campung_db
-    username: ${DB_USERNAME:campung_user}
-    password: ${DB_PASSWORD:password}
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3312}/${DB_NAME:campung}
+    username: ${DB_USERNAME:campung}
+    password: ${DB_PASSWORD:campung1234}
+    driver-class-name: org.mariadb.jdbc.Driver
   
   redis:
     host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
+    port: ${REDIS_PORT:6380}
+    password: ${REDIS_PASSWORD:campung1234}
   
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
+    database-platform: org.hibernate.dialect.MariaDBDialect
+
+server:
+  port: ${SERVER_PORT:8080}
 
 openai:
   api:
-    key: ${OPENAI_API_KEY:your-openai-api-key}
+    key: ${OPENAI_API_KEY}
     url: https://api.openai.com/v1/chat/completions
 
 aws:
   s3:
-    bucket: ${AWS_S3_BUCKET:campung-storage}
+    bucket: ${S3_BUCKET_NAME:campung-media-storage}
     region: ${AWS_REGION:ap-northeast-2}
-    access-key: ${AWS_ACCESS_KEY:your-access-key}
-    secret-key: ${AWS_SECRET_KEY:your-secret-key}
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}
 
 firebase:
-  config-path: ${FIREBASE_CONFIG_PATH:firebase-config.json}
+  config-path: firebase-service-account.json
 
 app:
   default-profile-image-url: ${DEFAULT_PROFILE_IMAGE_URL:https://example.com/default.jpg}
 ```
 
-### 필수 환경 변수
+### 필수 환경 변수 설정
+
+**env.properties 파일에서 설정해야 하는 값들:**
 
 - `OPENAI_API_KEY`: OpenAI GPT-5 API 키
-- `AWS_ACCESS_KEY`, `AWS_SECRET_KEY`: AWS S3 접근 키
-- `FIREBASE_CONFIG_PATH`: Firebase 서비스 계정 JSON 파일 경로
-- `DB_USERNAME`, `DB_PASSWORD`: 데이터베이스 접근 정보
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: AWS S3 접근 키
+- `S3_BUCKET_NAME`: S3 버킷 이름
+- 데이터베이스 연결 정보 (이미 docker-compose에서 설정됨)
+- Redis 연결 정보 (이미 docker-compose에서 설정됨)
+
+### 파일 구조
+```
+src/main/resources/
+├── application.yml
+├── properties/
+│   └── env.properties          # 환경 변수 설정
+└── firebase-service-account.json  # Firebase 서비스 계정 키
+```
 
 ## 📊 모니터링 및 로그
 
