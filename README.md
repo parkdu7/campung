@@ -114,61 +114,99 @@
 
 ## ⚙️ 기술 스택
 
+<!-- Campung 기술 스택 -->
 <table>
   <tr>
     <th>분류</th>
     <th>기술 스택</th>
   </tr>
+
+  <!-- 모바일(Android) -->
   <tr>
     <td><b>모바일(Android)</b></td>
     <td>
       <img src="https://img.shields.io/badge/Android%20Studio-3DDC84?style=flat&logo=androidstudio&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Kotlin-0095D5?style=flat&logo=kotlin&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Kotlin%202.0.21-0095D5?style=flat&logo=kotlin&logoColor=white"/>
       <img src="https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=flat&logo=jetpackcompose&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Dagger%20Hilt-5A29E4?style=flat&logo=dagger&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Room-4285F4?style=flat&logo=android&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Coroutines-1E90FF?style=flat&logo=kotlin&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Naver%20Map%20SDK-03C75A?style=flat&logo=naver&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Hilt%202.52-5A29E4?style=flat&logo=dagger&logoColor=white"/>
     </td>
   </tr>
+
+  <!-- 백엔드 -->
   <tr>
     <td><b>백엔드</b></td>
     <td>
-      <img src="https://img.shields.io/badge/Java%2017+-ED8B00?style=flat&logo=openjdk&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat&logo=springboot&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Spring%20Security-6DB33F?style=flat&logo=springsecurity&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Spring%20Data%20JPA-6DB33F?style=flat"/>
+      <img src="https://img.shields.io/badge/Java%2017-ED8B00?style=flat&logo=openjdk&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Spring%20Boot%203.5.4-6DB33F?style=flat&logo=springboot&logoColor=white"/>
+      <img src="https://img.shields.io/badge/WebFlux-6DB33F?style=flat"/>
+      <img src="https://img.shields.io/badge/Hibernate-59666C?style=flat&logo=hibernate&logoColor=white"/>
+    </td>
+  </tr>
+
+  <!-- 네트워크·API -->
+  <tr>
+    <td><b>네트워크·API</b></td>
+    <td>
+      <img src="https://img.shields.io/badge/OpenAI%20GPT--5-412991?style=flat&logo=openai&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Naver%20Maps-03C75A?style=flat&logo=naver&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Retrofit-3A3A3A?style=flat"/>
+      <img src="https://img.shields.io/badge/OkHttp%204.12-3A3A3A?style=flat"/>
       <img src="https://img.shields.io/badge/WebSocket-555?style=flat"/>
       <img src="https://img.shields.io/badge/OpenAPI%203-85EA2D?style=flat&logo=swagger&logoColor=black"/>
     </td>
   </tr>
-  <tr>
-    <td><b>네트워크·API</b></td>
-    <td>
-      <img src="https://img.shields.io/badge/Retrofit-3A3A3A?style=flat"/>
-      <img src="https://img.shields.io/badge/OkHttp-3A3A3A?style=flat"/>
-      <img src="https://img.shields.io/badge/FCM-FFCA28?style=flat&logo=firebase&logoColor=black"/>
-    </td>
-  </tr>
+
+  <!-- 데이터베이스 -->
   <tr>
     <td><b>데이터베이스</b></td>
     <td>
-      <img src="https://img.shields.io/badge/Redis-DC382D?style=flat&logo=redis&logoColor=white"/>
+      <img src="https://img.shields.io/badge/MariaDB-003545?style=flat&logo=mariadb&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Redis%207-DC382D?style=flat&logo=redis&logoColor=white"/>
+      <img src="https://img.shields.io/badge/AWS%20S3-569A31?style=flat&logo=amazons3&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Room%202.6-4285F4?style=flat&logo=android&logoColor=white"/>
     </td>
   </tr>
+
+  <!-- 미디어·UI -->
+  <tr>
+    <td><b>미디어·UI</b></td>
+    <td>
+      <img src="https://img.shields.io/badge/Coil%202.7-FF6B35?style=flat"/>
+      <img src="https://img.shields.io/badge/Glide%204.15-59C3C3?style=flat"/>
+      <img src="https://img.shields.io/badge/Lottie%206.6-00D4AA?style=flat&logo=airbnb&logoColor=white"/>
+      <img src="https://img.shields.io/badge/ExoPlayer-EA4335?style=flat&logo=google&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Material%20Design%203-1976D2?style=flat&logo=materialdesign&logoColor=white"/>
+    </td>
+  </tr>
+
+  <!-- 인프라·DevOps -->
   <tr>
     <td><b>인프라·DevOps</b></td>
     <td>
       <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Docker%20Compose-2496ED?style=flat&logo=docker&logoColor=white"/>
+      <img src="https://img.shields.io/badge/Nginx-009639?style=flat&logo=nginx&logoColor=white"/>
+      <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat&logo=githubactions&logoColor=white"/>
       <img src="https://img.shields.io/badge/Ubuntu-E95420?style=flat&logo=ubuntu&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Spring%20Actuator-6DB33F?style=flat"/>
+      <img src="https://img.shields.io/badge/phpMyAdmin-6C78AF?style=flat&logo=phpmyadmin&logoColor=white"/>
     </td>
   </tr>
+
+  <!-- 푸시알림·실시간 -->
+  <tr>
+    <td><b>푸시알림·실시간</b></td>
+    <td>
+      <img src="https://img.shields.io/badge/Firebase%20FCM-FFCA28?style=flat&logo=firebase&logoColor=black"/>
+      <img src="https://img.shields.io/badge/Firebase%20Admin%20SDK-FFCA28?style=flat&logo=firebase&logoColor=black"/>
+    </td>
+  </tr>
+
+  <!-- 협업도구 -->
   <tr>
     <td><b>협업도구</b></td>
     <td>
+      <img src="https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white"/>
       <img src="https://img.shields.io/badge/Notion-000000?style=flat&logo=notion&logoColor=white"/>
-      <img src="https://img.shields.io/badge/Mattermost-0058CC?style=flat&logo=mattermost&logoColor=white"/>
     </td>
   </tr>
 </table>
@@ -256,8 +294,7 @@ com.shinhan.campung
 - ERD: (링크 추가)
 - 시퀀스 다이어그램: (링크 추가)
 - 간트 차트: (링크 추가)
-
-> 외부 링크가 있다면 위 괄호에 실제 URL을 채워주세요.
+<!-- 외부 링크가 있다면 위 괄호에 실제 URL을 채워주세요. -->
 
 ---
 
