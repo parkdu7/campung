@@ -26,7 +26,7 @@
         <!-- 네이버 지도 Client ID (Secret은 넣지 말 것) -->
         <meta-data
             android:name="com.naver.maps.map.NCP_KEY_ID"
-            android:value="phjh6di3ly" /><!--${NAVER_MAP_CLIENT_ID}-->
+            android:value="{NAVER_MAP_API_KEY}" /><!--${NAVER_MAP_CLIENT_ID}-->
         <activity
             android:name=".MainActivity"
             android:exported="true"
